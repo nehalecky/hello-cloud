@@ -8,7 +8,7 @@ from .advanced_forecasting import (
 )
 from .pymc_cloud_model import CloudResourceHierarchicalModel
 from .application_taxonomy import (
-    CloudZeroTaxonomy,
+    CloudResourceTaxonomy,
     ApplicationArchetype,
     ApplicationDomain,
     ScalingBehavior,
@@ -21,7 +21,7 @@ __all__ = [
     "TimesFMForecaster",
     "EnsembleForecaster",
     "CloudResourceHierarchicalModel",
-    "CloudZeroTaxonomy",
+    "CloudResourceTaxonomy",
     "ApplicationArchetype",
     "ApplicationDomain",
     "ScalingBehavior",

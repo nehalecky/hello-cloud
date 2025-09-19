@@ -33,11 +33,19 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          uv run pytest tests/ -v --cov=src/cloud_sim --cov-report=term-missing --cov-report=html
+          uv run pytest tests/ -v --cov=src/cloud_sim --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=70
 
-      - name: Upload coverage reports
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         if: matrix.python-version == '3.11'
         with:
-          file: ./htmlcov/index.html
-          fail_ci_if_error: false
+          file: ./coverage.xml
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v3
+        if: matrix.python-version == '3.11'
+        with:
+          name: coverage-report
+          path: htmlcov/

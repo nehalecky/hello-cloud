@@ -1,5 +1,5 @@
 """
-CloudZero Application Taxonomy System
+Cloud Resource Application Taxonomy System
 A comprehensive, hierarchical classification of cloud workloads
 based on resource consumption patterns, business criticality, and optimization potential
 
@@ -114,12 +114,12 @@ class ApplicationArchetype(BaseModel):
     data_retention_days: int
 
     # Example companies/use cases
-    example_companies: List[str] = field(default_factory=list)
+    example_companies: List[str] = Field(default_factory=list)
     market_size_percentage: float = 0.0  # % of cloud market
 
-class CloudZeroTaxonomy:
+class CloudResourceTaxonomy:
     """
-    The complete CloudZero Application Taxonomy
+    The complete Cloud Resource Application Taxonomy
     Based on empirical research and real-world patterns
     """
 
@@ -665,7 +665,7 @@ def generate_synthetic_workload(
     Generate synthetic workload data for a specific archetype
     This is where PyMC model would generate the actual time series
     """
-    archetype = CloudZeroTaxonomy.get_archetype(archetype_name)
+    archetype = CloudResourceTaxonomy.get_archetype(archetype_name)
     if not archetype:
         raise ValueError(f"Unknown archetype: {archetype_name}")
 
@@ -721,20 +721,20 @@ def generate_synthetic_workload(
 
 def main():
     """Demonstrate the taxonomy system"""
-    print("=== CloudZero Application Taxonomy ===\n")
+    print("=== Cloud Resource Application Taxonomy ===\n")
 
     # Show market coverage
-    coverage = CloudZeroTaxonomy.calculate_market_coverage()
+    coverage = CloudResourceTaxonomy.calculate_market_coverage()
     print(f"Total market coverage: {coverage:.1f}%\n")
 
     # Show archetypes by optimization potential
-    high_potential = CloudZeroTaxonomy.get_by_optimization_potential(OptimizationPotential.HIGH)
+    high_potential = CloudResourceTaxonomy.get_by_optimization_potential(OptimizationPotential.HIGH)
     print(f"High optimization potential ({len(high_potential)} archetypes):")
     for arch in high_potential:
         print(f"  - {arch.name}: {arch.cost_profile.waste_percentage:.0f}% waste")
 
     # Export for ML training
-    ml_features = CloudZeroTaxonomy.export_for_ml_training()
+    ml_features = CloudResourceTaxonomy.export_for_ml_training()
     print(f"\nExported {len(ml_features)} archetypes for ML training")
 
     # Generate sample data

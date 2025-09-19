@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from loguru import logger
 
 # Import our taxonomy
-from .application_taxonomy import CloudZeroTaxonomy, ApplicationArchetype
+from .application_taxonomy import CloudResourceTaxonomy, ApplicationArchetype
 
 class CloudResourceHierarchicalModel:
     """
@@ -45,7 +45,7 @@ class CloudResourceHierarchicalModel:
         self.observed_data = observed_data
         self.model = None
         self.trace = None
-        self.archetypes = list(CloudZeroTaxonomy.ARCHETYPES.keys())
+        self.archetypes = list(CloudResourceTaxonomy.ARCHETYPES.keys())
         self.n_archetypes = len(self.archetypes)
 
     def build_model(self):
@@ -410,7 +410,7 @@ class CloudResourceHierarchicalModel:
             corr_matrix = self.trace.posterior['corr_matrix'].mean(dim=['chain', 'draw']).values
         else:
             # Use taxonomy defaults
-            taxonomy_arch = CloudZeroTaxonomy.get_archetype(archetype)
+            taxonomy_arch = CloudResourceTaxonomy.get_archetype(archetype)
             cpu_mean = taxonomy_arch.resource_pattern.cpu_p50 / 100
             mem_mean = taxonomy_arch.resource_pattern.memory_p50 / 100
             cpu_cv = taxonomy_arch.resource_pattern.cpu_cv
@@ -561,7 +561,7 @@ class CloudResourceHierarchicalModel:
 
 def demo_hierarchical_model():
     """Demonstrate the hierarchical Bayesian model"""
-    logger.info("Demonstrating CloudZero Hierarchical Bayesian Model")
+    logger.info("Demonstrating Cloud Resource Hierarchical Bayesian Model")
 
     # Generate some sample observed data (normally would be real data)
     sample_data = pl.DataFrame({
