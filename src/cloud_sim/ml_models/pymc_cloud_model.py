@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from loguru import logger
 
 # Import our taxonomy
-from application_taxonomy import CloudZeroTaxonomy, ApplicationArchetype
+from .application_taxonomy import CloudZeroTaxonomy, ApplicationArchetype
 
 class CloudResourceHierarchicalModel:
     """
