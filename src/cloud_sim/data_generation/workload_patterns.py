@@ -9,9 +9,9 @@ Based on research showing actual cloud utilization statistics:
 import polars as pl
 import numpy as np
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Literal
 from enum import Enum
-from dataclasses import dataclass
+from pydantic import BaseModel, Field, field_validator
 import random
 from loguru import logger
 
@@ -30,19 +30,32 @@ class WorkloadType(Enum):
     QUEUE = "message_queue"
     DEVELOPMENT = "development_environment"
 
-@dataclass
-class WorkloadCharacteristics:
+class WorkloadCharacteristics(BaseModel):
     """Characteristics based on real-world data"""
-    base_cpu_util: float  # Average CPU utilization
-    base_mem_util: float  # Average memory utilization
-    cpu_variance: float   # Variance in CPU usage
-    mem_variance: float   # Variance in memory usage
-    peak_multiplier: float  # Peak load multiplier
-    idle_probability: float  # Probability of being idle
-    waste_factor: float  # Resource waste percentage
-    scaling_pattern: str  # auto, manual, none
-    seasonal_pattern: bool  # Has seasonal patterns
-    burst_probability: float  # Probability of bursts
+    base_cpu_util: float = Field(..., ge=0, le=100, description="Average CPU utilization (%)")
+    base_mem_util: float = Field(..., ge=0, le=100, description="Average memory utilization (%)")
+    cpu_variance: float = Field(..., ge=0, description="Variance in CPU usage")
+    mem_variance: float = Field(..., ge=0, description="Variance in memory usage")
+    peak_multiplier: float = Field(..., gt=1, description="Peak load multiplier")
+    idle_probability: float = Field(..., ge=0, le=1, description="Probability of being idle")
+    waste_factor: float = Field(..., ge=0, le=1, description="Resource waste percentage")
+    scaling_pattern: Literal["auto", "manual", "none"] = Field(..., description="Scaling strategy")
+    seasonal_pattern: bool = Field(..., description="Has seasonal patterns")
+    burst_probability: float = Field(..., ge=0, le=1, description="Probability of bursts")
+
+    @field_validator('base_cpu_util', 'base_mem_util')
+    @classmethod
+    def validate_percentage(cls, v: float) -> float:
+        if not 0 <= v <= 100:
+            raise ValueError(f"Utilization must be between 0 and 100, got {v}")
+        return v
+
+    @field_validator('idle_probability', 'waste_factor', 'burst_probability')
+    @classmethod
+    def validate_probability(cls, v: float) -> float:
+        if not 0 <= v <= 1:
+            raise ValueError(f"Probability must be between 0 and 1, got {v}")
+        return v
 
 class WorkloadPatternGenerator:
     """Generate realistic cloud workload patterns based on research data"""

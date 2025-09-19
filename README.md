@@ -20,7 +20,7 @@ This research project explores cloud resource utilization patterns through hiera
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone and setup
-git clone https://github.com/yourusername/cloud-resource-simulator.git
+git clone https://github.com/nehalecky/cloud-resource-simulator.git
 cd cloud-resource-simulator
 
 # Install dependencies

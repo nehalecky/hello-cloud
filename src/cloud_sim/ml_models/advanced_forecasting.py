@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime, timedelta
 import torch
 from loguru import logger
-from dataclasses import dataclass
+from pydantic import BaseModel, Field, ConfigDict
 from abc import ABC, abstractmethod
 
 # HuggingFace imports
@@ -17,15 +17,16 @@ from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from chronos import ChronosPipeline
 from datasets import Dataset
 
-@dataclass
-class ForecastResult:
+class ForecastResult(BaseModel):
     """Container for forecast results"""
-    point_forecast: np.ndarray
-    lower_bound: Optional[np.ndarray] = None
-    upper_bound: Optional[np.ndarray] = None
-    quantiles: Optional[Dict[float, np.ndarray]] = None
-    model_name: str = ""
-    metrics: Optional[Dict[str, float]] = None
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    point_forecast: np.ndarray = Field(..., description="Point forecast values")
+    lower_bound: Optional[np.ndarray] = Field(None, description="Lower prediction bound")
+    upper_bound: Optional[np.ndarray] = Field(None, description="Upper prediction bound")
+    quantiles: Optional[Dict[float, np.ndarray]] = Field(None, description="Quantile forecasts")
+    model_name: str = Field("", description="Name of the forecasting model")
+    metrics: Optional[Dict[str, float]] = Field(None, description="Evaluation metrics")
 
 class BaseForecaster(ABC):
     """Base class for time series forecasting models"""

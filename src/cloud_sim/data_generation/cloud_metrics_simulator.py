@@ -9,20 +9,27 @@ import polars as pl
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
 import random
-from dataclasses import dataclass
+from pydantic import BaseModel, Field, field_validator
 from loguru import logger
 
-@dataclass
-class CloudResource:
+class CloudResource(BaseModel):
     """Represents a cloud resource with usage patterns"""
-    resource_id: str
-    resource_type: str
-    cloud_provider: str
-    region: str
-    tags: Dict[str, str]
-    base_cost_per_hour: float
-    cpu_cores: int
-    memory_gb: int
+    resource_id: str = Field(..., min_length=1, description="Unique resource identifier")
+    resource_type: str = Field(..., min_length=1, description="Type of cloud resource")
+    cloud_provider: str = Field(..., description="Cloud provider (AWS, Azure, GCP)")
+    region: str = Field(..., min_length=1, description="Region where resource is deployed")
+    tags: Dict[str, str] = Field(default_factory=dict, description="Resource tags")
+    base_cost_per_hour: float = Field(..., gt=0, description="Base hourly cost in USD")
+    cpu_cores: int = Field(..., gt=0, le=128, description="Number of CPU cores")
+    memory_gb: int = Field(..., gt=0, le=1024, description="Memory in gigabytes")
+
+    @field_validator('cloud_provider')
+    @classmethod
+    def validate_provider(cls, v: str) -> str:
+        valid_providers = ['AWS', 'Azure', 'GCP']
+        if v not in valid_providers:
+            raise ValueError(f"Cloud provider must be one of {valid_providers}, got {v}")
+        return v
 
 class CloudMetricsSimulator:
     """Simulates cloud infrastructure metrics for multiple providers"""

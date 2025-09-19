@@ -112,10 +112,10 @@ train-models = "cloud_sim.ml_models.cli:train"
 dashboard = "cloud_sim.dashboard.app:run"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/cloud-resource-simulator"
+Homepage = "https://github.com/nehalecky/cloud-resource-simulator"
 Documentation = "https://cloud-resource-simulator.readthedocs.io"
-Repository = "https://github.com/yourusername/cloud-resource-simulator"
-Issues = "https://github.com/yourusername/cloud-resource-simulator/issues"
+Repository = "https://github.com/nehalecky/cloud-resource-simulator"
+Issues = "https://github.com/nehalecky/cloud-resource-simulator/issues"
 
 [build-system]
 requires = ["hatchling"]

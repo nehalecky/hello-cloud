@@ -7,8 +7,8 @@ This could become the industry standard for workload classification
 """
 
 from enum import Enum
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import Dict, List, Optional, Tuple, Literal
 import numpy as np
 import pymc as pm
 import polars as pl
@@ -37,47 +37,55 @@ class OptimizationPotential(Enum):
     LOW = "low"             # <20% potential savings
     OPTIMIZED = "optimized" # Already optimized
 
-@dataclass
-class ResourcePattern:
+class ResourcePattern(BaseModel):
     """Empirically-derived resource consumption pattern"""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     # Base utilization (from research: 13% CPU, 20% memory average)
-    cpu_p50: float          # Median CPU utilization
-    cpu_p95: float          # 95th percentile CPU
-    memory_p50: float       # Median memory utilization
-    memory_p95: float       # 95th percentile memory
+    cpu_p50: float = Field(..., ge=0, le=100, description="Median CPU utilization (%)")
+    cpu_p95: float = Field(..., ge=0, le=100, description="95th percentile CPU (%)")
+    memory_p50: float = Field(..., ge=0, le=100, description="Median memory utilization (%)")
+    memory_p95: float = Field(..., ge=0, le=100, description="95th percentile memory (%)")
 
     # Variability metrics
-    cpu_cv: float           # Coefficient of variation for CPU
-    memory_cv: float        # Coefficient of variation for memory
+    cpu_cv: float = Field(..., ge=0, description="Coefficient of variation for CPU")
+    memory_cv: float = Field(..., ge=0, description="Coefficient of variation for memory")
 
     # Correlation matrix (5x5: CPU, Memory, Network In/Out, Disk)
-    correlation_matrix: np.ndarray
+    correlation_matrix: np.ndarray = Field(..., description="5x5 correlation matrix")
 
     # Temporal patterns
-    daily_pattern_type: str     # 'business_hours', 'constant', 'batch', 'irregular'
-    weekly_pattern_type: str    # 'weekday_heavy', 'constant', 'weekend_heavy'
-    seasonality_strength: float # 0-1, strength of seasonal patterns
+    daily_pattern_type: Literal['business_hours', 'constant', 'batch', 'irregular'] = Field(...)
+    weekly_pattern_type: Literal['weekday_heavy', 'constant', 'weekend_heavy'] = Field(...)
+    seasonality_strength: float = Field(..., ge=0, le=1, description="Strength of seasonal patterns")
 
     # Burst characteristics
-    burst_frequency: float       # Bursts per day
-    burst_amplitude: float       # Multiplier during bursts
-    burst_duration_minutes: int  # Typical burst duration
+    burst_frequency: float = Field(..., ge=0, description="Bursts per day")
+    burst_amplitude: float = Field(..., gt=1, description="Multiplier during bursts")
+    burst_duration_minutes: int = Field(..., gt=0, description="Typical burst duration")
 
-@dataclass
-class CostProfile:
+    @field_validator('correlation_matrix')
+    @classmethod
+    def validate_correlation_matrix(cls, v: np.ndarray) -> np.ndarray:
+        if v.shape != (5, 5):
+            raise ValueError(f"Correlation matrix must be 5x5, got {v.shape}")
+        return v
+
+class CostProfile(BaseModel):
     """Financial characteristics"""
-    avg_hourly_cost: float           # Average hourly cost
-    cost_variability: float          # CV of cost
-    waste_percentage: float          # From research: 30-32% average
-    optimization_difficulty: float   # 0-1, how hard to optimize
-    business_criticality: float     # 0-1, impacts over-provisioning
+    avg_hourly_cost: float = Field(..., gt=0, description="Average hourly cost in USD")
+    cost_variability: float = Field(..., ge=0, description="CV of cost")
+    waste_percentage: float = Field(..., ge=0, le=100, description="Waste % (research: 30-32% avg)")
+    optimization_difficulty: float = Field(..., ge=0, le=1, description="How hard to optimize (0-1)")
+    business_criticality: float = Field(..., ge=0, le=1, description="Impacts over-provisioning (0-1)")
 
-@dataclass
-class ApplicationArchetype:
+class ApplicationArchetype(BaseModel):
     """Complete application profile"""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     # Identity
-    name: str
-    domain: ApplicationDomain
+    name: str = Field(..., min_length=1, description="Archetype name")
+    domain: ApplicationDomain = Field(..., description="Business domain")
     description: str
 
     # Resource behavior
