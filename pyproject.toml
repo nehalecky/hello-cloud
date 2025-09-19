@@ -1,0 +1,191 @@
+[project]
+name = "cloudzero-ai-simulation"
+version = "0.1.0"
+description = "Advanced synthetic data generation and ML models for cloud cost optimization research"
+authors = [{name = "Nicholaus Halecky", email = "your.email@example.com"}]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+keywords = ["cloud", "finops", "cost-optimization", "machine-learning", "time-series", "bayesian"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.dependencies]
+# Core dependencies - Polars only, no pandas
+polars = ">=0.20.0"
+numpy = ">=1.24.0"
+
+# HuggingFace ecosystem
+datasets = ">=2.14.0"
+transformers = ">=4.35.0"
+huggingface-hub = ">=0.19.0"
+safetensors = ">=0.4.0"
+
+# Probabilistic modeling
+pymc = ">=5.10.0"
+arviz = ">=0.17.0"
+pytensor = ">=2.18.0"
+
+# Time Series
+chronos-forecasting = ">=1.2.0"
+gluonts = ">=0.14.0"
+prophet = ">=1.1.0"
+
+# Machine Learning
+scikit-learn = ">=1.3.0"
+xgboost = ">=2.0.0"
+torch = ">=2.0.0"
+
+# Visualization
+matplotlib = ">=3.7.0"
+plotly = ">=5.14.0"
+seaborn = ">=0.12.0"
+streamlit = ">=1.28.0"
+
+# Data processing
+pyarrow = ">=14.0.0"
+fastparquet = ">=2023.10.0"
+
+# API development
+fastapi = ">=0.100.0"
+uvicorn = {extras = ["standard"], version = ">=0.23.0"}
+pydantic = ">=2.0.0"
+
+# Utilities
+faker = ">=20.0.0"
+loguru = ">=0.7.0"
+click = ">=8.1.0"
+httpx = ">=0.25.0"
+python-dotenv = ">=1.0.0"
+tqdm = ">=4.65.0"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.12.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+    "pre-commit>=3.5.0",
+    "ipykernel>=6.25.0",
+    "jupytext>=1.16.0",  # Added for notebook versioning
+    "myst-parser>=2.0.0",  # Added for MyST markdown support
+    "myst-nb>=1.0.0",      # Added for MyST notebook execution
+]
+
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.4.0",
+    "mkdocstrings[python]>=0.24.0",
+    "mkdocs-jupyter>=0.24.0",
+    "myst-parser>=2.0.0",  # MyST for documentation too
+]
+
+research = [
+    "jupyterlab>=4.0.0",
+    "ipywidgets>=8.1.0",
+    "nbconvert>=7.11.0",
+    "jupytext>=1.16.0",  # Essential for research workflows
+]
+
+# Foundation models (install separately due to size/complexity)
+# timesfm = {git = "https://github.com/google-research/timesfm.git"}
+# tirex = {git = "https://github.com/NX-AI/tirex.git"}
+
+[project.scripts]
+cloudzero-sim = "cloudzero_sim.cli:main"
+generate-data = "cloudzero_sim.data_generation.cli:generate"
+train-models = "cloudzero_sim.ml_models.cli:train"
+dashboard = "cloudzero_sim.dashboard.app:run"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/cloudzero-ai-simulation"
+Documentation = "https://cloudzero-ai-simulation.readthedocs.io"
+Repository = "https://github.com/yourusername/cloudzero-ai-simulation"
+Issues = "https://github.com/yourusername/cloudzero-ai-simulation/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cloudzero_sim"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "jupytext>=1.16.0",
+]
+
+[tool.jupytext]
+formats = "notebooks//ipynb,notebooks//md:myst"
+notebook_metadata_filter = "-all"
+cell_metadata_filter = "-all"
+markdown_extensions = "md:myst"
+
+[tool.jupytext.formats]
+"notebooks/" = "ipynb"
+"notebooks/myst/" = "md:myst"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C90", # mccabe complexity
+    "UP",  # pyupgrade
+]
+ignore = ["E501", "B008", "B905"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["S101"]
+"notebooks/*" = ["E402", "F811"]  # Allow import reordering in notebooks
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = [
+    "--verbose",
+    "--cov=src/cloudzero_sim",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.coverage.run]
+source = ["src/cloudzero_sim"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false

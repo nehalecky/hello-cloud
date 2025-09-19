@@ -1,0 +1,30 @@
+"""
+CloudZero AI Simulation Platform
+
+Advanced synthetic data generation and ML models for cloud cost optimization.
+Demonstrates cutting-edge approaches to FinOps challenges.
+"""
+
+__version__ = "0.1.0"
+__author__ = "Nicholaus Halecky"
+
+from .data_generation import (
+    CloudMetricsSimulator,
+    WorkloadPatternGenerator,
+    CloudMetricsDatasetBuilder,
+)
+
+from .ml_models import (
+    CloudCostForecaster,
+    CloudResourceHierarchicalModel,
+    CloudZeroTaxonomy,
+)
+
+__all__ = [
+    "CloudMetricsSimulator",
+    "WorkloadPatternGenerator",
+    "CloudMetricsDatasetBuilder",
+    "CloudCostForecaster",
+    "CloudResourceHierarchicalModel",
+    "CloudZeroTaxonomy",
+]
