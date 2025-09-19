@@ -71,11 +71,32 @@ Key findings informing our models:
 - Development environments: 70% waste
 - Strong temporal autocorrelation: 0.7-0.8
 
+## Running Notebooks
+
+```bash
+# Install all dependencies including Altair visualizations
+uv sync --all-extras
+
+# Convert MyST markdown to Jupyter notebook
+jupytext --to notebook notebooks/myst/02_workload_signatures_guide.md
+
+# Execute notebook directly
+jupytext --execute notebooks/myst/02_workload_signatures_guide.md
+
+# Start Jupyter Lab for interactive exploration
+uv run jupyter lab
+
+# Convert all MyST notebooks to .ipynb
+jupytext --to notebook notebooks/myst/*.md
+```
+
 ## Documentation
 
 - **[Technical Documentation](docs/index.md)** - Comprehensive architecture and API reference
 - **[Research Papers](docs/research/)** - Empirical foundations and methodology
 - **[Example Notebooks](notebooks/myst/)** - Analysis and visualization examples
+  - `01_data_exploration.md` - Basic data generation and validation
+  - `02_workload_signatures_guide.md` - Understanding why workloads have distinct patterns
 
 ## The Workload Genome Initiative
 
