@@ -33,7 +33,7 @@ sns.set_palette("husl")
 Based on research showing 13% CPU and 20% memory utilization averages.
 
 ```{code-cell} ipython3
-from cloudzero_sim.data_generation import WorkloadPatternGenerator, WorkloadType
+from cloud_sim.data_generation import WorkloadPatternGenerator, WorkloadType
 
 # Initialize generator
 generator = WorkloadPatternGenerator(seed=42)

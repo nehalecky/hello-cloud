@@ -1,23 +1,26 @@
-# CloudZero AI Simulation Platform
+# Cloud Resource Utilization Research Platform - Technical Documentation
 
 ## Overview
 
-This project explores the cloud cost optimization problem space through advanced synthetic data generation and machine learning approaches. Based on empirical research revealing shocking inefficiencies in cloud resource utilization.
+This technical documentation provides detailed information about the Cloud Resource Utilization Research Platform, a Bayesian modeling framework for understanding and simulating cloud workload patterns. This platform combines hierarchical probabilistic models, synthetic data generation, and time series forecasting to explore optimization opportunities in cloud infrastructure.
 
-## Core Problem
+## Technical Foundation
 
-The cloud computing industry faces a massive inefficiency crisis:
-- **$226 billion** wasted annually (30-32% of total spend)
-- **13% average CPU utilization** across infrastructure
-- **20% average memory utilization**
-- **70% waste in development environments**
+This research platform addresses documented inefficiencies in cloud resource utilization through rigorous statistical modeling:
 
-This project builds tools to understand, model, and address these challenges.
+### Empirical Observations from Literature
+- CPU utilization: 12-15% average across cloud infrastructure
+- Memory utilization: 18-25% average
+- Resource waste: 25-35% of total cloud spend
+- Development environment efficiency: 25-35%
+- Batch processing efficiency: 35-45%
+
+These observations inform our probabilistic models and synthetic data generation parameters.
 
 ## Key Innovations
 
-### 1. Realistic Cloud Resource Simulation
-- Based on empirical research from major cloud providers
+### 1. Probabilistic Resource Simulation
+- Grounded in published research and industry reports
 - 20+ application archetypes with distinct resource patterns
 - Multivariate correlation modeling using PyMC
 - Temporal patterns (daily, weekly, seasonal)
@@ -28,11 +31,12 @@ This project builds tools to understand, model, and address these challenges.
 - Ensemble approaches for robust forecasting
 - Uncertainty quantification in all predictions
 
-### 3. Hierarchical Bayesian Modeling
-- Industry → Archetype → Resource hierarchy
-- Learns from real data and generates synthetic patterns
-- Quantifies uncertainty in all parameters
-- Bayesian updating as more data becomes available
+### 3. Hierarchical Bayesian Framework with PyMC
+- Three-level hierarchy: Industry → Application Archetype → Resource
+- Prior distributions informed by empirical research
+- Posterior sampling for uncertainty quantification
+- Bayesian updating mechanisms for continuous learning
+- Multivariate correlation structures between resource metrics
 
 ## Quick Start
 
@@ -43,8 +47,8 @@ This project builds tools to understand, model, and address these challenges.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone and setup
-git clone https://github.com/yourusername/cloudzero-ai-simulation.git
-cd cloudzero-ai-simulation
+git clone https://github.com/yourusername/cloud-resource-simulator.git
+cd cloud-resource-simulator
 
 # Create environment and install
 uv venv
@@ -55,7 +59,7 @@ uv sync --all-extras  # Installs everything from pyproject.toml
 ### Basic Usage
 
 ```python
-from cloudzero_sim.data_generation import WorkloadPatternGenerator, WorkloadType
+from cloud_sim.data_generation import WorkloadPatternGenerator, WorkloadType
 from datetime import datetime, timedelta
 
 # Generate realistic workload patterns
@@ -68,15 +72,15 @@ df = generator.generate_time_series(
 )
 
 # Validate against research
-print(f"Average CPU: {df['cpu_utilization'].mean():.1f}%")  # ~15%
-print(f"Average Memory: {df['memory_utilization'].mean():.1f}%")  # ~35%
-print(f"Waste: {df['waste_percentage'].mean():.1f}%")  # ~35%
+print(f"Mean CPU Utilization: {df['cpu_utilization'].mean():.1f}%")  # ~15%
+print(f"Mean Memory Utilization: {df['memory_utilization'].mean():.1f}%")  # ~35%
+print(f"Resource Waste: {df['waste_percentage'].mean():.1f}%")  # ~35%
 ```
 
 ### Advanced Forecasting
 
 ```python
-from cloudzero_sim.ml_models import CloudCostForecaster
+from cloud_sim.ml_models import CloudCostForecaster
 
 # Initialize forecaster with ensemble
 forecaster = CloudCostForecaster(ensemble=True)
@@ -113,9 +117,9 @@ Key findings that inform our models:
 - **Batch processing**: 60% waste
 - **ML/GPU workloads**: 45% waste from idle periods
 
-## The "Workload Genome" Vision
+## The Workload Genome Initiative
 
-Like the Human Genome Project mapped human DNA, this project aims to map the "DNA" of cloud workloads:
+This research contributes to establishing a comprehensive taxonomy of cloud workload patterns, analogous to genomic mapping in biological sciences:
 
 1. **Comprehensive taxonomy** of application patterns
 2. **Standardized dataset** for benchmarking

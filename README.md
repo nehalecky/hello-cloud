@@ -1,33 +1,34 @@
-# CloudZero AI Simulation Project
+# Cloud Resource Utilization Simulator
 
-## Exploring the Cloud Cost Optimization Problem Space
+## An Exploratory Framework for Bayesian Modeling of Cloud Workload Patterns
 
-This project investigates the shocking reality of cloud resource inefficiency through advanced synthetic data generation and machine learning approaches. Based on empirical research showing only 13% average CPU utilization and 30-32% waste across cloud infrastructure, we're building tools to better understand and address these challenges.
+This research project explores cloud resource utilization patterns through probabilistic modeling and synthetic data generation. Using hierarchical Bayesian approaches with PyMC, we investigate the documented inefficiencies in cloud infrastructure utilization and develop frameworks for understanding optimization opportunities.
 
-## Key Research Questions
+## Research Objectives
 
-- How can we accurately model real-world cloud resource usage patterns?
-- What are the correlation structures between different resource metrics?
-- How do different application architectures contribute to waste?
-- Can foundation models improve cost prediction accuracy?
-- What optimization strategies have the highest impact?
+This exploratory project investigates:
+- Probabilistic modeling of cloud resource utilization patterns
+- Correlation structures between compute, memory, and I/O metrics
+- Hierarchical Bayesian approaches to workload characterization
+- Time series forecasting using foundation models
+- Synthetic data generation for optimization algorithm development
 
-## Project Components
+## Technical Approach
 
-### 1. Realistic Cloud Resource Simulation
-- **Evidence-based patterns**: 13% CPU, 20% memory utilization (industry averages)
-- **20+ application archetypes**: Each with distinct resource signatures
-- **Multivariate modeling**: Proper correlation structures using PyMC
+### Probabilistic Modeling with PyMC
+- Hierarchical Bayesian models capturing industry, application, and resource-level patterns
+- Multivariate distributions with empirically-informed correlation structures
+- Uncertainty quantification throughout the modeling pipeline
 
-### 2. Advanced Time Series Forecasting
-- **Foundation models**: Amazon Chronos, TimesFM integration
-- **Ensemble approaches**: Combining multiple models for robustness
-- **Zero-shot capabilities**: Forecasting without retraining
+### Synthetic Data Generation
+- Research-based workload patterns (informed by published utilization studies)
+- Multiple application archetypes with distinct resource signatures
+- Temporal patterns including daily, weekly, and seasonal variations
 
-### 3. Hierarchical Bayesian Framework
-- **Three-level hierarchy**: Industry → Application → Resource
-- **Uncertainty quantification**: Know confidence in predictions
-- **Learning from data**: Bayesian updating as more data becomes available
+### Time Series Analysis
+- Integration with foundation models (Amazon Chronos, Google TimesFM)
+- Ensemble forecasting approaches
+- Zero-shot prediction capabilities
 
 ## Quick Start
 
@@ -38,8 +39,8 @@ This project investigates the shocking reality of cloud resource inefficiency th
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone repository
-git clone https://github.com/yourusername/cloudzero-ai-simulation.git
-cd cloudzero-ai-simulation
+git clone https://github.com/yourusername/cloud-resource-simulator.git
+cd cloud-resource-simulator
 
 # Create virtual environment and sync dependencies
 uv venv
@@ -47,12 +48,13 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 uv sync --all-extras  # Install all dependencies from pyproject.toml
 ```
 
-### Generate Synthetic Data
+### Basic Usage
 
 ```python
-from cloudzero_sim.data_generation import WorkloadPatternGenerator, WorkloadType
+from cloud_sim.data_generation import WorkloadPatternGenerator, WorkloadType
+from datetime import datetime, timedelta
 
-# Generate realistic cloud metrics
+# Generate synthetic workload data
 generator = WorkloadPatternGenerator()
 data = generator.generate_time_series(
     workload_type=WorkloadType.WEB_APP,
@@ -60,79 +62,68 @@ data = generator.generate_time_series(
     end_time=datetime.now()
 )
 
-print(f"Average CPU: {data['cpu_utilization'].mean():.1f}%")  # ~15%
-print(f"Waste: {data['waste_percentage'].mean():.1f}%")  # ~35%
+# Analyze utilization patterns
+print(f"Mean CPU Utilization: {data['cpu_utilization'].mean():.1f}%")
+print(f"Mean Memory Utilization: {data['memory_utilization'].mean():.1f}%")
 ```
 
-## Research Findings
+## Empirical Basis
 
-Our simulation accurately replicates documented inefficiencies:
+The simulation parameters are informed by published research on cloud utilization:
 
-| Metric | Research | Our Model |
-|--------|----------|-----------|
-| CPU Utilization | 13% | 13-15% |
-| Memory Utilization | 20% | 18-22% |
-| Overall Waste | 30-32% | 31-35% |
-| Dev Environment Waste | 70% | 68-72% |
-| Batch Processing Waste | 60% | 58-62% |
+| Metric | Literature Values | Model Range |
+|--------|------------------|-------------|
+| CPU Utilization | 12-15% | 13-15% |
+| Memory Utilization | 18-25% | 18-22% |
+| Resource Waste | 25-35% | 28-35% |
+| Development Environment Efficiency | 25-35% | 28-32% |
+| Batch Workload Efficiency | 35-45% | 38-42% |
 
-## The CloudZero "Workload Genome" Initiative
+## The Workload Genome Initiative
 
-This project proposes a comprehensive taxonomy of cloud workloads - similar to how the Human Genome Project mapped DNA. By creating an industry-standard dataset and classification system, we can:
+This project contributes to developing a comprehensive taxonomy of cloud workload patterns. By establishing standardized workload characterizations and synthetic datasets, we aim to:
 
-1. **Benchmark** different optimization approaches
-2. **Train** more accurate ML models
-3. **Share** knowledge across organizations
-4. **Accelerate** FinOps innovation
+1. Enable reproducible benchmarking of optimization algorithms
+2. Provide training data for machine learning models
+3. Facilitate research collaboration through shared datasets
+4. Advance the field of cloud resource optimization
 
 ## Project Structure
 
 ```
-cloudzero-ai-simulation/
-├── pyproject.toml              # Modern Python packaging
-├── src/cloudzero_sim/          # Core simulation library
-├── tests/                      # Comprehensive test suite
-├── docs/                       # Documentation and research
-├── notebooks/myst/             # Version-controlled notebooks
-└── data/                       # Generated datasets
+cloud-resource-simulator/
+├── pyproject.toml              # Package configuration and dependencies
+├── src/cloud_sim/              # Core simulation modules
+├── tests/                      # Test suite
+├── docs/                       # Extended documentation and research
+├── notebooks/myst/             # Reproducible analysis notebooks
+└── data/                       # Synthetic datasets
 ```
 
-## Technologies Used
+## Key Dependencies
 
-- **Polars**: High-performance dataframes (no pandas)
-- **PyMC**: Hierarchical Bayesian modeling
-- **HuggingFace**: Dataset management and model hub
-- **Chronos**: Amazon's time series foundation model
+- **Polars**: DataFrame operations and data processing
+- **PyMC**: Probabilistic programming and Bayesian inference
+- **HuggingFace Ecosystem**: Datasets and model integration
+- **Chronos/TimesFM**: Foundation models for time series
 - **Jupytext**: Notebook version control with MyST markdown
-- **uv**: Modern Python package management
+- **uv**: Python package management
+
+## Documentation
+
+- [Architecture Overview](docs/architecture.md)
+- [Data Generation Methods](docs/data_generation.md)
+- [ML Models and Forecasting](docs/ml_models.md)
+- [Research References](docs/research/)
 
 ## Contributing
 
-This is an open research project. Contributions welcome in:
-- Additional workload patterns
-- Correlation matrices from real data
-- Optimization algorithms
-- Visualization improvements
-
-## Future Directions
-
-1. **Open Dataset Release**: "CloudZero-Syn-1M" for community use
-2. **Benchmark Suite**: Standardized evaluation metrics
-3. **AutoML Pipeline**: Self-tuning optimization models
-4. **Real-time Optimization**: From detection to remediation
-
-## References
-
-- [Cloud Resource Patterns Research](docs/cloud-resource-patterns-research.md)
-- [Correlation Analysis](docs/cloud-resource-correlations-report.md)
-- [FinOps Foundation State of Cloud Report](https://www.finops.org)
+This exploratory research project welcomes contributions in:
+- Empirical correlation data from production systems
+- Additional workload characterization patterns
+- Bayesian model refinements
+- Forecasting algorithm improvements
 
 ## License
 
-MIT - Free for research and commercial use
-
-## Contact
-
-For questions or collaboration:
-- GitHub Issues: [Project Issues](https://github.com/yourusername/cloudzero-ai-simulation/issues)
-- Email: your.email@example.com
+MIT License - Open for research and commercial use
