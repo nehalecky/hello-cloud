@@ -1,51 +1,32 @@
 # Cloud Resource Utilization Simulator
 
-## An Exploratory Framework for Bayesian Modeling of Cloud Workload Patterns
+A Bayesian modeling framework for cloud workload patterns and synthetic data generation using PyMC.
 
-This research project explores cloud resource utilization patterns through probabilistic modeling and synthetic data generation. Using hierarchical Bayesian approaches with PyMC, we investigate the documented inefficiencies in cloud infrastructure utilization and develop frameworks for understanding optimization opportunities.
+## Overview
 
-## Research Objectives
-
-This exploratory project investigates:
-- Probabilistic modeling of cloud resource utilization patterns
-- Correlation structures between compute, memory, and I/O metrics
-- Hierarchical Bayesian approaches to workload characterization
-- Time series forecasting using foundation models
-- Synthetic data generation for optimization algorithm development
-
-## Technical Approach
-
-### Probabilistic Modeling with PyMC
-- Hierarchical Bayesian models capturing industry, application, and resource-level patterns
-- Multivariate distributions with empirically-informed correlation structures
-- Uncertainty quantification throughout the modeling pipeline
-
-### Synthetic Data Generation
-- Research-based workload patterns (informed by published utilization studies)
-- Multiple application archetypes with distinct resource signatures
-- Temporal patterns including daily, weekly, and seasonal variations
-
-### Time Series Analysis
-- Integration with foundation models (Amazon Chronos, Google TimesFM)
-- Ensemble forecasting approaches
-- Zero-shot prediction capabilities
+This research project explores cloud resource utilization patterns through hierarchical Bayesian models, generating realistic synthetic data for optimization algorithm development. The framework is based on [empirical research](docs/research/) showing 12-15% average CPU utilization and 25-35% resource waste across cloud infrastructure.
 
 ## Quick Start
 
-### Installation with uv
+### Prerequisites
+
+- Python 3.11+
+- [uv](https://github.com/astral-sh/uv) package manager
+
+### Installation
 
 ```bash
-# Install uv if not already installed
+# Install uv if needed
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Clone repository
+# Clone and setup
 git clone https://github.com/yourusername/cloud-resource-simulator.git
 cd cloud-resource-simulator
 
-# Create virtual environment and sync dependencies
+# Install dependencies
 uv venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv sync --all-extras  # Install all dependencies from pyproject.toml
+uv sync --all-extras
 ```
 
 ### Basic Usage
@@ -58,72 +39,58 @@ from datetime import datetime, timedelta
 generator = WorkloadPatternGenerator()
 data = generator.generate_time_series(
     workload_type=WorkloadType.WEB_APP,
-    start_time=datetime.now() - timedelta(days=30),
+    start_time=datetime.now() - timedelta(days=7),
     end_time=datetime.now()
 )
 
-# Analyze utilization patterns
-print(f"Mean CPU Utilization: {data['cpu_utilization'].mean():.1f}%")
-print(f"Mean Memory Utilization: {data['memory_utilization'].mean():.1f}%")
+# Analyze patterns
+print(f"CPU Utilization: {data['cpu_utilization'].mean():.1f}%")
+print(f"Memory Utilization: {data['memory_utilization'].mean():.1f}%")
 ```
 
-## Empirical Basis
+## Key Features
 
-The simulation parameters are informed by published research on cloud utilization:
+- **Hierarchical Bayesian Models** - Industry → Application → Resource modeling with PyMC
+- **20+ Workload Archetypes** - Web apps, batch processing, ML training, databases, etc.
+- **Foundation Model Integration** - Amazon Chronos, Google TimesFM for forecasting
+- **Realistic Correlations** - Multivariate resource metric relationships
+- **Temporal Patterns** - Daily, weekly, and seasonal variations
 
-| Metric | Literature Values | Model Range |
-|--------|------------------|-------------|
-| CPU Utilization | 12-15% | 13-15% |
-| Memory Utilization | 18-25% | 18-22% |
-| Resource Waste | 25-35% | 28-35% |
-| Development Environment Efficiency | 25-35% | 28-32% |
-| Batch Workload Efficiency | 35-45% | 38-42% |
+## Research Foundation
 
-## The Workload Genome Initiative
+The simulation parameters are grounded in comprehensive empirical research:
 
-This project contributes to developing a comprehensive taxonomy of cloud workload patterns. By establishing standardized workload characterizations and synthetic datasets, we aim to:
+- **[Cloud Resource Patterns Research](docs/research/cloud-resource-patterns-research.md)** - Analysis of utilization statistics across industries
+- **[Resource Correlation Analysis](docs/research/cloud-resource-correlations-report.md)** - Multivariate correlation structures
+- **[Research Overview](docs/research/)** - Summary of key findings and references
 
-1. Enable reproducible benchmarking of optimization algorithms
-2. Provide training data for machine learning models
-3. Facilitate research collaboration through shared datasets
-4. Advance the field of cloud resource optimization
-
-## Project Structure
-
-```
-cloud-resource-simulator/
-├── pyproject.toml              # Package configuration and dependencies
-├── src/cloud_sim/              # Core simulation modules
-├── tests/                      # Test suite
-├── docs/                       # Extended documentation and research
-├── notebooks/myst/             # Reproducible analysis notebooks
-└── data/                       # Synthetic datasets
-```
-
-## Key Dependencies
-
-- **Polars**: DataFrame operations and data processing
-- **PyMC**: Probabilistic programming and Bayesian inference
-- **HuggingFace Ecosystem**: Datasets and model integration
-- **Chronos/TimesFM**: Foundation models for time series
-- **Jupytext**: Notebook version control with MyST markdown
-- **uv**: Python package management
+Key findings informing our models:
+- CPU utilization: 12-15% average
+- Memory utilization: 18-25% average
+- Resource waste: 25-35% of cloud spend
+- Development environments: 70% waste
+- Strong temporal autocorrelation: 0.7-0.8
 
 ## Documentation
 
-- [Architecture Overview](docs/architecture.md)
-- [Data Generation Methods](docs/data_generation.md)
-- [ML Models and Forecasting](docs/ml_models.md)
-- [Research References](docs/research/)
+- **[Technical Documentation](docs/index.md)** - Comprehensive architecture and API reference
+- **[Research Papers](docs/research/)** - Empirical foundations and methodology
+- **[Example Notebooks](notebooks/myst/)** - Analysis and visualization examples
 
-## Contributing
+## The Workload Genome Initiative
 
-This exploratory research project welcomes contributions in:
-- Empirical correlation data from production systems
-- Additional workload characterization patterns
-- Bayesian model refinements
-- Forecasting algorithm improvements
+Contributing to a standardized taxonomy of cloud workload patterns for reproducible benchmarking and collaborative research.
 
 ## License
 
-MIT License - Open for research and commercial use
+[MIT License](LICENSE) - Open for research and commercial use
+
+## Contributing
+
+Contributions welcome in:
+- Empirical correlation data
+- Additional workload patterns
+- Bayesian model refinements
+- Optimization algorithms
+
+See [technical documentation](docs/index.md) for development guidelines.

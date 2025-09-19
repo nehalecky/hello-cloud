@@ -4,13 +4,13 @@ This directory contains the empirical research that forms the foundation of our 
 
 ## Key Research Documents
 
-### 1. [Cloud Resource Patterns Research](../cloud-resource-patterns-research.md)
+### 1. [Cloud Resource Patterns Research](cloud-resource-patterns-research.md)
 - Comprehensive analysis of real-world cloud utilization statistics
-- Shocking findings: 13% CPU utilization, 30-32% waste
+- Key findings: 13% CPU utilization, 30-32% waste
 - Workload-specific patterns and inefficiencies
 - Industry benchmarks and best practices
 
-### 2. [Cloud Resource Correlations Report](../cloud-resource-correlations-report.md)
+### 2. [Cloud Resource Correlations Report](cloud-resource-correlations-report.md)
 - Empirical correlation matrices between resource metrics
 - Time-lagged correlations and dependencies
 - Application-specific correlation patterns
