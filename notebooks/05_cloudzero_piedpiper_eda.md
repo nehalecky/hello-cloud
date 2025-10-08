@@ -162,13 +162,6 @@ with pl.Config(tbl_rows=-1, tbl_width_chars=250, fmt_float='mixed'):
 ```
 
 ```{code-cell} ipython3
-# Visualize numeric distributions with boxplots
-print("Generating boxplots for numeric columns (50K sample)...")
-fig = plot_numeric_distributions(df, sample_size=50_000, figsize=(15, 12), cols_per_row=3)
-plt.show()
-```
-
-```{code-cell} ipython3
 # Generate categorical summary (excludes columns with >95% nulls)
 print("=" * 80)
 print("CATEGORICAL COLUMNS SUMMARY")
@@ -180,26 +173,16 @@ with pl.Config(tbl_rows=-1, tbl_width_chars=250):
     display(categorical_summary)
 ```
 
-```{code-cell} ipython3
-# Visualize categorical value frequencies with horizontal bar charts
-print("Generating frequency charts for categorical columns (100K sample, top 10 values)...")
-fig = plot_categorical_frequencies(df, top_n=10, sample_size=100_000, figsize=(15, 12), cols_per_row=2)
-plt.show()
-```
-
 ### Initial Observations
 
-From the schema and summary statistics, we observe:
+From the schema and summary statistics, we observe concerning patterns:
 
-1. **Temporal attributes**: Date columns for time series analysis with complete coverage
-2. **Hierarchical structure**: Provider → Account → Product → Service → Resource hierarchy present
-3. **Cost metrics**: Multiple cost fields (on-demand, discounted, amortized) representing different accounting views
-4. **Kubernetes overlay**: Attributes prefixed with `_k8s_` represent container metadata (likely sparse)
-5. **High-cardinality fields**: Resource identifiers, usage IDs (unique tracking capabilities)
-6. **Low-cardinality fields**: Cloud providers, product families, regions (aggregation dimensions)
-7. **Distribution characteristics**: Numeric columns show wide ranges, suggesting skewed distributions
+1. **Data quality issues**: Negative cost values (min = -524.54) suggest refunds, credits, or data errors
+2. **Near-zero values**: Q25 values of ~10^-7 indicate many zero or near-zero records
+3. **High cardinality**: 4+ million unique values in cost columns suggests high granularity
+4. **Wide ranges**: Max values ~97K vs Q75 ~2.8 indicate extreme right skew
 
-These characteristics validate our conceptual model and inform subsequent analytical choices.
+**Decision**: We defer detailed distribution analysis until after information scoring (Part 3). We must identify which columns carry meaningful information before investing in deep statistical analysis. The presence of negative costs and extreme skew requires information-theoretic filtering to separate signal from noise.
 
 ---
 
@@ -323,93 +306,12 @@ print(attribute_scores.head(10))
 
 print("\nBottom 10 Least Informative Attributes:")
 print(attribute_scores.tail(10))
-```
 
-```{code-cell} ipython3
-# DEBUG: Verify data structure for visualization
-import logging
-from contextlib import contextmanager
-
-@contextmanager
-def debug_logging():
-    """Temporarily enable debug logging."""
-    logger = logging.getLogger()
-    old_level = logger.level
-    logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(levelname)s: %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    try:
-        yield logger
-    finally:
-        logger.setLevel(old_level)
-        logger.removeHandler(handler)
-
-with debug_logging() as logger:
-    logger.debug(f"attribute_scores shape: {attribute_scores.shape}")
-    logger.debug(f"attribute_scores columns: {attribute_scores.columns}")
-    logger.debug(f"attribute_scores dtypes: {attribute_scores.dtypes}")
-    logger.debug(f"\nFirst 3 rows:\n{attribute_scores.head(3)}")
-    logger.debug(f"\ncard_class value counts:\n{attribute_scores['card_class'].value_counts()}")
-    logger.debug(f"\nInformation score range: [{attribute_scores['information_score'].min()}, {attribute_scores['information_score'].max()}]")
-
-    # Check for nulls
-    null_check = attribute_scores.null_count()
-    logger.debug(f"\nNull counts:\n{null_check}")
-
-    # Convert to pandas and check
-    pandas_df = attribute_scores.to_pandas()
-    logger.debug(f"\nPandas DataFrame info:")
-    logger.debug(f"  Shape: {pandas_df.shape}")
-    logger.debug(f"  Columns: {pandas_df.columns.tolist()}")
-    logger.debug(f"  First row: {pandas_df.iloc[0].to_dict()}")
-```
-
-```{code-cell} ipython3
-# EXTENDED DEBUG: Test chart creation step by step
-print("Testing chart creation...")
-
-# Check for zero scores
-zero_scores = attribute_scores.filter(pl.col('information_score') == 0)
-print(f"Attributes with zero information score: {len(zero_scores)}")
-if len(zero_scores) > 0:
-    print(zero_scores.select(['attribute', 'information_score']))
-
-# Filter positive scores
-positive_scores = attribute_scores.filter(pl.col('information_score') > 0)
-print(f"\nAttributes with positive information score: {len(positive_scores)}")
-print(f"Score range: [{positive_scores['information_score'].min()}, {positive_scores['information_score'].max()}]")
-
-# Test minimal Altair chart (no log scale)
-print("\nTesting minimal chart (linear scale)...")
-test_chart = alt.Chart(positive_scores.to_pandas()).mark_bar().encode(
-    x='information_score:Q',
-    y=alt.Y('attribute:N', sort='-x')
-).properties(width=600, height=400, title='Test Chart - Linear Scale')
-
-display(test_chart)
-
-# Test with log scale
-print("\nTesting with log scale...")
-test_chart_log = alt.Chart(positive_scores.to_pandas()).mark_bar().encode(
-    x=alt.X('information_score:Q', scale=alt.Scale(type='log')),
-    y=alt.Y('attribute:N', sort='-x')
-).properties(width=600, height=400, title='Test Chart - Log Scale')
-
-display(test_chart_log)
-
-# Now try the actual function
-print("\nTesting create_info_score_chart function...")
-try:
-    chart = create_info_score_chart(attribute_scores, interactive=True)
-    print(f"Chart created successfully. Type: {type(chart)}")
-    display(chart)
-except Exception as e:
-    print(f"ERROR creating chart: {e}")
-    import traceback
-    traceback.print_exc()
+# Identify zero-information attributes
+zero_info = attribute_scores.filter(pl.col('information_score') == 0)
+if len(zero_info) > 0:
+    print(f"\n⚠ {len(zero_info)} attributes with zero information score (invariant or completely null):")
+    print(zero_info.select(['attribute', 'value_density', 'cardinality_ratio', 'entropy']))
 ```
 
 ```{code-cell} ipython3
