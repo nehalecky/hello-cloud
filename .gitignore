@@ -30,18 +30,36 @@ env/
 
 # Testing
 .coverage
+coverage.xml
 htmlcov/
 .tox/
 .nox/
 .pytest_cache/
 .hypothesis/
 
-# Jupyter/Jupytext
+# Jupyter/Jupytext - MyST Workflow
 .ipynb_checkpoints/
+# ALL .ipynb files are ignored - MyST markdown (.md) is canonical source
 *.ipynb
-!notebooks/*.ipynb
-# MyST markdown notebooks are version controlled
-# *.md notebooks in notebooks/myst/ are kept
+*.nbconvert.ipynb  # nbconvert temporary files
+# MyST markdown notebooks are version controlled as the canonical source
+# notebooks/*.md files are the source of truth
+
+# Generated notebook artifacts (created from .md source via jupytext)
+notebooks/_build/         # Converted .ipynb files for execution
+notebooks/*.py            # Auto-generated Python versions
+
+# Temporary/test notebooks
+notebooks/temp_*.ipynb
+notebooks/test_*.ipynb
+notebooks/*_backup.ipynb
+
+# Altair visualization data cache (auto-generated, can be recreated)
+notebooks/altair-data-*.json
+altair-data-*.json  # Also ignore in root directory
+
+# Output visualizations (auto-generated, should not be version controlled)
+visualizations/
 
 # IDE
 .vscode/

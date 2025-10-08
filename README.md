@@ -1,138 +1,137 @@
-# CloudZero AI Simulation Project
+# Cloud Resource Utilization Simulator
 
-## Exploring the Cloud Cost Optimization Problem Space
+A comprehensive framework for cloud workload pattern analysis and synthetic data generation using multiple modeling approaches.
 
-This project investigates the shocking reality of cloud resource inefficiency through advanced synthetic data generation and machine learning approaches. Based on empirical research showing only 13% average CPU utilization and 30-32% waste across cloud infrastructure, we're building tools to better understand and address these challenges.
+## Overview
 
-## Key Research Questions
-
-- How can we accurately model real-world cloud resource usage patterns?
-- What are the correlation structures between different resource metrics?
-- How do different application architectures contribute to waste?
-- Can foundation models improve cost prediction accuracy?
-- What optimization strategies have the highest impact?
-
-## Project Components
-
-### 1. Realistic Cloud Resource Simulation
-- **Evidence-based patterns**: 13% CPU, 20% memory utilization (industry averages)
-- **20+ application archetypes**: Each with distinct resource signatures
-- **Multivariate modeling**: Proper correlation structures using PyMC
-
-### 2. Advanced Time Series Forecasting
-- **Foundation models**: Amazon Chronos, TimesFM integration
-- **Ensemble approaches**: Combining multiple models for robustness
-- **Zero-shot capabilities**: Forecasting without retraining
-
-### 3. Hierarchical Bayesian Framework
-- **Three-level hierarchy**: Industry → Application → Resource
-- **Uncertainty quantification**: Know confidence in predictions
-- **Learning from data**: Bayesian updating as more data becomes available
+This research project explores cloud resource utilization patterns through multiple modeling techniques, generating realistic synthetic data for optimization algorithm development. The framework combines Gaussian Processes, Bayesian hierarchical models, and foundation model integration, all grounded in [empirical research](docs/research/) showing 12-15% average CPU utilization and 25-35% resource waste across cloud infrastructure.
 
 ## Quick Start
 
-### Installation with uv
+### Prerequisites
+
+- Python 3.11+
+- [uv](https://github.com/astral-sh/uv) package manager
+
+### Installation
 
 ```bash
-# Install uv if not already installed
+# Install uv if needed
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Clone repository
-git clone https://github.com/yourusername/cloudzero-ai-simulation.git
-cd cloudzero-ai-simulation
+# Clone and setup
+git clone https://github.com/nehalecky/cloud-resource-simulator.git
+cd cloud-resource-simulator
 
-# Create virtual environment and sync dependencies
+# Install dependencies
 uv venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv sync --all-extras  # Install all dependencies from pyproject.toml
+uv sync --all-extras
 ```
 
-### Generate Synthetic Data
+### Basic Usage
 
 ```python
-from cloudzero_sim.data_generation import WorkloadPatternGenerator, WorkloadType
+from cloud_sim.data_generation import WorkloadPatternGenerator, WorkloadType
+from datetime import datetime, timedelta
 
-# Generate realistic cloud metrics
+# Generate synthetic workload data
 generator = WorkloadPatternGenerator()
 data = generator.generate_time_series(
     workload_type=WorkloadType.WEB_APP,
-    start_time=datetime.now() - timedelta(days=30),
+    start_time=datetime.now() - timedelta(days=7),
     end_time=datetime.now()
 )
 
-print(f"Average CPU: {data['cpu_utilization'].mean():.1f}%")  # ~15%
-print(f"Waste: {data['waste_percentage'].mean():.1f}%")  # ~35%
+# Analyze patterns
+print(f"CPU Utilization: {data['cpu_utilization'].mean():.1f}%")
+print(f"Memory Utilization: {data['memory_utilization'].mean():.1f}%")
 ```
 
-## Research Findings
+## Key Features
 
-Our simulation accurately replicates documented inefficiencies:
+- **20+ Workload Archetypes** - Web apps, batch processing, ML training, databases, etc.
+- **Gaussian Process Models** - Time series forecasting with uncertainty quantification (GPyTorch)
+- **Bayesian Hierarchical Models** - Industry → Application → Resource modeling (PyMC)
+- **Foundation Model Integration** - Amazon Chronos, Google TimesFM for forecasting (stubs)
+- **Realistic Correlations** - Multivariate resource metric relationships
+- **Temporal Patterns** - Daily, weekly, and seasonal variations
+- **Research-Grounded** - All parameters derived from empirical studies
 
-| Metric | Research | Our Model |
-|--------|----------|-----------|
-| CPU Utilization | 13% | 13-15% |
-| Memory Utilization | 20% | 18-22% |
-| Overall Waste | 30-32% | 31-35% |
-| Dev Environment Waste | 70% | 68-72% |
-| Batch Processing Waste | 60% | 58-62% |
+## Research Foundation
 
-## The CloudZero "Workload Genome" Initiative
+The simulation parameters are grounded in comprehensive empirical research:
 
-This project proposes a comprehensive taxonomy of cloud workloads - similar to how the Human Genome Project mapped DNA. By creating an industry-standard dataset and classification system, we can:
+- **[Cloud Resource Patterns Research](docs/research/cloud-resource-patterns-research.md)** - Analysis of utilization statistics across industries
+- **[Resource Correlation Analysis](docs/research/cloud-resource-correlations-report.md)** - Multivariate correlation structures
+- **[Research Overview](docs/research/)** - Summary of key findings and references
 
-1. **Benchmark** different optimization approaches
-2. **Train** more accurate ML models
-3. **Share** knowledge across organizations
-4. **Accelerate** FinOps innovation
+Key findings informing our models:
+- CPU utilization: 12-15% average
+- Memory utilization: 18-25% average
+- Resource waste: 25-35% of cloud spend
+- Development environments: 70% waste
+- Strong temporal autocorrelation: 0.7-0.8
 
-## Project Structure
+## Interactive Analysis with Jupyter
 
+### Quick Start
+```bash
+# Install all dependencies
+uv sync --all-extras
+
+# One-time setup: Install kernel for your uv environment
+uv run ipython kernel install --user --name=cloud-sim
+
+# Start Jupyter Lab
+uv run jupyter lab
+
+# In Jupyter Lab, select "cloud-sim" kernel for notebooks
 ```
-cloudzero-ai-simulation/
-├── pyproject.toml              # Modern Python packaging
-├── src/cloudzero_sim/          # Core simulation library
-├── tests/                      # Comprehensive test suite
-├── docs/                       # Documentation and research
-├── notebooks/myst/             # Version-controlled notebooks
-└── data/                       # Generated datasets
+
+### Notebook Testing
+```bash
+# Fast syntax/import tests (0.4s)
+uv run pytest tests/test_notebooks.py -m smoke -v
+
+# Full runbook execution tests (slower)
+uv run pytest tests/test_notebooks.py -k "execution_success" -v
 ```
 
-## Technologies Used
+### Notebook Architecture
+All notebooks use **MyST format**:
+- `notebooks/*.md` - Clean MyST markdown (git-friendly, documentation-ready)
+- `.ipynb` files auto-generated (not tracked in git)
+- Jupytext handles conversion automatically
 
-- **Polars**: High-performance dataframes (no pandas)
-- **PyMC**: Hierarchical Bayesian modeling
-- **HuggingFace**: Dataset management and model hub
-- **Chronos**: Amazon's time series foundation model
-- **Jupytext**: Notebook version control with MyST markdown
-- **uv**: Modern Python package management
+## Documentation
 
-## Contributing
+### Core Documentation
+- **[Technical Documentation](docs/index.md)** - Comprehensive architecture and API reference
+- **[Research Papers](docs/research/)** - Empirical foundations and methodology
+- **[Example Notebooks](notebooks/)** - Analysis and visualization examples
+  - `01_data_exploration.md` - Basic data generation and validation
+  - `02_workload_signatures_guide.md` - Understanding why workloads have distinct patterns
+  - `04_gaussian_process_modeling.md` - GP library usage and anomaly detection
 
-This is an open research project. Contributions welcome in:
-- Additional workload patterns
-- Correlation matrices from real data
-- Optimization algorithms
-- Visualization improvements
+### Technical Design Documents
+- **[Design Documents Overview](docs/design/README.md)** - Index of technical design documents
 
-## Future Directions
+## The Workload Genome Initiative
 
-1. **Open Dataset Release**: "CloudZero-Syn-1M" for community use
-2. **Benchmark Suite**: Standardized evaluation metrics
-3. **AutoML Pipeline**: Self-tuning optimization models
-4. **Real-time Optimization**: From detection to remediation
-
-## References
-
-- [Cloud Resource Patterns Research](docs/cloud-resource-patterns-research.md)
-- [Correlation Analysis](docs/cloud-resource-correlations-report.md)
-- [FinOps Foundation State of Cloud Report](https://www.finops.org)
+Contributing to a standardized taxonomy of cloud workload patterns for reproducible benchmarking and collaborative research.
 
 ## License
 
-MIT - Free for research and commercial use
+[MIT License](LICENSE) - Open for research and commercial use
 
-## Contact
+## Contributing
 
-For questions or collaboration:
-- GitHub Issues: [Project Issues](https://github.com/yourusername/cloudzero-ai-simulation/issues)
-- Email: your.email@example.com
+Contributions welcome in:
+- Empirical correlation data
+- Additional workload patterns
+- ML model improvements (GP, PyMC, foundation models)
+- Optimization algorithms
+- Testing and validation
+
+See [technical documentation](docs/index.md) for development guidelines.
