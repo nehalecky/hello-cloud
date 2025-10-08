@@ -5,9 +5,3 @@
 [formats]
 "notebooks/" = "md:myst"           # Source format (version controlled)
 "notebooks/_build/" = "ipynb"      # Generated notebooks (gitignored)
-
-# Sync options
-[sync]
-# Only sync when explicitly requested
-# This prevents automatic .ipynb creation on every .md save
-auto_sync = false

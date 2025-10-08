@@ -612,25 +612,24 @@ class CloudResourceHierarchicalModel:
         mem_mean = self.trace.posterior['industry_mem_mean'].mean().item() * 100
         waste_mean = self.trace.posterior['industry_waste'].mean().item() * 100
 
-        print("\n=== Model vs Research Comparison ===")
-        print(f"CPU Utilization:")
-        print(f"  Model: {cpu_mean:.1f}%")
-        print(f"  Research: 13%")
-        print(f"  Difference: {cpu_mean - 13:.1f}%")
-
-        print(f"\nMemory Utilization:")
-        print(f"  Model: {mem_mean:.1f}%")
-        print(f"  Research: 20%")
-        print(f"  Difference: {mem_mean - 20:.1f}%")
-
-        print(f"\nWaste Percentage:")
-        print(f"  Model: {waste_mean:.1f}%")
-        print(f"  Research: 30-32%")
-        print(f"  Difference: {waste_mean - 31:.1f}%")
+        # Log comparison results
+        logger.info("Model vs Research Comparison:")
+        logger.info("  CPU Utilization - Model: {:.1f}%, Research: 13%, Diff: {:.1f}%",
+                   cpu_mean, cpu_mean - 13)
+        logger.info("  Memory Utilization - Model: {:.1f}%, Research: 20%, Diff: {:.1f}%",
+                   mem_mean, mem_mean - 20)
+        logger.info("  Waste Percentage - Model: {:.1f}%, Research: 30-32%, Diff: {:.1f}%",
+                   waste_mean, waste_mean - 31)
 
         return {
+            'cpu_model': cpu_mean,
+            'cpu_research': 13,
             'cpu_diff': cpu_mean - 13,
+            'mem_model': mem_mean,
+            'mem_research': 20,
             'mem_diff': mem_mean - 20,
+            'waste_model': waste_mean,
+            'waste_research': 31,
             'waste_diff': waste_mean - 31
         }
 

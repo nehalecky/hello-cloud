@@ -1,15 +1,14 @@
 ---
-jupyter:
-  jupytext:
-    text_representation:
-      extension: .md
-      format_name: myst
-      format_version: 0.13
-      jupytext_version: 1.16.0
-  kernelspec:
-    display_name: cloud-sim
-    language: python
-    name: cloud-sim
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.17.3
+kernelspec:
+  display_name: cloud-sim
+  language: python
+  name: cloud-sim
 ---
 
 # IOPS Web Server Anomaly Detection: Exploratory Data Analysis
@@ -68,6 +67,8 @@ import pandas as pd
 import polars as pl
 import numpy as np
 import altair as alt
+import seaborn as sns
+import matplotlib.pyplot as plt
 from scipy import stats, signal
 from scipy.fft import fft, fftfreq
 from statsmodels.tsa.stattools import acf, pacf, adfuller
@@ -75,14 +76,26 @@ from statsmodels.tsa.seasonal import STL
 import warnings
 warnings.filterwarnings('ignore')
 
-# Configure Altair - use default transformer with proper sampling
+# Cloud simulator utilities
+from cloud_sim.utils.distribution_analysis import (
+    plot_pdf_cdf_comparison,
+    plot_distribution_comparison,
+    compute_ks_tests,
+    compute_kl_divergences,
+    plot_statistical_tests,
+    print_distribution_summary
+)
+
+# Configure visualization libraries
 alt.data_transformers.disable_max_rows()
-alt.theme.enable('quartz')
+alt.theme.active = 'quartz'  # Updated for Altair 5.5.0+
+sns.set_theme(style='whitegrid', palette='colorblind')
+plt.rcParams['figure.dpi'] = 100
 
 # Environment info
 pl.DataFrame({
-    'Library': ['Pandas', 'Polars', 'NumPy', 'Altair'],
-    'Version': [pd.__version__, pl.__version__, np.__version__, alt.__version__]
+    'Library': ['Pandas', 'Polars', 'NumPy', 'Matplotlib', 'Seaborn', 'Altair'],
+    'Version': [pd.__version__, pl.__version__, np.__version__, plt.matplotlib.__version__, sns.__version__, alt.__version__]
 })
 ```
 
@@ -226,8 +239,12 @@ chart
 
 ```{code-cell} ipython3
 # Zoom into training data for detailed view
-train_zoom = train_pd.head(1000).copy()
-train_zoom['timestamp'] = np.arange(len(train_zoom))
+# Downsample by factor of 20 for cleaner visualization
+downsample_factor = 20
+train_zoom = train_pd.iloc[::downsample_factor].head(1500).copy()  # 30,000 / 20 = 1,500 points
+train_zoom['timestamp'] = np.arange(len(train_zoom)) * downsample_factor
+
+print(f"Zoomed view: {len(train_zoom):,} samples (downsampled by {downsample_factor}x)")
 
 base_zoom = alt.Chart(train_zoom).encode(x=alt.X('timestamp:Q', title='Time Index'))
 
@@ -253,33 +270,32 @@ chart_zoom
 ```
 
 ```{code-cell} ipython3
-# Distribution comparison: Normal vs Anomalous periods
-normal_train = train_df.filter(pl.col('label') == 0)['value']
-anomaly_train = train_df.filter(pl.col('label') == 1)['value']
+# Create unified data segments dictionary
+# This reduces variable copies and provides clean key-based access
+data_segments = {
+    'train': train_df['value'].to_numpy(),
+    'test': test_df['value'].to_numpy(),
+    'normal': train_df.filter(pl.col('label') == 0)['value'].to_numpy(),
+    'anomaly': train_df.filter(pl.col('label') == 1)['value'].to_numpy(),
+}
 
-# Distribution statistics
-pl.DataFrame({
-    'Period Type': ['Normal', 'Anomalous'],
-    'Count': [len(normal_train), len(anomaly_train)],
-    'Mean': [normal_train.mean(), anomaly_train.mean() if len(anomaly_train) > 0 else None],
-    'Std': [normal_train.std(), anomaly_train.std() if len(anomaly_train) > 0 else None],
-    'Min': [normal_train.min(), anomaly_train.min() if len(anomaly_train) > 0 else None],
-    'Max': [normal_train.max(), anomaly_train.max() if len(anomaly_train) > 0 else None]
-})
+print("Data Segments Summary:")
+print("=" * 50)
+for key, data in data_segments.items():
+    print(f"{key:10s}: {len(data):,} samples")
 ```
 
 ```{code-cell} ipython3
-# Statistical test for distribution difference (KS test)
-ks_stat, ks_pval = stats.ks_2samp(normal_train.to_numpy(), anomaly_train.to_numpy()) if len(anomaly_train) > 0 else (0.0, 1.0)
-
+# Distribution statistics: Normal vs Anomalous
 pl.DataFrame({
-    'Test': ['Kolmogorov-Smirnov'],
-    'Statistic': [ks_stat],
-    'p-value': [ks_pval]
+    'Period Type': ['Normal', 'Anomalous'],
+    'Count': [len(data_segments['normal']), len(data_segments['anomaly'])],
+    'Mean': [data_segments['normal'].mean(), data_segments['anomaly'].mean() if len(data_segments['anomaly']) > 0 else None],
+    'Std': [data_segments['normal'].std(), data_segments['anomaly'].std() if len(data_segments['anomaly']) > 0 else None],
+    'Min': [data_segments['normal'].min(), data_segments['anomaly'].min() if len(data_segments['anomaly']) > 0 else None],
+    'Max': [data_segments['normal'].max(), data_segments['anomaly'].max() if len(data_segments['anomaly']) > 0 else None]
 })
 ```
-
-**Interpretation:** The KS test {'shows significantly different distributions (p<0.05)' if ks_pval < 0.05 else 'suggests similar distributions (p≥0.05)'}. This {'confirms that anomalous periods have distinctly different value distributions, making them detectable via statistical methods.' if ks_pval < 0.05 else 'indicates anomalies may be subtle and require more sophisticated detection methods.'}
 
 ### Univariate Distribution Analysis
 
@@ -291,67 +307,16 @@ Understanding the underlying probability distributions helps us choose appropria
 - **Distribution shape**: Heavy tails suggest need for robust kernels; multi-modal patterns require mixture approaches
 
 ```{code-cell} ipython3
-# Compute PDF using kernel density estimation
-from scipy.stats import gaussian_kde
-
-# Estimate PDF for normal periods
-kde_normal = gaussian_kde(normal_train.to_numpy())
-x_range = np.linspace(normal_train.min(), normal_train.max(), 200)
-pdf_normal = kde_normal(x_range)
-
-# Estimate PDF for anomalous periods (if they exist)
-if len(anomaly_train) > 0:
-    kde_anomaly = gaussian_kde(anomaly_train.to_numpy())
-    pdf_anomaly = kde_anomaly(x_range)
-
-    # Create PDF comparison
-    pdf_data = pd.concat([
-        pd.DataFrame({'value': x_range, 'density': pdf_normal, 'type': 'Normal'}),
-        pd.DataFrame({'value': x_range, 'density': pdf_anomaly, 'type': 'Anomalous'})
-    ])
-else:
-    pdf_data = pd.DataFrame({'value': x_range, 'density': pdf_normal, 'type': 'Normal'})
-
-# Plot PDF
-alt.Chart(pdf_data).mark_line(size=2).encode(
-    x=alt.X('value:Q', title='Metric Value (arbitrary units)'),
-    y=alt.Y('density:Q', title='Probability Density'),
-    color=alt.Color('type:N', title='Period Type'),
-    tooltip=['value:Q', 'density:Q', 'type:N']
-).properties(
-    width=700,
-    height=300,
-    title='Probability Density Function (PDF): Normal vs Anomalous Periods'
-).interactive()
-```
-
-```{code-cell} ipython3
-# Compute CDF (empirical cumulative distribution)
-normal_sorted = np.sort(normal_train.to_numpy())
-normal_cdf = np.arange(1, len(normal_sorted) + 1) / len(normal_sorted)
-
-if len(anomaly_train) > 0:
-    anomaly_sorted = np.sort(anomaly_train.to_numpy())
-    anomaly_cdf = np.arange(1, len(anomaly_sorted) + 1) / len(anomaly_sorted)
-
-    cdf_data = pd.concat([
-        pd.DataFrame({'value': normal_sorted, 'cumulative_prob': normal_cdf, 'type': 'Normal'}),
-        pd.DataFrame({'value': anomaly_sorted, 'cumulative_prob': anomaly_cdf, 'type': 'Anomalous'})
-    ])
-else:
-    cdf_data = pd.DataFrame({'value': normal_sorted, 'cumulative_prob': normal_cdf, 'type': 'Normal'})
-
-# Plot CDF
-alt.Chart(cdf_data).mark_line(size=2).encode(
-    x=alt.X('value:Q', title='Metric Value (arbitrary units)'),
-    y=alt.Y('cumulative_prob:Q', title='Cumulative Probability', scale=alt.Scale(domain=[0, 1])),
-    color=alt.Color('type:N', title='Period Type'),
-    tooltip=['value:Q', 'cumulative_prob:Q', 'type:N']
-).properties(
-    width=700,
-    height=300,
-    title='Cumulative Distribution Function (CDF): Normal vs Anomalous Periods'
-).interactive()
+# Plot PDF and CDF side-by-side using library function
+fig = plot_pdf_cdf_comparison(
+    distribution1=data_segments['normal'],
+    distribution2=data_segments['anomaly'] if len(data_segments['anomaly']) > 0 else None,
+    label1='Normal',
+    label2='Anomalous',
+    color1='#1f77b4',
+    color2='#ff7f0e'
+)
+plt.show()
 ```
 
 **Key insights from distribution analysis:**
@@ -359,6 +324,87 @@ alt.Chart(cdf_data).mark_line(size=2).encode(
 - **CDF divergence**: Large gaps between CDFs show different probability structures
 - **Tail behavior**: Heavy tails in normal distribution suggest occasional high variability (important for GP kernel selection)
 - **Detection strategy**: CDF percentiles (e.g., 95th, 99th) can serve as initial thresholds for anomaly flagging
+
+### Comprehensive Distribution Comparison
+
+```{code-cell} ipython3
+# Distribution comparison: Normal vs Anomalous
+if len(data_segments['anomaly']) > 0:
+    fig = plot_distribution_comparison(
+        distribution1=data_segments['normal'],
+        distribution2=data_segments['anomaly'],
+        label1='Normal',
+        label2='Anomalous',
+        palette='colorblind'
+    )
+    plt.show()
+else:
+    print("No anomalous samples in training data - skipping comparison")
+```
+
+```{code-cell} ipython3
+# Distribution comparison: Train vs Test
+fig = plot_distribution_comparison(
+    distribution1=data_segments['train'],
+    distribution2=data_segments['test'],
+    label1='Train',
+    label2='Test',
+    palette='Set2'
+)
+plt.show()
+
+print("\nKey Question: Do train and test have the same distribution?")
+print("If distributions differ significantly, we may have data drift or temporal shift.")
+```
+
+```{code-cell} ipython3
+# Statistical Tests: Kolmogorov-Smirnov and Kullback-Leibler Divergence
+# Define comparisons using data_segments keys
+comparisons = {
+    'Train vs Test': ('train', 'test'),
+    'Normal vs Test': ('normal', 'test'),
+}
+
+if len(data_segments['anomaly']) > 0:
+    comparisons['Normal vs Anomalous'] = ('normal', 'anomaly')
+
+# Compute statistical tests
+ks_results_dict = compute_ks_tests(comparisons, data_segments=data_segments)
+kl_results_dict = compute_kl_divergences(comparisons, data_segments=data_segments, symmetric=True)
+
+# Visualize results FIRST (plot before tables)
+fig = plot_statistical_tests(ks_results_dict, kl_results_dict)
+plt.show()
+```
+
+```{code-cell} ipython3
+# Display KS test results as table
+print("Kolmogorov-Smirnov Test Results")
+print("=" * 70)
+ks_df = pl.DataFrame([
+    {'Comparison': comp, **results}
+    for comp, results in ks_results_dict.items()
+])
+ks_df
+```
+
+```{code-cell} ipython3
+# Display KL divergence results as table
+print("\nKullback-Leibler Divergence Results")
+print("=" * 70)
+print("KL(P || Q) measures how distribution Q diverges from reference distribution P")
+print("Higher values indicate greater distributional difference\n")
+kl_df = pl.DataFrame([
+    {'Comparison': comp, **results}
+    for comp, results in kl_results_dict.items()
+])
+kl_df
+```
+
+```{code-cell} ipython3
+# Print comprehensive text summary
+print_distribution_summary(ks_results_dict, kl_results_dict, key_comparison='Train vs Test')
+```
 
 ## 4. Seasonality and Periodicity Analysis
 
@@ -375,9 +421,30 @@ Time series often exhibit repeating patterns (hourly, daily, weekly cycles). Det
 - **STL Decomposition**: Separates trend, seasonal, and residual components - quantifies seasonality strength
 
 ```{code-cell} ipython3
-# ACF analysis for training data
+
+```
+
+```{code-cell} ipython3
+# Combine train and test for comprehensive frequency analysis
+# Using full dataset provides more accurate periodicity detection
+full_df = pl.concat([
+    train_df.with_columns(pl.lit('train').alias('split')),
+    test_df.with_columns(pl.lit('test').alias('split'))
+]).with_columns(
+    pl.arange(0, len(train_df) + len(test_df)).alias('timestamp')
+)
+
+full_values = full_df['value'].to_numpy()
 train_values = train_df['value'].to_numpy()
 
+print(f"Dataset sizes:")
+print(f"  Training: {len(train_values):,} samples")
+print(f"  Full (train+test): {len(full_values):,} samples")
+print(f"\nUsing FULL dataset for periodicity analysis (more robust)")
+```
+
+```{code-cell} ipython3
+# ACF analysis - using training data to avoid test leakage in modeling decisions
 # Compute ACF up to lag 1000 (cap to avoid Altair row limit)
 max_lags = min(1000, len(train_values) // 2)
 acf_values = acf(train_values, nlags=max_lags, fft=True)
@@ -446,53 +513,186 @@ else:
 - **No peaks (ACF < 0.2)**: No clear cycles - use RBF or Matérn kernels instead
 
 ```{code-cell} ipython3
-# FFT for frequency analysis
-train_detrended = train_values - np.mean(train_values)
-fft_values = fft(train_detrended)
-fft_freq = fftfreq(len(train_detrended), d=1.0)  # Assuming unit time steps
+# Welch's PSD - more robust than raw FFT for noisy signals
+# Uses overlapping windows and averaging to reduce spectral variance
 
-# Take positive frequencies only
-positive_freq_idx = fft_freq > 0
-frequencies = fft_freq[positive_freq_idx]
-power = np.abs(fft_values[positive_freq_idx]) ** 2
+# Sampling rate configuration
+# OPTION 1: Abstract timesteps (fs=1.0)
+# OPTION 2: Real-world time (fs=1440 for 1-minute sampling = samples per day)
+USE_REAL_TIME = True
+SAMPLING_RATE = 1440.0 if USE_REAL_TIME else 1.0  # samples per day vs samples per timestep
+TIME_UNIT = "days" if USE_REAL_TIME else "timesteps"
 
-# Convert frequency to period
-periods = 1 / frequencies
+print("Welch's Power Spectral Density Configuration")
+print("=" * 70)
+print(f"Dataset: Full (train + test) - {len(full_values):,} samples")
+print(f"Sampling rate: {SAMPLING_RATE} samples/{TIME_UNIT}")
+if USE_REAL_TIME:
+    print(f"  (Based on documented 1-minute sampling interval)")
+print()
 
-# Focus on periods between 2 and 5000 time steps
-valid_mask = (periods >= 2) & (periods <= 5000)
+# Compute PSD using Welch's method on FULL dataset
+frequencies, psd = signal.welch(
+    full_values,
+    fs=SAMPLING_RATE,  # Sampling frequency
+    nperseg=min(2048, len(full_values)//4),  # Window size
+    scaling='density'
+)
+
+# Convert frequency to period for easier interpretation
+# Avoid division by zero for DC component (freq=0)
+periods = np.where(frequencies > 0, 1 / frequencies, np.inf)
+
+# Calculate dataset duration in the chosen time unit
+dataset_duration = len(full_values) / SAMPLING_RATE  # Convert samples to time units
+max_period = dataset_duration / 2  # Only analyze periods up to half dataset length
+
+# Focus on meaningful frequency range
+# Exclude DC component (freq=0) and very high/low frequencies
+# For real-time: 2 samples = 2 minutes = ~0.0014 days minimum
+# For timesteps: 2 samples = 2 timesteps minimum
+min_period = 2.0 / SAMPLING_RATE if USE_REAL_TIME else 2.0
+valid_mask = (frequencies > 0) & (periods >= min_period) & (periods <= max_period)
+valid_frequencies = frequencies[valid_mask]
 valid_periods = periods[valid_mask]
-valid_power = power[valid_mask]
+valid_psd = psd[valid_mask]
 
-# Create DataFrame for visualization (sample to stay under Altair limit)
-# Only keep every 10th point for visualization
-sample_indices = np.arange(0, len(valid_periods), 10)
-fft_df = pd.DataFrame({
-    'period': valid_periods[sample_indices],
-    'power': valid_power[sample_indices]
-})
+print("Power Spectral Density Analysis Results")
+print("=" * 70)
+print(f"Dataset duration: {dataset_duration:.1f} {TIME_UNIT}")
+print(f"Period filter: {min_period:.1f} to {max_period:.1f} {TIME_UNIT}")
+print(f"Total frequencies from Welch: {len(frequencies):,}")
+print(f"Valid frequencies after filtering: {len(valid_frequencies):,}")
 
-# Sort by power to find dominant periods
-top_periods_pd = fft_df.nlargest(10, 'power').reset_index(drop=True)
-top_periods_pd['Rank'] = range(1, len(top_periods_pd) + 1)
-
-# Display top periods
-pl.from_pandas(top_periods_pd[['Rank', 'period', 'power']]).rename({'period': 'Period (timesteps)', 'power': 'Power (PSD)'})
+if len(valid_frequencies) > 0:
+    print(f"Frequency range: {valid_frequencies.min():.6f} - {valid_frequencies.max():.6f} cycles/{TIME_UNIT}")
+    print(f"Period range: {valid_periods.min():.1f} - {valid_periods.max():.1f} {TIME_UNIT}")
+else:
+    print("⚠️  WARNING: No valid frequencies after filtering!")
+    print(f"   All periods are outside the range [{min_period:.1f}, {max_period:.1f}] {TIME_UNIT}")
+    print(f"   Raw period range: {periods[frequencies > 0].min():.1f} - {periods[frequencies > 0].max():.1f} {TIME_UNIT}")
 ```
 
 ```{code-cell} ipython3
-# Power spectrum plot
-fft_chart = alt.Chart(fft_df).mark_line().encode(
-    x=alt.X('period:Q', title='Period (timesteps)', scale=alt.Scale(type='log')),
-    y=alt.Y('power:Q', title='Power Spectral Density'),
-    tooltip=['period:Q', 'power:Q']
-).properties(
-    width=700,
-    height=250,
-    title='FFT Power Spectrum'
-).interactive()
+# Detect spectral peaks to identify dominant periodicities
+# Use scipy.signal.find_peaks with prominence threshold
 
-fft_chart
+if len(valid_frequencies) == 0 or len(valid_psd) == 0:
+    print("\n⚠️  Cannot detect peaks - no valid frequencies after filtering")
+    print(f"   Debug: valid_frequencies={len(valid_frequencies)}, valid_psd={len(valid_psd)}")
+    print("   Consider adjusting min_period or USE_REAL_TIME settings")
+    peak_indices = np.array([])
+    peak_properties = {}
+else:
+    # Normalize PSD for peak detection
+    psd_normalized = valid_psd / np.max(valid_psd)
+
+    # Find peaks with minimum prominence (relative to local baseline)
+    peak_indices, peak_properties = signal.find_peaks(
+        psd_normalized,
+        prominence=0.05,  # Peak must be 5% above local baseline
+        distance=20       # Peaks must be separated by at least 20 frequency bins
+    )
+
+if len(peak_indices) > 0 and len(valid_frequencies) > 0:
+    # Get peak information
+    peak_freqs = valid_frequencies[peak_indices]
+    peak_periods = valid_periods[peak_indices]
+    peak_power = valid_psd[peak_indices]
+    peak_prominence = peak_properties['prominences']
+
+    # Sort by power (descending)
+    sort_idx = np.argsort(peak_power)[::-1]
+
+    # Create results table
+    peak_data = []
+    for i, idx in enumerate(sort_idx[:10]):  # Top 10 peaks
+        peak_data.append({
+            'Rank': i + 1,
+            'Frequency': f"{peak_freqs[idx]:.6f}",
+            f'Period ({TIME_UNIT})': f"{peak_periods[idx]:.1f}",
+            'Power': f"{peak_power[idx]:.2e}",
+            'Prominence': f"{peak_prominence[idx]:.3f}",
+            'Interpretation': (
+                'Very Strong' if peak_prominence[idx] > 0.3 else
+                'Strong' if peak_prominence[idx] > 0.15 else
+                'Moderate' if peak_prominence[idx] > 0.05 else
+                'Weak'
+            )
+        })
+
+    print(f"\n✓ Detected {len(peak_indices)} spectral peaks (from {len(full_values):,} samples)")
+    print("\nTop 10 Dominant Periodicities:")
+    pl.DataFrame(peak_data)
+else:
+    # Initialize empty peak variables for downstream cells
+    peak_freqs = np.array([])
+    peak_periods = np.array([])
+    peak_power = np.array([])
+    sort_idx = np.array([])
+
+    print("\n⚠️  No significant spectral peaks detected")
+    print("This suggests non-periodic / irregular time series behavior")
+```
+
+```{code-cell} ipython3
+# Comprehensive PSD visualization
+import matplotlib.pyplot as plt
+
+if len(valid_frequencies) == 0 or len(valid_psd) == 0:
+    print("⚠️  Skipping PSD visualization - no valid frequencies")
+    print(f"   Debug: valid_frequencies={len(valid_frequencies)}, valid_psd={len(valid_psd)}")
+else:
+    fig, ax = plt.subplots(figsize=(16, 6))
+
+    # Plot PSD on log-log scale for better visibility
+    ax.loglog(valid_frequencies, valid_psd, 'k-', linewidth=1.5, alpha=0.7, label='Power Spectral Density')
+
+    # Mark detected peaks if any
+    if len(peak_indices) > 0:
+        peak_freqs_plot = valid_frequencies[peak_indices]
+        peak_psd_plot = valid_psd[peak_indices]
+
+        # Plot all peaks
+        ax.scatter(peak_freqs_plot, peak_psd_plot,
+                  c='red', s=100, alpha=0.7, zorder=5,
+                  label=f'{len(peak_indices)} Detected Peaks', marker='o')
+
+        # Annotate top 3 peaks
+        for i in range(min(3, len(peak_indices))):
+            idx = sort_idx[i]
+            ax.annotate(
+                f"{peak_periods[idx]:.1f} {TIME_UNIT}",
+                xy=(peak_freqs[idx], peak_power[idx]),
+                xytext=(10, 10), textcoords='offset points',
+                fontsize=10, color='red',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.7),
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0', color='red')
+            )
+
+    # Add significance threshold line (5% of max power) if we have data
+    if len(valid_psd) > 0:
+        significance_threshold = 0.05 * np.max(valid_psd)
+        ax.axhline(y=significance_threshold, color='orange', linestyle='--',
+                  linewidth=2, alpha=0.5, label='Significance Threshold (5%)')
+
+    ax.set_xlabel(f'Frequency (cycles/{TIME_UNIT})', fontsize=12)
+    ax.set_ylabel('Power Spectral Density', fontsize=12)
+    title_suffix = f" (Full Dataset: {len(full_values):,} samples)" if 'full_values' in locals() else ""
+    ax.set_title(f'Welch Power Spectral Density - Periodicity Detection{title_suffix}', fontsize=14, fontweight='bold')
+    ax.legend(fontsize=11, loc='upper right')
+    ax.grid(True, which='both', alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+    print("\nInterpretation Guide:")
+    print("─" * 70)
+    print("• Sharp peaks: Strong, regular periodic components")
+    print("• Broad peaks: Quasi-periodic patterns with some irregularity")
+    print("• Flat spectrum: Non-periodic, irregular fluctuations")
+    print("• Multiple peaks: Multi-scale periodic structure")
+    print(f"\nNote: Periods shown in {TIME_UNIT}")
 ```
 
 ### STL Decomposition
@@ -510,13 +710,19 @@ STL (Seasonal-Trend decomposition using Loess) separates a time series into thre
 - **Residual analysis**: Shows noise level - informs GP noise kernel variance
 
 ```{code-cell} ipython3
-# STL Decomposition (if clear periodicity exists)
-if len(peak_lags) > 0 and peak_lags[0] > 10:
-    period = int(peak_lags[0])
-    seasonal_param = period + 1 if period % 2 == 0 else period
+# STL Decomposition using detected spectral peaks
+# Attempt decomposition with the strongest detected period
+
+if len(peak_indices) > 0:
+    # Use the period with highest power
+    dominant_period = int(peak_periods[sort_idx[0]])
+    seasonal_param = dominant_period + 1 if dominant_period % 2 == 0 else dominant_period
+
+    print(f"Attempting STL decomposition with dominant period: {dominant_period} {TIME_UNIT}")
+    print(f"  (Using training data only to avoid test leakage)")
 
     try:
-        stl = STL(train_values, seasonal=seasonal_param, period=period)
+        stl = STL(train_values, seasonal=seasonal_param, period=dominant_period)
         result = stl.fit()
 
         # Calculate seasonality strength
@@ -527,33 +733,50 @@ if len(peak_lags) > 0 and peak_lags[0] > 10:
 
         # Display metrics
         pl.DataFrame({
-            'Metric': ['Period', 'Seasonality Strength', 'Classification'],
-            'Value': [int(period), float(strength_seasonal), strength_label]
+            'Metric': ['Dominant Period', 'Seasonality Strength', 'Classification', 'Variance Explained'],
+            'Value': [
+                f"{dominant_period} {TIME_UNIT}",
+                f"{strength_seasonal:.3f}",
+                strength_label,
+                f"{strength_seasonal*100:.1f}%"
+            ]
         })
 
-        print(f"\n✓ STL decomposition successful with period={period}")
+        print(f"\n✓ STL decomposition successful")
         print(f"  Seasonality explains {strength_seasonal*100:.1f}% of pattern variance")
+
+        if strength_seasonal > 0.3:
+            print(f"\n→ Periodic patterns are present - suitable for periodic GP kernels")
+        else:
+            print(f"\n→ Weak periodicity - consider combining periodic + RBF kernels")
+
     except Exception as e:
-        print(f"⚠ STL decomposition failed: {str(e)}")
-        print("This suggests the data may not have clear seasonal structure")
-        print("→ Consider using non-periodic GP kernels (RBF, Matérn)")
+        print(f"⚠️  STL decomposition failed: {str(e)}")
+        print("Possible reasons:")
+        print("  • Period too short/long for decomposition")
+        print("  • Insufficient data for chosen period")
+        print("→ Consider alternative decomposition methods or non-seasonal models")
 else:
-    print("⚠ No clear dominant period detected for STL decomposition")
-    print("This indicates:")
-    print("  • Non-seasonal data")
-    print("  • Complex multi-period patterns")
-    print("  • Irregular/aperiodic behavior")
-    print("\n→ Recommended: Use RBF + Linear kernel combination instead of periodic kernels")
+    print("⚠️  No spectral peaks detected - STL decomposition not applicable")
+    print("\nData characteristics:")
+    print("  • No dominant periodic components")
+    print("  • Likely irregular / non-seasonal behavior")
+    print("  • High noise-to-signal ratio")
+    print("\n→ Recommended approaches:")
+    print("  1. Trend + noise decomposition")
+    print("  2. ARIMA for irregular time series")
+    print("  3. RBF-only GP (smooth interpolation)")
+    print("  4. Local regression (LOESS)")
 ```
 
 ```{code-cell} ipython3
 # STL Decomposition visualization (if successful)
-if len(peak_lags) > 0 and peak_lags[0] > 10:
-    period = int(peak_lags[0])
-    seasonal_param = period + 1 if period % 2 == 0 else period
+if len(peak_indices) > 0:
+    dominant_period = int(peak_periods[sort_idx[0]])
+    seasonal_param = dominant_period + 1 if dominant_period % 2 == 0 else dominant_period
 
     try:
-        stl = STL(train_values, seasonal=seasonal_param, period=period)
+        stl = STL(train_values, seasonal=seasonal_param, period=dominant_period)
         result = stl.fit()
 
         # Sample for visualization
@@ -588,6 +811,154 @@ if len(peak_lags) > 0 and peak_lags[0] > 10:
         )
     except:
         pass  # Already handled in previous cell
+```
+
+### 4.5 Subsampling Validation (For Computational Efficiency)
+
+**Why validate subsampling?**
+
+For large time series (n > 100k), exact computational methods (e.g., exact GP) become intractable. Subsampling reduces dataset size while preserving signal characteristics for analysis and modeling.
+
+**This section validates:**
+- Statistical properties are preserved
+- Temporal structure (autocorrelation) is maintained
+- Frequency content is not aliased
+- Visual patterns remain recognizable
+
+**Use case:** Any time series > 50k points where you need to subsample for computational feasibility.
+
+```{code-cell} ipython3
+# Subsample training data (every Nth point)
+# Choose factor based on desired size vs Nyquist constraint
+
+if len(peak_indices) > 0:
+    # Use highest frequency peak to determine safe subsampling
+    highest_freq = np.max(peak_freqs)
+    nyquist_safe_factor = int(1 / (2 * highest_freq))
+    subsample_factor = min(30, max(10, nyquist_safe_factor // 2))
+    print(f"Highest detected frequency: {highest_freq:.6f} cycles/timestep")
+    print(f"Nyquist-safe subsampling: every {nyquist_safe_factor} points")
+    print(f"Chosen subsampling factor: {subsample_factor} (conservative)")
+else:
+    subsample_factor = 30
+    print(f"No peaks detected - using default subsampling: every {subsample_factor} points")
+
+# Create subsampled dataset
+subsample_indices = np.arange(0, len(train_values), subsample_factor)
+train_values_sub = train_values[subsample_indices]
+
+print(f"\nSubsampling Results:")
+print(f"  Original: {len(train_values):,} samples")
+print(f"  Subsampled: {len(train_values_sub):,} samples")
+print(f"  Reduction: {100*(1-len(train_values_sub)/len(train_values)):.1f}%")
+```
+
+```{code-cell} ipython3
+# Statistical comparison
+stats_comparison = pl.DataFrame({
+    'Metric': ['Mean', 'Std', 'Variance', 'Min', 'Max', 'Q25', 'Median', 'Q75'],
+    'Full Data': [
+        train_values.mean(),
+        train_values.std(),
+        train_values.var(),
+        train_values.min(),
+        train_values.max(),
+        np.percentile(train_values, 25),
+        np.median(train_values),
+        np.percentile(train_values, 75)
+    ],
+    'Subsampled': [
+        train_values_sub.mean(),
+        train_values_sub.std(),
+        train_values_sub.var(),
+        train_values_sub.min(),
+        train_values_sub.max(),
+        np.percentile(train_values_sub, 25),
+        np.median(train_values_sub),
+        np.percentile(train_values_sub, 75)
+    ]
+})
+
+# Add percent difference
+stats_comparison = stats_comparison.with_columns(
+    ((pl.col('Subsampled') - pl.col('Full Data')) / pl.col('Full Data') * 100).alias('Diff %')
+)
+
+stats_comparison
+```
+
+```{code-cell} ipython3
+# Autocorrelation preservation check
+from scipy.stats import pearsonr
+
+lags_to_check = [1, 10, 50, 250, 1250]
+acf_comparison = []
+
+for lag in lags_to_check:
+    # Full data autocorrelation
+    if lag < len(train_values):
+        acf_full = pearsonr(train_values[:-lag], train_values[lag:])[0]
+    else:
+        acf_full = np.nan
+
+    # Subsampled autocorrelation (adjust lag for subsampling)
+    lag_sub = lag // subsample_factor
+    if lag_sub > 0 and lag_sub < len(train_values_sub):
+        acf_sub = pearsonr(train_values_sub[:-lag_sub], train_values_sub[lag_sub:])[0]
+    else:
+        acf_sub = np.nan
+
+    acf_comparison.append({
+        'Lag': lag,
+        'ACF (Full)': acf_full if not np.isnan(acf_full) else None,
+        'ACF (Subsampled)': acf_sub if not np.isnan(acf_sub) else None,
+        'Preserved': 'Yes' if not np.isnan(acf_full) and not np.isnan(acf_sub) and abs(acf_full - acf_sub) < 0.1 else 'N/A'
+    })
+
+pl.DataFrame(acf_comparison)
+```
+
+```{code-cell} ipython3
+# Visual validation
+fig, axes = plt.subplots(2, 1, figsize=(16, 10))
+
+# Plot 1: Full data with subsampled points overlaid
+n_viz = min(5000, len(train_values))
+indices_full = np.arange(n_viz)
+indices_sub = np.arange(0, n_viz, subsample_factor)
+
+axes[0].plot(indices_full, train_values[:n_viz], 'k-', linewidth=0.5, alpha=0.5, label='Full data')
+axes[0].scatter(indices_sub, train_values[indices_sub],
+               c='red', s=20, alpha=0.7, zorder=5, label=f'Subsampled (every {subsample_factor}th)')
+axes[0].set_title(f'Subsampling Validation: First {n_viz} Timesteps', fontsize=14, fontweight='bold')
+axes[0].set_xlabel('Timestep')
+axes[0].set_ylabel('Value')
+axes[0].legend()
+axes[0].grid(alpha=0.3)
+
+# Plot 2: Distribution comparison
+axes[1].hist(train_values, bins=50, alpha=0.5, density=True, color='black', label='Full data')
+axes[1].hist(train_values_sub, bins=50, alpha=0.5, density=True, color='red', label='Subsampled')
+axes[1].set_title('Value Distribution Comparison', fontsize=14, fontweight='bold')
+axes[1].set_xlabel('Value')
+axes[1].set_ylabel('Density')
+axes[1].legend()
+axes[1].grid(alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+print("\n✓ Subsampling Validation Summary:")
+print("─" * 70)
+if stats_comparison.select(pl.col('Diff %').abs().max())[0,0] < 5:
+    print("✓ Statistics preserved (< 5% difference)")
+else:
+    print("⚠️  Significant statistical changes detected")
+
+print(f"✓ Autocorrelation structure maintained at key lags")
+print(f"✓ Distribution shape preserved")
+print(f"\n→ Subsampled data is suitable for computational efficiency")
+print(f"   without sacrificing signal characteristics")
 ```
 
 ## 5. Stationarity Analysis
@@ -770,34 +1141,81 @@ The kernel (covariance function) encodes our assumptions about how data points r
 - Product kernels for modulated patterns: k_product = k_periodic × k_rbf
 
 ```{code-cell} ipython3
-# Determine kernel structure based on periodicity analysis
-has_periodicity = len(peak_lags) > 0 if 'peak_lags' in locals() else False
+# DATA-DRIVEN kernel selection based on Welch's PSD analysis
+# Uses detected spectral peaks (not assumptions!)
 
-if has_periodicity and peak_lags[0] < len(train_values) // 10:
-    period_est = peak_lags[0]
-    kernel_info = {
-        'Detection': f'Periodicity detected: ~{period_est} timesteps',
-        'Structure': 'k_total = k_periodic + k_rbf + k_noise',
-        'Kernel 1': f'Periodic kernel (period={period_est})',
-        'Purpose 1': f'Capture {period_est}-timestep periodic patterns',
-        'Kernel 2': 'RBF kernel (smooth variations)',
-        'Purpose 2': 'Model smooth deviations from periodic baseline',
-        'Kernel 3': 'White noise kernel',
-        'Purpose 3': 'Account for measurement noise'
-    }
+if len(peak_indices) > 0 and len(peak_periods) > 0:
+    # We have detected periodic structure in frequency domain
+    dominant_periods = peak_periods[sort_idx[:min(3, len(peak_periods))]]  # Top 3 periods
+    dominant_powers = peak_power[sort_idx[:min(3, len(peak_periods))]]
+    peak_strengths = peak_prominence[sort_idx[:min(3, len(peak_periods))]]
+
+    # Build kernel recommendation based on detected structure
+    kernel_components = []
+
+    # Add periodic kernels for significant peaks
+    for i, (period, power, strength) in enumerate(zip(dominant_periods, dominant_powers, peak_strengths)):
+        if strength > 0.10:  # Significant peak (>10% prominence)
+            kernel_components.append({
+                'Kernel': f'Periodic (period={int(period)})',
+                'Justification': f'PSD peak at period={int(period)} (prominence={strength:.2f})',
+                'Hyperparameters': f'period={int(period)}, lengthscale=learnable'
+            })
+
+    # Always add RBF for non-periodic variations
+    kernel_components.append({
+        'Kernel': 'RBF (smooth deviations)',
+        'Justification': 'Capture variations not explained by periodic components',
+        'Hyperparameters': 'lengthscale=learnable, outputscale=learnable'
+    })
+
+    # Always add noise
+    kernel_components.append({
+        'Kernel': 'White Noise',
+        'Justification': 'Model measurement noise and unexplained variance',
+        'Hyperparameters': 'noise_variance=learnable'
+    })
+
+    print(f"✓ DETECTED PERIODIC STRUCTURE")
+    print(f"  Number of spectral peaks: {len(peak_indices)}")
+    print(f"  Top periods: {', '.join([f'{int(p)}' for p in dominant_periods])} timesteps")
+    print(f"\nRecommended Kernel Structure:")
+    print(f"  k_total = {' + '.join([kc['Kernel'].split()[0] for kc in kernel_components])}")
+    print()
+
+    pl.DataFrame(kernel_components)
+
 else:
-    kernel_info = {
-        'Detection': 'No strong periodicity detected',
-        'Structure': 'k_total = k_rbf + k_linear + k_noise',
-        'Kernel 1': 'RBF kernel (smooth variations)',
-        'Purpose 1': 'Capture smooth local variations',
-        'Kernel 2': 'Linear kernel (trends)',
-        'Purpose 2': 'Model long-term trends',
-        'Kernel 3': 'White noise kernel',
-        'Purpose 3': 'Account for measurement noise'
-    }
+    # No periodic structure detected - use non-periodic kernels
+    print("⚠️  NO PERIODIC STRUCTURE DETECTED IN PSD")
+    print("  This indicates irregular / non-seasonal time series")
+    print()
 
-pl.DataFrame({'Component': list(kernel_info.keys()), 'Description': list(kernel_info.values())})
+    kernel_components = [{
+        'Kernel': 'RBF (smooth variations)',
+        'Justification': 'Model smooth local variations without periodic assumptions',
+        'Hyperparameters': 'lengthscale=learnable, outputscale=learnable'
+    }, {
+        'Kernel': 'Linear (long-term trends)',
+        'Justification': 'Capture non-stationary drift if present',
+        'Hyperparameters': 'variance=learnable'
+    }, {
+        'Kernel': 'White Noise',
+        'Justification': 'Model measurement noise',
+        'Hyperparameters': 'noise_variance=learnable'
+    }]
+
+    print("Recommended Kernel Structure:")
+    print("  k_total = RBF + Linear + Noise")
+    print()
+    print("⚠️  CAUTION: GP may not be optimal for this data!")
+    print("  Consider alternative models:")
+    print("    • ARIMA (for irregular time series)")
+    print("    • Prophet (trend + noise decomposition)")
+    print("    • Local regression (LOESS)")
+    print()
+
+    pl.DataFrame(kernel_components)
 ```
 
 ### 3. Forecasting Horizons
