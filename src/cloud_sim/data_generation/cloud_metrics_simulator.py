@@ -4,25 +4,31 @@ Generates realistic cloud infrastructure metrics with patterns matching real-wor
 """
 
 import numpy as np
-import pandas as pd
 import polars as pl
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List
 import random
-from dataclasses import dataclass
+from pydantic import BaseModel, Field, field_validator
 from loguru import logger
 
-@dataclass
-class CloudResource:
+class CloudResource(BaseModel):
     """Represents a cloud resource with usage patterns"""
-    resource_id: str
-    resource_type: str
-    cloud_provider: str
-    region: str
-    tags: Dict[str, str]
-    base_cost_per_hour: float
-    cpu_cores: int
-    memory_gb: int
+    resource_id: str = Field(..., min_length=1, description="Unique resource identifier")
+    resource_type: str = Field(..., min_length=1, description="Type of cloud resource")
+    cloud_provider: str = Field(..., description="Cloud provider (AWS, Azure, GCP)")
+    region: str = Field(..., min_length=1, description="Region where resource is deployed")
+    tags: Dict[str, str] = Field(default_factory=dict, description="Resource tags")
+    base_cost_per_hour: float = Field(..., gt=0, description="Base hourly cost in USD")
+    cpu_cores: float = Field(..., gt=0, le=128, description="Number of CPU cores")
+    memory_gb: float = Field(..., gt=0, le=1024, description="Memory in gigabytes")
+
+    @field_validator('cloud_provider')
+    @classmethod
+    def validate_provider(cls, v: str) -> str:
+        valid_providers = ['AWS', 'Azure', 'GCP']
+        if v not in valid_providers:
+            raise ValueError(f"Cloud provider must be one of {valid_providers}, got {v}")
+        return v
 
 class CloudMetricsSimulator:
     """Simulates cloud infrastructure metrics for multiple providers"""
@@ -128,7 +134,7 @@ class CloudMetricsSimulator:
 
         return base_costs.get(resource_type, 0.1) * provider_multipliers[provider]
 
-    def _get_cpu_cores(self, resource_type: str) -> int:
+    def _get_cpu_cores(self, resource_type: str) -> float:
         """Get CPU core count for resource type"""
         cpu_counts = {
             't3.micro': 2, 't3.small': 2, 't3.medium': 2, 't3.large': 2,
@@ -137,9 +143,9 @@ class CloudMetricsSimulator:
             'fargate-small': 0.25, 'fargate-medium': 0.5, 'fargate-large': 1,
             'ml.p3.2xlarge': 8, 'ml.g4dn.xlarge': 4, 'ml.c5.4xlarge': 16
         }
-        return cpu_counts.get(resource_type, 2)
+        return float(cpu_counts.get(resource_type, 2))
 
-    def _get_memory_gb(self, resource_type: str) -> int:
+    def _get_memory_gb(self, resource_type: str) -> float:
         """Get memory in GB for resource type"""
         memory_gb = {
             't3.micro': 1, 't3.small': 2, 't3.medium': 4, 't3.large': 8,
@@ -148,9 +154,9 @@ class CloudMetricsSimulator:
             'fargate-small': 0.5, 'fargate-medium': 1, 'fargate-large': 2,
             'ml.p3.2xlarge': 61, 'ml.g4dn.xlarge': 16, 'ml.c5.4xlarge': 32
         }
-        return memory_gb.get(resource_type, 4)
+        return float(memory_gb.get(resource_type, 4))
 
-    def generate_usage_patterns(self, resource: CloudResource, timestamps: pd.DatetimeIndex) -> pd.DataFrame:
+    def generate_usage_patterns(self, resource: CloudResource, timestamps: List[datetime]) -> pl.DataFrame:
         """Generate realistic usage patterns for a resource"""
         num_points = len(timestamps)
 
@@ -161,8 +167,8 @@ class CloudMetricsSimulator:
             base_memory = 60 + 5 * np.random.randn(num_points)
         elif resource.resource_type.startswith('ml'):
             # ML workloads: batch processing patterns
-            base_cpu = 20 + 60 * (np.sin(np.arange(num_points) * 0.1) > 0.5)
-            base_memory = 40 + 40 * (np.sin(np.arange(num_points) * 0.1) > 0.5)
+            base_cpu = 20.0 + 60.0 * (np.sin(np.arange(num_points) * 0.1) > 0.5).astype(float)
+            base_memory = 40.0 + 40.0 * (np.sin(np.arange(num_points) * 0.1) > 0.5).astype(float)
         elif 'fargate' in resource.resource_type:
             # Container: variable with scaling
             base_cpu = 45 + 15 * np.sin(np.arange(num_points) * 0.05)
@@ -192,80 +198,114 @@ class CloudMetricsSimulator:
         network_out_gb = np.abs(np.random.gamma(2, 1, num_points))
         storage_gb = 100 + 10 * np.cumsum(np.random.randn(num_points) * 0.1)
 
-        return pd.DataFrame({
+        df_data = {
             'timestamp': timestamps,
             'resource_id': resource.resource_id,
             'resource_type': resource.resource_type,
             'cloud_provider': resource.cloud_provider,
             'region': resource.region,
-            'cpu_utilization': cpu_utilization,
-            'memory_utilization': memory_utilization,
+            'cpu_utilization': cpu_utilization.tolist(),
+            'memory_utilization': memory_utilization.tolist(),
             'cpu_cores': resource.cpu_cores,
             'memory_gb': resource.memory_gb,
-            'network_in_gb': network_in_gb,
-            'network_out_gb': network_out_gb,
-            'storage_gb': storage_gb,
-            'hourly_cost': effective_cost,
-            **{f'tag_{k}': v for k, v in resource.tags.items()}
-        })
+            'network_in_gb': network_in_gb.tolist(),
+            'network_out_gb': network_out_gb.tolist(),
+            'storage_gb': storage_gb.tolist(),
+            'hourly_cost': effective_cost.tolist(),
+        }
+        # Add tags
+        for k, v in resource.tags.items():
+            df_data[f'tag_{k}'] = v
+        return pl.DataFrame(df_data)
 
-    def inject_anomalies(self, df: pd.DataFrame, anomaly_rate: float = 0.02) -> pd.DataFrame:
+    def inject_anomalies(self, df: pl.DataFrame, anomaly_rate: float = 0.02) -> pl.DataFrame:
         """Inject realistic anomalies into the data"""
-        df = df.copy()
+        # Convert to numpy for easier manipulation
+        hourly_cost = df['hourly_cost'].to_numpy().copy()
+        cpu_util = df['cpu_utilization'].to_numpy().copy()
+        mem_util = df['memory_utilization'].to_numpy().copy()
+        storage = df['storage_gb'].to_numpy().copy()
+
         num_points = len(df)
         num_anomalies = int(num_points * anomaly_rate)
-
         anomaly_indices = random.sample(range(num_points), num_anomalies)
+        is_anomaly = np.zeros(num_points, dtype=bool)
 
         for idx in anomaly_indices:
             anomaly_type = random.choice(['spike', 'drop', 'gradual', 'resource_leak'])
+            is_anomaly[idx] = True
 
             if anomaly_type == 'spike':
                 # Sudden cost spike (2-5x normal)
-                df.loc[idx:min(idx+3, num_points-1), 'hourly_cost'] *= random.uniform(2, 5)
-                df.loc[idx:min(idx+3, num_points-1), 'cpu_utilization'] = 95 + 5 * random.random()
+                spike_factor = random.uniform(2, 5)
+                end_idx = min(idx+3, num_points-1)
+                hourly_cost[idx:end_idx+1] *= spike_factor
+                cpu_util[idx:end_idx+1] = 95 + 5 * random.random()
             elif anomaly_type == 'drop':
                 # Sudden drop (potential waste)
-                df.loc[idx:min(idx+5, num_points-1), 'cpu_utilization'] *= 0.1
-                df.loc[idx:min(idx+5, num_points-1), 'memory_utilization'] *= 0.1
+                end_idx = min(idx+5, num_points-1)
+                cpu_util[idx:end_idx+1] *= 0.1
+                mem_util[idx:end_idx+1] *= 0.1
             elif anomaly_type == 'gradual':
                 # Gradual increase (memory leak pattern)
                 if idx < num_points - 20:
                     increase = np.linspace(1, 2, 20)
-                    df.loc[idx:idx+19, 'memory_utilization'] *= increase
-                    df.loc[idx:idx+19, 'hourly_cost'] *= increase
+                    mem_util[idx:idx+20] *= increase
+                    hourly_cost[idx:idx+20] *= increase
             else:  # resource_leak
                 # Storage continuously growing
                 if idx < num_points - 10:
-                    df.loc[idx:idx+9, 'storage_gb'] *= np.linspace(1, 3, 10)
+                    storage[idx:idx+10] *= np.linspace(1, 3, 10)
 
-        # Mark anomalies
-        df['is_anomaly'] = False
-        df.loc[anomaly_indices, 'is_anomaly'] = True
-
-        return df
+        # Create new dataframe with modified values
+        return df.with_columns([
+            pl.Series('hourly_cost', hourly_cost),
+            pl.Series('cpu_utilization', cpu_util),
+            pl.Series('memory_utilization', mem_util),
+            pl.Series('storage_gb', storage),
+            pl.Series('is_anomaly', is_anomaly)
+        ])
 
     def generate_dataset(self, include_anomalies: bool = True) -> pl.DataFrame:
         """Generate complete dataset with all resources"""
-        timestamps = pd.date_range(self.start_date, self.end_date, freq=self.sampling_interval)
+        # Generate timestamps using datetime operations
+        timestamps = []
+        current = self.start_date
+        if self.sampling_interval == '1H':
+            delta = timedelta(hours=1)
+        elif self.sampling_interval == '5T':
+            delta = timedelta(minutes=5)
+        else:
+            delta = timedelta(hours=1)  # default
+
+        while current <= self.end_date:
+            timestamps.append(current)
+            current += delta
+
         all_data = []
 
         for resource in self.resources:
             resource_data = self.generate_usage_patterns(resource, timestamps)
             if include_anomalies:
                 resource_data = self.inject_anomalies(resource_data)
+            else:
+                # Add is_anomaly column with False values for consistency
+                resource_data = resource_data.with_columns(
+                    pl.lit(False).alias('is_anomaly')
+                )
             all_data.append(resource_data)
 
-        # Combine all data
-        combined_df = pd.concat(all_data, ignore_index=True)
+        # Combine all data using Polars concat with diagonal strategy to handle different columns
+        combined_df = pl.concat(all_data, how='diagonal')
 
-        # Add derived metrics
-        combined_df['cost_per_cpu'] = combined_df['hourly_cost'] / (combined_df['cpu_cores'] + 0.001)
-        combined_df['cost_per_gb'] = combined_df['hourly_cost'] / (combined_df['memory_gb'] + 0.001)
-        combined_df['efficiency_score'] = (combined_df['cpu_utilization'] + combined_df['memory_utilization']) / 2
+        # Add derived metrics using Polars operations
+        combined_df = combined_df.with_columns([
+            (pl.col('hourly_cost') / (pl.col('cpu_cores') + 0.001)).alias('cost_per_cpu'),
+            (pl.col('hourly_cost') / (pl.col('memory_gb') + 0.001)).alias('cost_per_gb'),
+            ((pl.col('cpu_utilization') + pl.col('memory_utilization')) / 2).alias('efficiency_score')
+        ])
 
-        # Convert to Polars for better performance
-        return pl.from_pandas(combined_df)
+        return combined_df
 
     def calculate_unit_economics(self, df: pl.DataFrame) -> Dict[str, pl.DataFrame]:
         """Calculate unit economics metrics (cost per customer, feature, etc.)"""

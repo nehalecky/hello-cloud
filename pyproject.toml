@@ -1,12 +1,12 @@
 [project]
-name = "cloudzero-ai-simulation"
+name = "cloud-resource-simulator"
 version = "0.1.0"
-description = "Advanced synthetic data generation and ML models for cloud cost optimization research"
+description = "Multi-model framework for cloud resource utilization patterns and synthetic data generation using Gaussian Processes, Bayesian models, and foundation models"
 authors = [{name = "Nicholaus Halecky", email = "your.email@example.com"}]
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
-keywords = ["cloud", "finops", "cost-optimization", "machine-learning", "time-series", "bayesian"]
+keywords = ["cloud", "resource-optimization", "gaussian-processes", "bayesian-modeling", "synthetic-data", "time-series", "gpytorch"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -17,54 +17,27 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
-[project.dependencies]
-# Core dependencies - Polars only, no pandas
-polars = ">=0.20.0"
-numpy = ">=1.24.0"
-
-# HuggingFace ecosystem
-datasets = ">=2.14.0"
-transformers = ">=4.35.0"
-huggingface-hub = ">=0.19.0"
-safetensors = ">=0.4.0"
-
-# Probabilistic modeling
-pymc = ">=5.10.0"
-arviz = ">=0.17.0"
-pytensor = ">=2.18.0"
-
-# Time Series
-chronos-forecasting = ">=1.2.0"
-gluonts = ">=0.14.0"
-prophet = ">=1.1.0"
-
-# Machine Learning
-scikit-learn = ">=1.3.0"
-xgboost = ">=2.0.0"
-torch = ">=2.0.0"
-
-# Visualization
-matplotlib = ">=3.7.0"
-plotly = ">=5.14.0"
-seaborn = ">=0.12.0"
-streamlit = ">=1.28.0"
-
-# Data processing
-pyarrow = ">=14.0.0"
-fastparquet = ">=2023.10.0"
-
-# API development
-fastapi = ">=0.100.0"
-uvicorn = {extras = ["standard"], version = ">=0.23.0"}
-pydantic = ">=2.0.0"
-
-# Utilities
-faker = ">=20.0.0"
-loguru = ">=0.7.0"
-click = ">=8.1.0"
-httpx = ">=0.25.0"
-python-dotenv = ">=1.0.0"
-tqdm = ">=4.65.0"
+dependencies = [
+    # Core data processing
+    "polars>=0.20.0",
+    "numpy>=1.24.0",
+    "pyarrow>=14.0.0",
+    # HuggingFace for datasets (simplified, no transformers)
+    "datasets>=2.14.0",
+    "huggingface-hub>=0.19.0",
+    # Probabilistic modeling (optional, but kept for future)
+    "pymc>=5.10.0",
+    "arviz>=0.17.0",
+    "pytensor>=2.18.0",
+    # Minimal visualization (only matplotlib used in pymc_cloud_model)
+    "matplotlib>=3.7.0",
+    # Data validation and utilities
+    "pydantic>=2.0.0",
+    "faker>=20.0.0",
+    "loguru>=0.7.0",
+    # Visualization (for notebooks)
+    "altair>=5.0.0",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -92,48 +65,62 @@ docs = [
 
 research = [
     "jupyterlab>=4.0.0",
+    "notebook>=7.0.0",
     "ipywidgets>=8.1.0",
     "nbconvert>=7.11.0",
     "jupytext>=1.16.0",  # Essential for research workflows
+    "seaborn>=0.12.0",   # Statistical data visualization
+    "scipy>=1.11.0",     # Scientific computing
+    "statsmodels>=0.14.0",  # Time series analysis (ACF/PACF/STL)
+    "scikit-learn>=1.3.0",  # ML metrics and utilities (required by GP evaluation)
+    "ipython>=8.0.0",    # Enhanced interactive Python
+    # Note: GP modeling (torch, gpytorch) moved to 'gpu' group
 ]
 
-# Foundation models (install separately due to size/complexity)
-# timesfm = {git = "https://github.com/google-research/timesfm.git"}
-# tirex = {git = "https://github.com/NX-AI/tirex.git"}
+gpu = [
+    # GPU-accelerated Gaussian Process modeling
+    "torch>=2.0.0",      # PyTorch for deep learning and GP
+    "gpytorch>=1.11.0",  # Scalable Gaussian Processes with PyTorch
+]
 
-[project.scripts]
-cloudzero-sim = "cloudzero_sim.cli:main"
-generate-data = "cloudzero_sim.data_generation.cli:generate"
-train-models = "cloudzero_sim.ml_models.cli:train"
-dashboard = "cloudzero_sim.dashboard.app:run"
+foundation = [
+    # Foundation models for time series forecasting (stubs - not yet implemented)
+    # Uncomment when ready to implement:
+    # "timesfm @ git+https://github.com/google-research/timesfm",  # TimesFM (Google)
+    # "chronos-forecasting>=1.0.0",  # Chronos (Amazon)
+    # "transformers>=4.35.0",        # Required by both models
+]
+
+all = [
+    "cloud-resource-simulator[dev,docs,research,gpu,foundation]",
+]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/cloudzero-ai-simulation"
-Documentation = "https://cloudzero-ai-simulation.readthedocs.io"
-Repository = "https://github.com/yourusername/cloudzero-ai-simulation"
-Issues = "https://github.com/yourusername/cloudzero-ai-simulation/issues"
+Homepage = "https://github.com/nehalecky/cloud-resource-simulator"
+Documentation = "https://cloud-resource-simulator.readthedocs.io"
+Repository = "https://github.com/nehalecky/cloud-resource-simulator"
+Issues = "https://github.com/nehalecky/cloud-resource-simulator/issues"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cloudzero_sim"]
+packages = ["src/cloud_sim"]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
     "jupytext>=1.16.0",
+    "toml>=0.10.2",  # For testing pyproject.toml validity
 ]
 
 [tool.jupytext]
-formats = "notebooks//ipynb,notebooks//md:myst"
 notebook_metadata_filter = "-all"
 cell_metadata_filter = "-all"
-markdown_extensions = "md:myst"
 
 [tool.jupytext.formats]
 "notebooks/" = "ipynb"
@@ -176,13 +163,21 @@ minversion = "7.0"
 testpaths = ["tests"]
 addopts = [
     "--verbose",
-    "--cov=src/cloudzero_sim",
+    "--cov=src/cloud_sim",
     "--cov-report=term-missing",
     "--cov-report=html",
 ]
+markers = [
+    "optional: marks tests as requiring optional dependencies (deselect with '-m \"not optional\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "smoke: marks tests as quick smoke tests (syntax, imports)",
+    "execution: marks tests that actually execute notebooks",
+    "content: marks tests that validate notebook outputs",
+]
 
 [tool.coverage.run]
-source = ["src/cloudzero_sim"]
+source = ["src/cloud_sim"]
 omit = ["*/tests/*", "*/test_*.py"]
 
 [tool.coverage.report]

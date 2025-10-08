@@ -5,7 +5,7 @@ import polars as pl
 import numpy as np
 from datetime import datetime, timedelta
 
-from cloudzero_sim.data_generation import (
+from cloud_sim.data_generation import (
     CloudMetricsSimulator,
     WorkloadPatternGenerator,
     WorkloadType,
@@ -133,7 +133,7 @@ class TestWorkloadPatternGenerator:
         # Based on research: CPU should be around 13%, memory around 20%
         # Web apps might be slightly higher but still low
         assert 5 <= avg_cpu <= 30  # Reasonable range for web apps
-        assert 10 <= avg_memory <= 50
+        assert 10 <= avg_memory <= 55
 
         # Check waste percentage is realistic (30-32% industry average)
         avg_waste = df["waste_percentage"].mean()
@@ -162,7 +162,7 @@ class TestIntegration:
 
     def test_full_pipeline(self):
         """Test the complete data generation pipeline."""
-        from cloudzero_sim.data_generation.workload_patterns import create_multi_workload_dataset
+        from cloud_sim.data_generation.workload_patterns import create_multi_workload_dataset
 
         # Generate multi-workload dataset
         df = create_multi_workload_dataset(

@@ -1,5 +1,5 @@
 """
-CloudZero AI Simulation Platform
+Cloud Resource Simulation Platform
 
 Advanced synthetic data generation and ML models for cloud cost optimization.
 Demonstrates cutting-edge approaches to FinOps challenges.
@@ -15,16 +15,14 @@ from .data_generation import (
 )
 
 from .ml_models import (
-    CloudCostForecaster,
     CloudResourceHierarchicalModel,
-    CloudZeroTaxonomy,
+    CloudResourceTaxonomy,
 )
 
 __all__ = [
     "CloudMetricsSimulator",
     "WorkloadPatternGenerator",
     "CloudMetricsDatasetBuilder",
-    "CloudCostForecaster",
     "CloudResourceHierarchicalModel",
-    "CloudZeroTaxonomy",
+    "CloudResourceTaxonomy",
 ]

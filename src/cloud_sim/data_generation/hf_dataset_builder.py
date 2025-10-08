@@ -6,14 +6,12 @@ for use with foundation models and easy sharing
 
 import polars as pl
 import numpy as np
-from datasets import Dataset, DatasetDict, Features, Value, Sequence, ClassLabel
-from typing import Dict, List, Optional, Any, Tuple
+from datasets import Dataset, DatasetDict, Features, Value, ClassLabel
+from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime, timedelta
-import json
 from pathlib import Path
 from loguru import logger
-from huggingface_hub import HfApi, create_repo
-import pyarrow as pa
+from huggingface_hub import HfApi
 
 class CloudMetricsDatasetBuilder:
     """Build and manage HuggingFace datasets for cloud metrics"""
@@ -291,36 +289,272 @@ class CloudMetricsDatasetBuilder:
 
         return optimization_dataset
 
-    def push_to_hub(
+    def compute_dataset_statistics(self, dataset: Union[Dataset, pl.DataFrame]) -> Dict[str, Any]:
+        """Compute comprehensive statistics for a dataset."""
+        # Support both Dataset and DataFrame
+        if isinstance(dataset, Dataset):
+            df = pl.from_arrow(dataset.data.table)
+            num_samples = len(dataset)
+            columns = dataset.column_names
+        else:
+            df = dataset
+            num_samples = len(df)
+            columns = df.columns
+
+        stats = {
+            "num_samples": num_samples,
+            "columns": columns,
+        }
+
+        # Compute statistics for numeric columns
+        numeric_cols = ["cpu_utilization", "memory_utilization", "hourly_cost",
+                        "efficiency_score", "waste_percentage"]
+
+        for col in numeric_cols:
+            if col in df.columns:
+                col_data = df[col]
+                stats[col] = {
+                    "mean": col_data.mean(),
+                    "std": col_data.std(),
+                    "min": col_data.min(),
+                    "max": col_data.max(),
+                    "median": col_data.median(),
+                    "q25": col_data.quantile(0.25),
+                    "q75": col_data.quantile(0.75),
+                }
+
+        # Count categorical values
+        if "workload_type" in df.columns:
+            workload_counts = df.group_by("workload_type").len()
+            stats["workload_distribution"] = {
+                row["workload_type"]: row["len"]
+                for row in workload_counts.iter_rows(named=True)
+            }
+
+        if "is_anomaly" in df.columns:
+            anomaly_count = df["is_anomaly"].sum()
+            stats["anomaly_rate"] = anomaly_count / len(df) if len(df) > 0 else 0
+
+        # Add additional expected stats for tests
+        if "resource_id" in df.columns:
+            unique_resources = df["resource_id"].n_unique()
+            stats["num_resources"] = unique_resources
+
+        if "timestamp" in df.columns:
+            stats["time_range"] = {
+                "start": df["timestamp"].min(),
+                "end": df["timestamp"].max()
+            }
+
+        stats["total_samples"] = num_samples
+
+        # Restructure numeric stats to expected format
+        metrics = {}
+        for col in numeric_cols:
+            if col in df.columns:
+                col_data = df[col]
+                metrics[col] = {
+                    "mean": float(col_data.mean()) if col_data.mean() is not None else 0.0,
+                    "std": float(col_data.std()) if col_data.std() is not None else 0.0,
+                    "min": float(col_data.min()) if col_data.min() is not None else 0.0,
+                    "max": float(col_data.max()) if col_data.max() is not None else 0.0,
+                }
+        stats["metrics"] = metrics
+
+        logger.info(f"Computed statistics for dataset with {num_samples} samples")
+        return stats
+
+    def validate_dataset(
         self,
-        dataset: Dataset,
-        repo_name: str,
-        private: bool = True,
-        token: Optional[str] = None
-    ):
-        """Push dataset to HuggingFace Hub"""
+        dataset: Union[Dataset, pl.DataFrame],
+        check_schema: bool = True
+    ) -> Tuple[bool, List[str]]:
+        """Validate dataset quality and schema.
 
+        Returns:
+            Tuple of (is_valid, list_of_errors)
+        """
+        errors = []
         try:
-            # Create repository if it doesn't exist
-            create_repo(
-                repo_id=repo_name,
-                repo_type="dataset",
-                private=private,
-                token=token,
-                exist_ok=True
-            )
+            # Support both Dataset and DataFrame
+            if isinstance(dataset, Dataset):
+                df = pl.from_arrow(dataset.data.table)
+            else:
+                df = dataset
 
-            # Push dataset
-            dataset.push_to_hub(
-                repo_id=repo_name,
-                private=private,
-                token=token
-            )
+            # Check required columns
+            required_columns = ["timestamp", "resource_id", "cpu_utilization",
+                                "memory_utilization", "hourly_cost"]
 
-            logger.info(f"Successfully pushed dataset to hub: {repo_name}")
+            for col in required_columns:
+                if col not in df.columns:
+                    error_msg = f"Missing required column: {col}"
+                    logger.error(error_msg)
+                    errors.append(f"Required column '{col}' not found in DataFrame")
+
+            # Check data types if needed
+            if check_schema:
+                # Check numeric columns are actually numeric
+                numeric_cols = ["cpu_utilization", "memory_utilization", "hourly_cost"]
+                for col in numeric_cols:
+                    if col in df.columns:
+                        dtype = df[col].dtype
+                        if dtype not in [pl.Float32, pl.Float64, pl.Int32, pl.Int64]:
+                            error_msg = f"Column {col} has incorrect dtype: {dtype}"
+                            logger.error(error_msg)
+                            errors.append(error_msg)
+
+            # Check for valid ranges
+            if "cpu_utilization" in df.columns:
+                min_val = df["cpu_utilization"].min()
+                max_val = df["cpu_utilization"].max()
+                if min_val < 0 or max_val > 100:
+                    error_msg = f"cpu_utilization out of valid range [0, 100]: min={min_val}, max={max_val}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+
+            if "memory_utilization" in df.columns:
+                min_val = df["memory_utilization"].min()
+                max_val = df["memory_utilization"].max()
+                if min_val < 0 or max_val > 100:
+                    error_msg = f"memory_utilization out of valid range [0, 100]: min={min_val}, max={max_val}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+
+            if "hourly_cost" in df.columns:
+                min_val = df["hourly_cost"].min()
+                if min_val < 0:
+                    error_msg = f"hourly_cost cannot be negative: min={min_val}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+
+            if errors:
+                logger.error(f"Dataset validation failed with {len(errors)} errors")
+                return False, errors
+            else:
+                logger.info(f"Dataset validation passed for {len(df)} samples")
+                return True, []
 
         except Exception as e:
-            logger.error(f"Failed to push to hub: {e}")
+            error_msg = f"Dataset validation failed with exception: {e}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+            return False, errors
+
+
+    def create_time_series_splits(
+        self,
+        df: pl.DataFrame,
+        test_size: float = 0.2,
+        val_size: float = 0.1
+    ) -> DatasetDict:
+        """Create chronological train/test/validation splits for time series data.
+
+        Args:
+            df: Polars DataFrame with time series data
+            test_size: Fraction of data for test set
+            val_size: Fraction of data for validation set
+
+        Returns:
+            DatasetDict with train, validation, and test splits
+        """
+        # Sort by timestamp to ensure chronological order
+        if "timestamp" in df.columns:
+            df = df.sort("timestamp")
+
+        n_samples = len(df)
+        test_samples = int(n_samples * test_size)
+        val_samples = int(n_samples * val_size)
+        train_samples = n_samples - test_samples - val_samples
+
+        # Split chronologically
+        train_df = df[:train_samples]
+        val_df = df[train_samples:train_samples + val_samples]
+        test_df = df[train_samples + val_samples:]
+
+        # Convert to datasets
+        train_dataset = self.polars_to_dataset(train_df)
+        val_dataset = self.polars_to_dataset(val_df)
+        test_dataset = self.polars_to_dataset(test_df)
+
+        return DatasetDict({
+            "train": train_dataset,
+            "validation": val_dataset,
+            "test": test_dataset
+        })
+
+
+    def prepare_sliding_windows(
+        self,
+        df: pl.DataFrame,
+        window_size: int = 24,
+        stride: int = 6,
+        target_col: str = "hourly_cost"
+    ) -> List[Dict[str, Any]]:
+        """Prepare sliding window features for time series models.
+
+        Args:
+            df: Polars DataFrame with time series data
+            window_size: Size of the context window
+            stride: Step size between windows
+            target_col: Column to use as target
+
+        Returns:
+            List of window dictionaries with context and target
+        """
+        windows = []
+
+        # Group by resource_id to maintain boundaries
+        for resource_id in df["resource_id"].unique():
+            resource_data = df.filter(pl.col("resource_id") == resource_id).sort("timestamp")
+
+            if len(resource_data) < window_size + 1:
+                continue
+
+            # Extract target column values
+            values = resource_data[target_col].to_numpy()
+            timestamps = resource_data["timestamp"].to_list()
+
+            # Create sliding windows
+            for i in range(0, len(values) - window_size, stride):
+                if i + window_size >= len(values):
+                    break
+
+                windows.append({
+                    "context": values[i:i+window_size].tolist(),
+                    "target": values[i+window_size],
+                    "timestamp": timestamps[i],
+                    "resource_id": resource_id
+                })
+
+        return windows
+
+    def prepare_for_foundation_models(self, df: pl.DataFrame) -> Dataset:
+        """Prepare dataset for foundation model training.
+
+        Args:
+            df: Polars DataFrame with cloud metrics
+
+        Returns:
+            HuggingFace Dataset formatted for foundation models
+        """
+        # Convert to dict format
+        data_dict = df.to_dict(as_series=False)
+
+        # Create dataset with proper features
+        dataset = Dataset.from_dict(data_dict)
+
+        # Add tokenization or other preprocessing if needed
+        def preprocess_function(examples):
+            # This could include tokenization, normalization, etc.
+            return examples
+
+        dataset = dataset.map(preprocess_function, batched=True)
+
+        logger.info(f"Prepared dataset with {len(dataset)} samples for foundation models")
+        return dataset
+
+
 
     def load_from_hub(
         self,

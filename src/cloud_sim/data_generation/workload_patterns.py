@@ -9,9 +9,9 @@ Based on research showing actual cloud utilization statistics:
 import polars as pl
 import numpy as np
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Literal
 from enum import Enum
-from dataclasses import dataclass
+from pydantic import BaseModel, Field, field_validator
 import random
 from loguru import logger
 
@@ -30,19 +30,32 @@ class WorkloadType(Enum):
     QUEUE = "message_queue"
     DEVELOPMENT = "development_environment"
 
-@dataclass
-class WorkloadCharacteristics:
+class WorkloadCharacteristics(BaseModel):
     """Characteristics based on real-world data"""
-    base_cpu_util: float  # Average CPU utilization
-    base_mem_util: float  # Average memory utilization
-    cpu_variance: float   # Variance in CPU usage
-    mem_variance: float   # Variance in memory usage
-    peak_multiplier: float  # Peak load multiplier
-    idle_probability: float  # Probability of being idle
-    waste_factor: float  # Resource waste percentage
-    scaling_pattern: str  # auto, manual, none
-    seasonal_pattern: bool  # Has seasonal patterns
-    burst_probability: float  # Probability of bursts
+    base_cpu_util: float = Field(..., ge=0, le=100, description="Average CPU utilization (%)")
+    base_mem_util: float = Field(..., ge=0, le=100, description="Average memory utilization (%)")
+    cpu_variance: float = Field(..., ge=0, description="Variance in CPU usage")
+    mem_variance: float = Field(..., ge=0, description="Variance in memory usage")
+    peak_multiplier: float = Field(..., gt=1, description="Peak load multiplier")
+    idle_probability: float = Field(..., ge=0, le=1, description="Probability of being idle")
+    waste_factor: float = Field(..., ge=0, le=1, description="Resource waste percentage")
+    scaling_pattern: Literal["auto", "manual", "none"] = Field(..., description="Scaling strategy")
+    seasonal_pattern: bool = Field(..., description="Has seasonal patterns")
+    burst_probability: float = Field(..., ge=0, le=1, description="Probability of bursts")
+
+    @field_validator('base_cpu_util', 'base_mem_util')
+    @classmethod
+    def validate_percentage(cls, v: float) -> float:
+        if not 0 <= v <= 100:
+            raise ValueError(f"Utilization must be between 0 and 100, got {v}")
+        return v
+
+    @field_validator('idle_probability', 'waste_factor', 'burst_probability')
+    @classmethod
+    def validate_probability(cls, v: float) -> float:
+        if not 0 <= v <= 1:
+            raise ValueError(f"Probability must be between 0 and 1, got {v}")
+        return v
 
 class WorkloadPatternGenerator:
     """Generate realistic cloud workload patterns based on research data"""
@@ -169,6 +182,18 @@ class WorkloadPatternGenerator:
             seasonal_pattern=False,
             burst_probability=0.05
         ),
+        WorkloadType.QUEUE: WorkloadCharacteristics(
+            base_cpu_util=8,
+            base_mem_util=20,
+            cpu_variance=15,
+            mem_variance=10,
+            peak_multiplier=3.0,
+            idle_probability=0.3,
+            waste_factor=0.35,
+            scaling_pattern="auto",
+            seasonal_pattern=False,
+            burst_probability=0.25
+        ),
         WorkloadType.DEVELOPMENT: WorkloadCharacteristics(
             base_cpu_util=5,
             base_mem_util=15,
@@ -189,6 +214,32 @@ class WorkloadPatternGenerator:
             np.random.seed(seed)
             random.seed(seed)
 
+    def generate(
+        self,
+        num_samples: int = 1000,
+        workload_type: Optional[WorkloadType] = None,
+        **kwargs
+    ) -> pl.DataFrame:
+        """Generate synthetic data with specified number of samples.
+
+        This is a wrapper for generate_time_series for backward compatibility.
+        """
+        if workload_type is None:
+            workload_type = WorkloadType.WEB_APP
+
+        # Calculate time range based on number of samples
+        interval_minutes = kwargs.get('interval_minutes', 5)
+        end_time = datetime.now()
+        total_minutes = num_samples * interval_minutes
+        start_time = end_time - timedelta(minutes=total_minutes)
+
+        return self.generate_time_series(
+            workload_type=workload_type,
+            start_time=start_time,
+            end_time=end_time,
+            interval_minutes=interval_minutes
+        )
+
     def generate_time_series(
         self,
         workload_type: WorkloadType,
@@ -201,13 +252,15 @@ class WorkloadPatternGenerator:
         profile = self.WORKLOAD_PROFILES[workload_type]
 
         # Create timestamp array
+        # Calculate exact number of points (excluding end_time)
+        total_minutes = (end_time - start_time).total_seconds() / 60
+        num_points = int(total_minutes / interval_minutes)
+
         timestamps = []
         current = start_time
-        while current <= end_time:
+        for i in range(num_points):
             timestamps.append(current)
             current += timedelta(minutes=interval_minutes)
-
-        num_points = len(timestamps)
 
         # Generate base patterns
         cpu_utilization = self._generate_utilization_pattern(
@@ -432,42 +485,56 @@ class WorkloadPatternGenerator:
         if anomaly_types is None:
             anomaly_types = ["memory_leak", "cpu_spike", "idle_waste", "scaling_failure"]
 
-        df = df.clone()
-        timestamps = df["timestamp"].to_list()
+        # Work with numpy arrays for easier manipulation
+        cpu_values = df["cpu_utilization"].to_numpy().copy()
+        mem_values = df["memory_utilization"].to_numpy().copy()
+        eff_values = df["efficiency_score"].to_numpy().copy() if "efficiency_score" in df.columns else None
+
         num_points = len(df)
 
         for anomaly_type in anomaly_types:
-            if anomaly_type == "memory_leak":
+            if anomaly_type == "memory_leak" and num_points > 100:
                 # Gradual memory increase over time
                 start_idx = random.randint(0, num_points - 100)
                 end_idx = min(start_idx + 100, num_points)
                 leak_pattern = np.linspace(0, 50, end_idx - start_idx)
-
-                current_mem = df["memory_utilization"][start_idx:end_idx].to_numpy()
-                df[start_idx:end_idx, "memory_utilization"] = np.clip(
-                    current_mem + leak_pattern, 0, 100
+                mem_values[start_idx:end_idx] = np.clip(
+                    mem_values[start_idx:end_idx] + leak_pattern, 0, 100
                 )
 
-            elif anomaly_type == "cpu_spike":
+            elif anomaly_type == "cpu_spike" and num_points > 10:
                 # Sudden CPU spike
                 spike_idx = random.randint(0, num_points - 10)
-                df[spike_idx:spike_idx+10, "cpu_utilization"] = 95 + np.random.rand(10) * 5
+                cpu_values[spike_idx:spike_idx+10] = 95 + np.random.rand(10) * 5
 
-            elif anomaly_type == "idle_waste":
+            elif anomaly_type == "idle_waste" and num_points > 50:
                 # Extended idle period (common waste pattern)
                 idle_start = random.randint(0, num_points - 50)
                 idle_end = min(idle_start + 50, num_points)
-                df[idle_start:idle_end, "cpu_utilization"] = np.random.rand(idle_end - idle_start) * 5
-                df[idle_start:idle_end, "memory_utilization"] = np.random.rand(idle_end - idle_start) * 10
+                cpu_values[idle_start:idle_end] = np.random.rand(idle_end - idle_start) * 5
+                mem_values[idle_start:idle_end] = np.random.rand(idle_end - idle_start) * 10
 
-            elif anomaly_type == "scaling_failure":
+            elif anomaly_type == "scaling_failure" and num_points > 30:
                 # Auto-scaling failure pattern
                 failure_idx = random.randint(0, num_points - 30)
                 # CPU maxes out but memory stays low (scaling didn't trigger)
-                df[failure_idx:failure_idx+30, "cpu_utilization"] = 100
-                df[failure_idx:failure_idx+30, "efficiency_score"] = 0
+                cpu_values[failure_idx:failure_idx+30] = 100
+                if eff_values is not None:
+                    eff_values[failure_idx:failure_idx+30] = 0
 
-        return df
+        # Create new DataFrame with modified values
+        result_df = df.clone()
+        result_df = result_df.with_columns([
+            pl.Series("cpu_utilization", cpu_values),
+            pl.Series("memory_utilization", mem_values),
+        ])
+
+        if eff_values is not None:
+            result_df = result_df.with_columns([
+                pl.Series("efficiency_score", eff_values),
+            ])
+
+        return result_df
 
 def create_multi_workload_dataset(
     start_time: datetime,
