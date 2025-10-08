@@ -606,7 +606,7 @@ else:
 
 ### Temporal Evolution of Record Volume
 
-Using the 7Park pattern, we examine record volume over time to detect source shifts or collection changes.
+We examine record volume over time to detect source shifts or collection changes.
 
 ```{code-cell} ipython3
 # Daily record counts

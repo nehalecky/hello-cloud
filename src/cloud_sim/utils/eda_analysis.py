@@ -2,7 +2,7 @@
 Exploratory Data Analysis utilities for billing and time series data.
 
 Provides reusable functions for schema analysis, information theory calculations,
-temporal normalization patterns (following 7Park methodology), and outlier detection.
+temporal normalization patterns, and outlier detection.
 Designed for Polars DataFrames with focus on cloud billing data.
 """
 
@@ -537,7 +537,7 @@ def semantic_column_analysis(df: pl.LazyFrame) -> pl.DataFrame:
 
 
 # ============================================================================
-# Temporal Normalization (7Park Pattern)
+# Temporal Normalization
 # ============================================================================
 
 def time_normalized_size(
@@ -548,8 +548,7 @@ def time_normalized_size(
     """
     Create normalized time series of record counts by frequency.
 
-    This follows the 7Park pattern for temporal analysis: aggregate record
-    counts by time period to understand data collection patterns.
+    Aggregate record counts by time period to understand data collection patterns.
 
     Args:
         df: Input LazyFrame with temporal data
@@ -580,7 +579,7 @@ def entity_normalized_by_day(
     date_col: str = 'usage_date'
 ) -> pl.DataFrame:
     """
-    Normalize entity metrics by total daily activity (7Park pattern).
+    Normalize entity metrics by total daily activity.
 
     For each entity e and day t, compute:
     x̂_e,t = x_e,t / ∑_e' x_e',t
