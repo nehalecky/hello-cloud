@@ -142,14 +142,49 @@ We now separate numeric and categorical columns for appropriate statistical summ
 **Categorical columns** receive cardinality analysis, entropy scores, and top value identification, enabling us to understand the diversity and concentration of categorical values.
 
 ```{code-cell} ipython3
-# Import new summary and visualization functions
+# Import analysis and visualization functions
 from cloud_sim.utils import (
+    semantic_column_analysis,
     numeric_column_summary,
     categorical_column_summary,
     plot_numeric_distributions,
     plot_categorical_frequencies
 )
+```
 
+### Semantic Column Analysis
+
+Before examining distributions, we infer semantic meaning from column names. This helps us understand what each column represents and sets expectations for data characteristics.
+
+```{code-cell} ipython3
+# Infer semantic meaning from column names
+print("=" * 80)
+print("SEMANTIC COLUMN ANALYSIS")
+print("=" * 80)
+semantic_analysis = semantic_column_analysis(df)
+
+print(f"\n{len(semantic_analysis)} columns analyzed")
+
+# Group by semantic category
+category_summary = semantic_analysis.group_by('semantic_category').agg([
+    pl.len().alias('count'),
+    pl.col('column').alias('columns')
+]).sort('count', descending=True)
+
+print("\nSemantic Categories:")
+print(category_summary.select(['semantic_category', 'count']))
+
+# Display full semantic analysis
+print("\nFull Semantic Analysis:")
+with pl.Config(tbl_rows=-1, tbl_width_chars=250):
+    display(semantic_analysis)
+```
+
+### Numeric Column Summary
+
+Now we generate distribution statistics for numeric columns, informed by our semantic understanding:
+
+```{code-cell} ipython3
 # Generate numeric summary (excludes columns with >95% nulls)
 print("=" * 80)
 print("NUMERIC COLUMNS SUMMARY")
@@ -173,16 +208,40 @@ with pl.Config(tbl_rows=-1, tbl_width_chars=250):
     display(categorical_summary)
 ```
 
+### Visual Distribution Analysis
+
+Having completed statistical summaries, we now visualize distributions to validate and extend our understanding:
+
+```{code-cell} ipython3
+# Visualize numeric distributions with boxplots
+print("Generating boxplots for numeric columns (50K sample)...")
+fig = plot_numeric_distributions(df, sample_size=50_000, figsize=(15, 12), cols_per_row=3)
+plt.show()
+```
+
+```{code-cell} ipython3
+# Visualize categorical value frequencies
+print("Generating frequency charts for categorical columns (100K sample, top 10 values)...")
+fig = plot_categorical_frequencies(df, top_n=10, sample_size=100_000, figsize=(15, 12), cols_per_row=2)
+plt.show()
+```
+
 ### Initial Observations
 
-From the schema and summary statistics, we observe concerning patterns:
+From semantic analysis, statistical summaries, and visualizations, we observe:
 
-1. **Data quality issues**: Negative cost values (min = -524.54) suggest refunds, credits, or data errors
-2. **Near-zero values**: Q25 values of ~10^-7 indicate many zero or near-zero records
-3. **High cardinality**: 4+ million unique values in cost columns suggests high granularity
-4. **Wide ranges**: Max values ~97K vs Q75 ~2.8 indicate extreme right skew
+**Semantic Understanding:**
+- **Financial metrics** (8 columns): Cost columns with different accounting treatments (discounted, amortized, invoiced)
+- **Cloud hierarchy** (multiple): Provider, account, product, service, region identifiers
+- **Kubernetes overlay** (sparse): Container metadata with expected high nulls
+- **Identifiers** (high cardinality): UUIDs, resource IDs for granular tracking
 
-**Decision**: We defer detailed distribution analysis until after information scoring (Part 3). We must identify which columns carry meaningful information before investing in deep statistical analysis. The presence of negative costs and extreme skew requires information-theoretic filtering to separate signal from noise.
+**Data Quality Concerns:**
+1. **Negative cost values** (min = -524.54): Financial columns show negatives, likely refunds/credits but requiring validation against semantic expectations
+2. **Near-zero concentrations**: Q25 values ~10^-7 indicate many zero or near-zero records
+3. **Extreme right skew**: Max ~97K vs Q75 ~2.8 suggests heavy-tailed distributions
+
+**Next Steps:** Part 3 (Information Scoring) will quantify which columns carry meaningful signal despite these quality concerns. Semantic expectations will inform whether observed patterns (e.g., negative costs) represent valid business logic or data errors.
 
 ---
 

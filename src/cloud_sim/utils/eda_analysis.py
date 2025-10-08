@@ -348,6 +348,194 @@ def cardinality_classification(cardinality_ratio: float) -> str:
         return 'Low'
 
 
+def infer_column_semantics(column_name: str) -> dict:
+    """
+    Infer semantic meaning from column name patterns.
+
+    Uses naming conventions to classify columns by their likely semantic role:
+    - Cost/financial metrics
+    - Usage/consumption metrics
+    - Identifiers (keys, IDs, UUIDs)
+    - Temporal attributes
+    - Kubernetes/container metadata
+    - Cloud provider hierarchy (account, region, product, etc.)
+
+    Args:
+        column_name: Column name to analyze
+
+    Returns:
+        Dictionary with inferred semantics: category, subcategory, expected_characteristics
+
+    Example:
+        >>> infer_column_semantics('materialized_discounted_cost')
+        {'category': 'financial', 'subcategory': 'cost_discounted',
+         'expected': 'non-negative numeric, right-skewed'}
+    """
+    col_lower = column_name.lower()
+
+    # Financial metrics
+    if 'cost' in col_lower or 'price' in col_lower or 'charge' in col_lower:
+        subcategory = 'cost_unknown'
+        if 'discount' in col_lower:
+            subcategory = 'cost_discounted'
+        elif 'amortiz' in col_lower:
+            subcategory = 'cost_amortized'
+        elif 'invoice' in col_lower:
+            subcategory = 'cost_invoiced'
+        elif 'public' in col_lower or 'demand' in col_lower:
+            subcategory = 'cost_list_price'
+
+        return {
+            'category': 'financial',
+            'subcategory': subcategory,
+            'expected': 'non-negative numeric (or small negative for refunds), right-skewed',
+            'unit': 'currency',
+            'quality_checks': ['check for negative values', 'check for extreme outliers']
+        }
+
+    # Usage/consumption metrics
+    if 'usage' in col_lower or 'consumption' in col_lower:
+        return {
+            'category': 'consumption',
+            'subcategory': 'usage_metric',
+            'expected': 'non-negative numeric, possibly zero',
+            'unit': 'varies (GB, hours, requests)',
+            'quality_checks': ['check for negative values', 'check zero prevalence']
+        }
+
+    # Identifiers
+    if any(x in col_lower for x in ['id', 'uuid', 'arn', 'key']):
+        return {
+            'category': 'identifier',
+            'subcategory': 'unique_key' if 'uuid' in col_lower else 'reference_key',
+            'expected': 'high cardinality string, minimal nulls',
+            'unit': 'none',
+            'quality_checks': ['check uniqueness', 'check null rate']
+        }
+
+    # Temporal
+    if any(x in col_lower for x in ['date', 'time', 'timestamp', 'period']):
+        return {
+            'category': 'temporal',
+            'subcategory': 'date' if 'date' in col_lower else 'timestamp',
+            'expected': 'datetime type, sequential, no gaps',
+            'unit': 'datetime',
+            'quality_checks': ['check for gaps', 'check range validity']
+        }
+
+    # Kubernetes/container
+    if col_lower.startswith('_k8s') or 'kubernetes' in col_lower:
+        return {
+            'category': 'kubernetes',
+            'subcategory': 'container_metadata',
+            'expected': 'sparse (high nulls), categorical',
+            'unit': 'none',
+            'quality_checks': ['expect high null percentage', 'check cardinality']
+        }
+
+    # Cloud hierarchy - accounts
+    if 'account' in col_lower:
+        return {
+            'category': 'cloud_hierarchy',
+            'subcategory': 'account_identifier',
+            'expected': 'medium cardinality, categorical',
+            'unit': 'none',
+            'quality_checks': ['check cardinality matches expected accounts']
+        }
+
+    # Cloud hierarchy - products/services
+    if any(x in col_lower for x in ['product', 'service', 'family']):
+        return {
+            'category': 'cloud_hierarchy',
+            'subcategory': 'product_taxonomy',
+            'expected': 'low-medium cardinality, categorical',
+            'unit': 'none',
+            'quality_checks': ['check value set consistency']
+        }
+
+    # Cloud hierarchy - provider
+    if 'provider' in col_lower or 'cloud' in col_lower:
+        return {
+            'category': 'cloud_hierarchy',
+            'subcategory': 'provider',
+            'expected': 'low cardinality (AWS/Azure/GCP), categorical',
+            'unit': 'none',
+            'quality_checks': ['check for expected provider names']
+        }
+
+    # Cloud hierarchy - region/zone
+    if 'region' in col_lower or 'zone' in col_lower or 'location' in col_lower:
+        return {
+            'category': 'cloud_hierarchy',
+            'subcategory': 'geographic',
+            'expected': 'low-medium cardinality, categorical',
+            'unit': 'none',
+            'quality_checks': ['check for valid region codes']
+        }
+
+    # Descriptive metadata
+    if any(x in col_lower for x in ['name', 'description', 'label', 'tag']):
+        return {
+            'category': 'metadata',
+            'subcategory': 'descriptive',
+            'expected': 'high cardinality string, possibly sparse',
+            'unit': 'none',
+            'quality_checks': ['check informativeness']
+        }
+
+    # Aggregation indicators
+    if 'aggregat' in col_lower or 'count' in col_lower:
+        return {
+            'category': 'aggregation',
+            'subcategory': 'record_count',
+            'expected': 'positive integer',
+            'unit': 'count',
+            'quality_checks': ['check for zeros', 'check distribution']
+        }
+
+    # Default: unknown
+    return {
+        'category': 'unknown',
+        'subcategory': 'unclassified',
+        'expected': 'requires investigation',
+        'unit': 'unknown',
+        'quality_checks': ['manual inspection needed']
+    }
+
+
+def semantic_column_analysis(df: pl.LazyFrame) -> pl.DataFrame:
+    """
+    Analyze all columns to infer semantic meaning from names.
+
+    Args:
+        df: Input LazyFrame
+
+    Returns:
+        DataFrame with columns: column, semantic_category, semantic_subcategory,
+        expected_characteristics, quality_checks
+
+    Example:
+        >>> semantic_analysis = semantic_column_analysis(df)
+        >>> display(semantic_analysis)
+    """
+    schema = df.collect_schema()
+
+    results = []
+    for col in schema.names():
+        semantics = infer_column_semantics(col)
+        results.append({
+            'column': col,
+            'dtype': str(schema[col]),
+            'semantic_category': semantics['category'],
+            'semantic_subcategory': semantics['subcategory'],
+            'expected_characteristics': semantics['expected'],
+            'unit': semantics['unit'],
+            'quality_checks': ', '.join(semantics['quality_checks'])
+        })
+
+    return pl.DataFrame(results)
+
+
 # ============================================================================
 # Temporal Normalization (7Park Pattern)
 # ============================================================================
