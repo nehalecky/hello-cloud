@@ -1,0 +1,6 @@
+# Jupytext configuration for cloud-resource-simulator
+# Clean MyST + Jupyter pairing workflow
+
+formats = "md:myst,ipynb"
+notebook_metadata_filter = "-all"
+cell_metadata_filter = "-all"
