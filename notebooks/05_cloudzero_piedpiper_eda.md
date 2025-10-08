@@ -15,12 +15,11 @@ kernelspec:
 
 ## Background
 
-We begin with the dataset description from CloudZero:
 
-> **Dataset**: PiedPiper optimized daily billing data
-> **Coverage**: September 1 - December 31, 2025 (122 days)
-> **Records**: 8,336,995 rows × 38 columns
-> **Format**: SNAPPY-compressed Parquet (0.96 GB)
+* **Dataset**: PiedPiper optimized daily billing data
+* **Coverage**: September 1 - December 31, 2025 (122 days)
+* **Records**: 8,336,995 rows × 38 columns
+* **Format**: SNAPPY-compressed Parquet (0.96 GB)
 
 This analysis provides a rigorous exploration of the PiedPiper billing dataset, establishing a foundation for subsequent modeling and forecasting efforts. We proceed methodically, building knowledge progressively.
 
@@ -269,6 +268,48 @@ print(attribute_scores.head(10))
 
 print("\nBottom 10 Least Informative Attributes:")
 print(attribute_scores.tail(10))
+```
+
+```{code-cell} ipython3
+# DEBUG: Verify data structure for visualization
+import logging
+from contextlib import contextmanager
+
+@contextmanager
+def debug_logging():
+    """Temporarily enable debug logging."""
+    logger = logging.getLogger()
+    old_level = logger.level
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    try:
+        yield logger
+    finally:
+        logger.setLevel(old_level)
+        logger.removeHandler(handler)
+
+with debug_logging() as logger:
+    logger.debug(f"attribute_scores shape: {attribute_scores.shape}")
+    logger.debug(f"attribute_scores columns: {attribute_scores.columns}")
+    logger.debug(f"attribute_scores dtypes: {attribute_scores.dtypes}")
+    logger.debug(f"\nFirst 3 rows:\n{attribute_scores.head(3)}")
+    logger.debug(f"\ncard_class value counts:\n{attribute_scores['card_class'].value_counts()}")
+    logger.debug(f"\nInformation score range: [{attribute_scores['information_score'].min()}, {attribute_scores['information_score'].max()}]")
+
+    # Check for nulls
+    null_check = attribute_scores.null_count()
+    logger.debug(f"\nNull counts:\n{null_check}")
+
+    # Convert to pandas and check
+    pandas_df = attribute_scores.to_pandas()
+    logger.debug(f"\nPandas DataFrame info:")
+    logger.debug(f"  Shape: {pandas_df.shape}")
+    logger.debug(f"  Columns: {pandas_df.columns.tolist()}")
+    logger.debug(f"  First row: {pandas_df.iloc[0].to_dict()}")
 ```
 
 ```{code-cell} ipython3
@@ -944,4 +985,3 @@ This foundation enables subsequent deep dives into unit economics, hierarchical 
 ---
 
 _Analysis continues in subsequent sections with Parts 7-13..._
-
