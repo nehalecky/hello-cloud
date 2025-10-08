@@ -468,10 +468,17 @@ def create_info_score_chart(
         >>> chart = create_info_score_chart(scores)
         >>> chart.display()
     """
-    # Calculate median for reference line
-    median_score = attribute_scores['information_score'].median()
+    # Filter out zero scores (log scale can't handle zeros)
+    # Zero information scores indicate completely null or invariant attributes
+    filtered_scores = attribute_scores.filter(pl.col('information_score') > 0)
 
-    base = alt.Chart(attribute_scores.to_pandas())
+    if len(filtered_scores) == 0:
+        raise ValueError("All attributes have zero information score - cannot visualize")
+
+    # Calculate median for reference line
+    median_score = filtered_scores['information_score'].median()
+
+    base = alt.Chart(filtered_scores.to_pandas())
 
     bar = base.mark_bar().encode(
         x=alt.X('information_score:Q',
@@ -501,7 +508,7 @@ def create_info_score_chart(
 
     chart = (bar + rule).properties(
         width=700,
-        height=max(400, len(attribute_scores) * 15),
+        height=max(400, len(filtered_scores) * 15),
         title='Attribute Information Scores (Log Scale)'
     )
 
