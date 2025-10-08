@@ -13,6 +13,8 @@ from .notebook_logging import (
 from .eda_analysis import (
     # Schema & Information Theory
     comprehensive_schema_analysis,
+    numeric_column_summary,
+    categorical_column_summary,
     shannon_entropy,
     calculate_attribute_scores,
     cardinality_classification,
@@ -37,6 +39,8 @@ __all__ = [
     "verbose_library_logging",
     # EDA - Schema & Information Theory
     "comprehensive_schema_analysis",
+    "numeric_column_summary",
+    "categorical_column_summary",
     "shannon_entropy",
     "calculate_attribute_scores",
     "cardinality_classification",

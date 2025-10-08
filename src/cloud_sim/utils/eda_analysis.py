@@ -32,8 +32,8 @@ def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
         df: Input LazyFrame to analyze
 
     Returns:
-        DataFrame with columns: column, dtype, null_count, null_pct,
-        unique_count, cardinality_ratio, sample_value, quality, card_class
+        DataFrame with columns: column, dtype, null_pct, unique_count,
+        cardinality_ratio, sample_value, quality, card_class
 
     Example:
         >>> with pl.Config(tbl_rows=-1):
@@ -53,9 +53,8 @@ def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
     schema_df = pl.DataFrame({
         'column': schema.names(),
         'dtype': [str(dt) for dt in schema.dtypes()],
-        'null_count': [stats[f'{col}_nulls'][0] for col in schema.names()],
         'null_pct': [round(stats[f'{col}_nulls'][0] / total_rows * 100, 2) for col in schema.names()],
-        'unique_count': [f"{stats[f'{col}_unique'][0]:,}" for col in schema.names()],
+        'unique_count': [stats[f'{col}_unique'][0] for col in schema.names()],  # Keep as int
         'cardinality_ratio': [round(stats[f'{col}_unique'][0] / total_rows, 6) for col in schema.names()],
         'sample_value': [str(stats[f'{col}_sample'][0])[:50] if stats[f'{col}_sample'][0] is not None else '<null>'
                         for col in schema.names()],
@@ -71,6 +70,167 @@ def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
     ])
 
     return schema_df
+
+
+def numeric_column_summary(
+    df: pl.LazyFrame,
+    null_threshold: float = 95.0
+) -> pl.DataFrame:
+    """
+    Generate summary statistics for numeric columns, filtering high-null columns.
+
+    Args:
+        df: Input LazyFrame
+        null_threshold: Exclude columns with null percentage > this value
+
+    Returns:
+        DataFrame with numeric columns and their distribution statistics
+
+    Example:
+        >>> numeric_summary = numeric_column_summary(df, null_threshold=95.0)
+        >>> display(numeric_summary)
+    """
+    schema = df.collect_schema()
+    total_rows = df.select(pl.len()).collect()[0, 0]
+
+    # Identify numeric columns
+    numeric_types = (pl.Int8, pl.Int16, pl.Int32, pl.Int64,
+                     pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64,
+                     pl.Float32, pl.Float64)
+    numeric_cols = [col for col, dtype in schema.items() if isinstance(dtype, numeric_types)]
+
+    if not numeric_cols:
+        return pl.DataFrame()
+
+    # Compute statistics for numeric columns
+    stats = df.select([
+        pl.col(col).null_count().alias(f'{col}_nulls') for col in numeric_cols
+    ] + [
+        pl.col(col).n_unique().alias(f'{col}_unique') for col in numeric_cols
+    ] + [
+        pl.col(col).min().alias(f'{col}_min') for col in numeric_cols
+    ] + [
+        pl.col(col).max().alias(f'{col}_max') for col in numeric_cols
+    ] + [
+        pl.col(col).mean().alias(f'{col}_mean') for col in numeric_cols
+    ] + [
+        pl.col(col).std().alias(f'{col}_std') for col in numeric_cols
+    ] + [
+        pl.col(col).median().alias(f'{col}_median') for col in numeric_cols
+    ] + [
+        pl.col(col).quantile(0.25).alias(f'{col}_q25') for col in numeric_cols
+    ] + [
+        pl.col(col).quantile(0.75).alias(f'{col}_q75') for col in numeric_cols
+    ]).collect()
+
+    # Build summary DataFrame
+    results = []
+    for col in numeric_cols:
+        null_pct = (stats[f'{col}_nulls'][0] / total_rows) * 100
+
+        # Filter by null threshold
+        if null_pct > null_threshold:
+            continue
+
+        results.append({
+            'column': col,
+            'dtype': str(schema[col]),
+            'null_pct': round(null_pct, 2),
+            'unique': stats[f'{col}_unique'][0],
+            'min': stats[f'{col}_min'][0],
+            'q25': stats[f'{col}_q25'][0],
+            'median': stats[f'{col}_median'][0],
+            'q75': stats[f'{col}_q75'][0],
+            'max': stats[f'{col}_max'][0],
+            'mean': stats[f'{col}_mean'][0],
+            'std': stats[f'{col}_std'][0],
+        })
+
+    if not results:
+        return pl.DataFrame()
+
+    return pl.DataFrame(results)
+
+
+def categorical_column_summary(
+    df: pl.LazyFrame,
+    null_threshold: float = 95.0,
+    sample_size: int = 100_000
+) -> pl.DataFrame:
+    """
+    Generate summary statistics for categorical (string) columns, filtering high-null columns.
+
+    Args:
+        df: Input LazyFrame
+        null_threshold: Exclude columns with null percentage > this value
+        sample_size: Sample size for top value calculation
+
+    Returns:
+        DataFrame with categorical columns and their characteristics
+
+    Example:
+        >>> cat_summary = categorical_column_summary(df, null_threshold=95.0)
+        >>> display(cat_summary)
+    """
+    schema = df.collect_schema()
+    total_rows = df.select(pl.len()).collect()[0, 0]
+
+    # Identify categorical (string) columns
+    categorical_cols = [col for col, dtype in schema.items() if isinstance(dtype, (pl.String, pl.Categorical))]
+
+    if not categorical_cols:
+        return pl.DataFrame()
+
+    # Sample for top value calculation
+    df_sample = df.head(sample_size).collect()
+
+    # Compute statistics
+    stats = df.select([
+        pl.col(col).null_count().alias(f'{col}_nulls') for col in categorical_cols
+    ] + [
+        pl.col(col).n_unique().alias(f'{col}_unique') for col in categorical_cols
+    ]).collect()
+
+    # Build summary DataFrame
+    results = []
+    for col in categorical_cols:
+        null_pct = (stats[f'{col}_nulls'][0] / total_rows) * 100
+
+        # Filter by null threshold
+        if null_pct > null_threshold:
+            continue
+
+        # Get top value from sample
+        value_counts = df_sample[col].value_counts().sort('count', descending=True)
+        if len(value_counts) > 0:
+            top_value = value_counts[0, col]
+            top_count = value_counts[0, 'count']
+            top_pct = round((top_count / len(df_sample)) * 100, 2)
+        else:
+            top_value = '<null>'
+            top_pct = 0.0
+
+        # Compute entropy on sample
+        entropy = shannon_entropy(df_sample[col])
+        unique_count = stats[f'{col}_unique'][0]
+        cardinality_ratio = unique_count / total_rows
+
+        results.append({
+            'column': col,
+            'dtype': str(schema[col]),
+            'null_pct': round(null_pct, 2),
+            'unique': unique_count,
+            'cardinality_ratio': round(cardinality_ratio, 6),
+            'card_class': cardinality_classification(cardinality_ratio),
+            'entropy': round(entropy, 4),
+            'top_value': str(top_value)[:30],
+            'top_value_pct': top_pct
+        })
+
+    if not results:
+        return pl.DataFrame()
+
+    return pl.DataFrame(results)
 
 
 def shannon_entropy(series: pl.Series) -> float:

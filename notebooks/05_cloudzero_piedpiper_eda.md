@@ -133,18 +133,54 @@ with pl.Config(tbl_rows=-1, tbl_width_chars=200):
     display(schema_analysis)
 ```
 
+### Dataset Summary Statistics
+
+We now separate numeric and categorical columns for appropriate statistical summaries. Columns with >95% null values are excluded as they provide minimal analytical value.
+
+**Numeric columns** receive distribution statistics (min, max, quartiles, mean, std), enabling us to understand value ranges, central tendency, and dispersion.
+
+**Categorical columns** receive cardinality analysis, entropy scores, and top value identification, enabling us to understand the diversity and concentration of categorical values.
+
+```{code-cell} ipython3
+# Import new summary functions
+from cloud_sim.utils import numeric_column_summary, categorical_column_summary
+
+# Generate numeric summary (excludes columns with >95% nulls)
+print("=" * 80)
+print("NUMERIC COLUMNS SUMMARY")
+print("=" * 80)
+numeric_summary = numeric_column_summary(df, null_threshold=95.0)
+
+print(f"\n{len(numeric_summary)} numeric columns (after filtering >95% null)")
+with pl.Config(tbl_rows=-1, tbl_width_chars=250, fmt_float='mixed'):
+    display(numeric_summary)
+```
+
+```{code-cell} ipython3
+# Generate categorical summary (excludes columns with >95% nulls)
+print("=" * 80)
+print("CATEGORICAL COLUMNS SUMMARY")
+print("=" * 80)
+categorical_summary = categorical_column_summary(df, null_threshold=95.0)
+
+print(f"\n{len(categorical_summary)} categorical columns (after filtering >95% null)")
+with pl.Config(tbl_rows=-1, tbl_width_chars=250):
+    display(categorical_summary)
+```
+
 ### Initial Observations
 
-We observe the schema and make preliminary notes:
+From the schema and summary statistics, we observe:
 
-1. **Temporal attributes**: Identify date/datetime columns for time series analysis
-2. **Hierarchical structure**: Look for Provider → Account → Product → Resource hierarchy
-3. **Cost metrics**: Multiple cost fields likely representing different accounting views
-4. **Kubernetes overlay**: Attributes prefixed with `_k8s_` represent container metadata
-5. **High-cardinality fields**: Resource identifiers, tags (potential join keys)
-6. **Low-cardinality fields**: Categories for aggregation (providers, families, regions)
+1. **Temporal attributes**: Date columns for time series analysis with complete coverage
+2. **Hierarchical structure**: Provider → Account → Product → Service → Resource hierarchy present
+3. **Cost metrics**: Multiple cost fields (on-demand, discounted, amortized) representing different accounting views
+4. **Kubernetes overlay**: Attributes prefixed with `_k8s_` represent container metadata (likely sparse)
+5. **High-cardinality fields**: Resource identifiers, usage IDs (unique tracking capabilities)
+6. **Low-cardinality fields**: Cloud providers, product families, regions (aggregation dimensions)
+7. **Distribution characteristics**: Numeric columns show wide ranges, suggesting skewed distributions
 
-We will validate these observations empirically in subsequent sections.
+These characteristics validate our conceptual model and inform subsequent analytical choices.
 
 ---
 
@@ -313,9 +349,48 @@ with debug_logging() as logger:
 ```
 
 ```{code-cell} ipython3
-# Visualize attribute scores
-chart = create_info_score_chart(attribute_scores, interactive=True)
-chart
+# EXTENDED DEBUG: Test chart creation step by step
+print("Testing chart creation...")
+
+# Check for zero scores
+zero_scores = attribute_scores.filter(pl.col('information_score') == 0)
+print(f"Attributes with zero information score: {len(zero_scores)}")
+if len(zero_scores) > 0:
+    print(zero_scores.select(['attribute', 'information_score']))
+
+# Filter positive scores
+positive_scores = attribute_scores.filter(pl.col('information_score') > 0)
+print(f"\nAttributes with positive information score: {len(positive_scores)}")
+print(f"Score range: [{positive_scores['information_score'].min()}, {positive_scores['information_score'].max()}]")
+
+# Test minimal Altair chart (no log scale)
+print("\nTesting minimal chart (linear scale)...")
+test_chart = alt.Chart(positive_scores.to_pandas()).mark_bar().encode(
+    x='information_score:Q',
+    y=alt.Y('attribute:N', sort='-x')
+).properties(width=600, height=400, title='Test Chart - Linear Scale')
+
+display(test_chart)
+
+# Test with log scale
+print("\nTesting with log scale...")
+test_chart_log = alt.Chart(positive_scores.to_pandas()).mark_bar().encode(
+    x=alt.X('information_score:Q', scale=alt.Scale(type='log')),
+    y=alt.Y('attribute:N', sort='-x')
+).properties(width=600, height=400, title='Test Chart - Log Scale')
+
+display(test_chart_log)
+
+# Now try the actual function
+print("\nTesting create_info_score_chart function...")
+try:
+    chart = create_info_score_chart(attribute_scores, interactive=True)
+    print(f"Chart created successfully. Type: {type(chart)}")
+    display(chart)
+except Exception as e:
+    print(f"ERROR creating chart: {e}")
+    import traceback
+    traceback.print_exc()
 ```
 
 ```{code-cell} ipython3
