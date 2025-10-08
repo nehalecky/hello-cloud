@@ -213,9 +213,21 @@ with pl.Config(tbl_rows=-1, tbl_width_chars=250):
 Having completed statistical summaries, we now visualize distributions to validate and extend our understanding:
 
 ```{code-cell} ipython3
-# Visualize numeric distributions with boxplots
-print("Generating boxplots for numeric columns (50K sample)...")
-fig = plot_numeric_distributions(df, sample_size=50_000, figsize=(15, 12), cols_per_row=3)
+# Visualize numeric distributions with grouped boxplots
+# First, identify a good grouping variable (low cardinality categorical)
+grouping_candidates = categorical_summary.filter(
+    pl.col('card_class') == 'Low'
+).head(1)
+
+if len(grouping_candidates) > 0:
+    group_col = grouping_candidates['column'][0]
+    print(f"Generating grouped boxplots for numeric columns by {group_col} (50K sample)...")
+    fig = plot_numeric_distributions(df, group_by=group_col, sample_size=50_000,
+                                     figsize=(16, 10), cols_per_row=2)
+else:
+    print("Generating boxplots for numeric columns (50K sample)...")
+    fig = plot_numeric_distributions(df, sample_size=50_000, figsize=(15, 10), cols_per_row=2)
+
 plt.show()
 ```
 

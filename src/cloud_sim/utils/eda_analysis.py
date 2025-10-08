@@ -800,16 +800,21 @@ def detect_outliers_isolation_forest(
 def plot_numeric_distributions(
     df: pl.LazyFrame,
     columns: Optional[List[str]] = None,
+    group_by: Optional[str] = None,
     sample_size: int = 50_000,
     figsize: Tuple[int, int] = (14, 10),
-    cols_per_row: int = 3
+    cols_per_row: int = 2
 ) -> plt.Figure:
     """
-    Create boxplots for numeric columns to visualize distributions.
+    Create grouped boxplots for numeric columns to visualize distributions.
+
+    Shows proper box-and-whisker plots with quartiles, medians, and outliers.
+    Can group by a categorical variable (e.g., cloud_provider) to compare distributions.
 
     Args:
         df: Input LazyFrame
-        columns: List of numeric columns to plot (None = auto-detect from numeric_column_summary)
+        columns: List of numeric columns to plot (None = auto-detect, max 6)
+        group_by: Optional categorical column to group by (e.g., 'cloud_provider')
         sample_size: Sample size for plotting (reduces rendering time)
         figsize: Figure size (width, height)
         cols_per_row: Number of subplots per row
@@ -818,7 +823,10 @@ def plot_numeric_distributions(
         Matplotlib Figure object
 
     Example:
+        >>> # Simple boxplots
         >>> fig = plot_numeric_distributions(df, sample_size=50_000)
+        >>> # Grouped by provider
+        >>> fig = plot_numeric_distributions(df, group_by='cloud_provider')
         >>> plt.show()
     """
     # Auto-detect numeric columns if not provided
@@ -826,10 +834,16 @@ def plot_numeric_distributions(
         numeric_summary = numeric_column_summary(df, null_threshold=95.0)
         if len(numeric_summary) == 0:
             raise ValueError("No numeric columns found after filtering")
-        columns = numeric_summary['column'].to_list()
+        # Limit to first 6 for readability
+        columns = numeric_summary['column'].to_list()[:6]
 
-    # Sample data
-    sample_df = df.select(columns).head(sample_size).collect()
+    # Select columns for sampling
+    select_cols = columns.copy()
+    if group_by and group_by not in select_cols:
+        select_cols.append(group_by)
+
+    # Sample data and convert to pandas for seaborn
+    sample_df = df.select(select_cols).head(sample_size).collect().to_pandas()
 
     # Calculate grid dimensions
     n_cols = len(columns)
@@ -842,20 +856,38 @@ def plot_numeric_distributions(
     # Plot each column
     for idx, col in enumerate(columns):
         ax = axes[idx]
-        data = sample_df[col].drop_nulls().to_numpy()
 
-        if len(data) > 0:
-            sns.boxplot(y=data, ax=ax, color='steelblue', width=0.5)
-            ax.set_ylabel('Value', fontsize=10)
-            ax.set_title(col, fontsize=11, fontweight='bold')
+        # Remove nulls
+        if group_by:
+            plot_data = sample_df[[col, group_by]].dropna()
+        else:
+            plot_data = sample_df[[col]].dropna()
+
+        if len(plot_data) > 0:
+            if group_by:
+                # Grouped boxplot
+                sns.boxplot(data=plot_data, y=col, x=group_by, ax=ax,
+                           palette='Set2', fliersize=2)
+                ax.set_xlabel('')
+                ax.set_ylabel('Value', fontsize=10)
+                ax.set_title(f'{col} by {group_by}', fontsize=11, fontweight='bold')
+                # Rotate x labels if needed
+                ax.tick_params(axis='x', rotation=45)
+            else:
+                # Single boxplot
+                sns.boxplot(y=plot_data[col], ax=ax, color='steelblue',
+                           width=0.5, fliersize=3)
+                ax.set_ylabel('Value', fontsize=10)
+                ax.set_title(col, fontsize=11, fontweight='bold')
+
+                # Add statistics annotation
+                q25, median, q75 = plot_data[col].quantile([0.25, 0.5, 0.75])
+                stats_text = f'Q1: {q25:.2e}\nMedian: {median:.2e}\nQ3: {q75:.2e}\nN: {len(plot_data):,}'
+                ax.text(0.98, 0.97, stats_text, transform=ax.transAxes,
+                       fontsize=8, verticalalignment='top', horizontalalignment='right',
+                       bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
             ax.grid(axis='y', alpha=0.3)
-
-            # Add statistics annotation
-            q25, median, q75 = np.percentile(data, [25, 50, 75])
-            stats_text = f'Q1: {q25:.2e}\nMedian: {median:.2e}\nQ3: {q75:.2e}'
-            ax.text(0.98, 0.97, stats_text, transform=ax.transAxes,
-                   fontsize=8, verticalalignment='top', horizontalalignment='right',
-                   bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
         else:
             ax.text(0.5, 0.5, 'No data', transform=ax.transAxes,
                    ha='center', va='center')
