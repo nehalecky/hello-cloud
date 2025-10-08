@@ -208,52 +208,29 @@ with pl.Config(tbl_rows=-1, tbl_width_chars=250):
     display(categorical_summary)
 ```
 
-### Visual Distribution Analysis
-
-Having completed statistical summaries, we now visualize distributions to validate and extend our understanding:
-
-```{code-cell} ipython3
-# Visualize numeric distributions with grouped boxplots
-# First, identify a good grouping variable (low cardinality categorical)
-grouping_candidates = categorical_summary.filter(
-    pl.col('card_class') == 'Low'
-).head(1)
-
-if len(grouping_candidates) > 0:
-    group_col = grouping_candidates['column'][0]
-    print(f"Generating grouped boxplots for numeric columns by {group_col} (50K sample)...")
-    fig = plot_numeric_distributions(df, group_by=group_col, sample_size=50_000,
-                                     figsize=(16, 10), cols_per_row=2)
-else:
-    print("Generating boxplots for numeric columns (50K sample)...")
-    fig = plot_numeric_distributions(df, sample_size=50_000, figsize=(15, 10), cols_per_row=2)
-
-plt.show()
-```
-
-```{code-cell} ipython3
-# Visualize categorical value frequencies
-print("Generating frequency charts for categorical columns (100K sample, top 10 values)...")
-fig = plot_categorical_frequencies(df, top_n=10, sample_size=100_000, figsize=(15, 12), cols_per_row=2)
-plt.show()
-```
-
 ### Initial Observations
 
-From semantic analysis, statistical summaries, and visualizations, we observe:
+From semantic analysis and statistical summaries, we observe:
 
 **Semantic Understanding:**
 - **Financial metrics** (8 columns): Cost columns with different accounting treatments (discounted, amortized, invoiced)
+  - *Critical task*: Identify ONE primary cost column, drop redundant ones
 - **Cloud hierarchy** (multiple): Provider, account, product, service, region identifiers
 - **Kubernetes overlay** (sparse): Container metadata with expected high nulls
 - **Identifiers** (high cardinality): UUIDs, resource IDs for granular tracking
 
 **Data Quality Concerns:**
-1. **Negative cost values** (min = -524.54): Financial columns show negatives, likely refunds/credits but requiring validation against semantic expectations
+1. **Negative cost values** (min = -524.54): Financial columns show negatives, likely refunds/credits
 2. **Near-zero concentrations**: Q25 values ~10^-7 indicate many zero or near-zero records
 3. **Extreme right skew**: Max ~97K vs Q75 ~2.8 suggests heavy-tailed distributions
+4. **Column redundancy**: 8 cost columns likely highly correlated - need to select primary metric
 
-**Next Steps:** Part 3 (Information Scoring) will quantify which columns carry meaningful signal despite these quality concerns. Semantic expectations will inform whether observed patterns (e.g., negative costs) represent valid business logic or data errors.
+**Rigorous Next Steps:**
+1. **Part 3 - Information Scoring**: Quantify which columns carry meaningful signal
+2. **Column Filtering**: Use correlation + information scores to identify ONE cost column, drop redundant
+3. **Part 4+ - Detailed Analysis**: Only AFTER filtering, visualize and deeply analyze the informative subset
+
+We defer all visualization until column selection is complete. Plotting 8 redundant cost columns wastes effort.
 
 ---
 
@@ -438,8 +415,119 @@ We observe from the visualization that attributes cluster into distinct regions:
 
 This empirical scoring validates our conceptual model - we can identify the hierarchy dimensions $(t, a, s, r)$ by their information scores.
 
----
+### Column Filtering: Selecting Primary Metrics
 
+Before proceeding to detailed analysis, we must address column redundancy. The 8 cost columns likely exhibit high correlation - we need to select ONE primary metric and drop the rest.
+
+```{code-cell} ipython3
+# Identify cost columns from semantic analysis
+cost_columns = semantic_analysis.filter(
+    pl.col('semantic_category') == 'financial'
+)['column'].to_list()
+
+print(f"Financial columns identified: {len(cost_columns)}")
+print(cost_columns)
+
+# Compute correlation matrix for cost columns (stratified sample)
+print("\nComputing cost column correlations (100K stratified sample)...")
+cost_sample = smart_sample(df, n=100_000, stratify_col='cloud_provider')
+cost_corr = cost_sample.select(cost_columns).corr()
+
+print("\nCost Column Correlation Matrix:")
+with pl.Config(fmt_float='full'):
+    display(cost_corr)
+
+# Visualize correlation heatmap
+fig = create_correlation_heatmap(
+    cost_corr,
+    title='Cost Metrics Correlation Matrix',
+    annotate=True,
+    figsize=(10, 8)
+)
+plt.show()
+```
+
+```{code-cell} ipython3
+# Select primary cost column based on:
+# 1. High information score
+# 2. Representative of discounted costs (most relevant for FinOps)
+# 3. Complete (low null percentage)
+
+cost_info = attribute_scores.filter(
+    pl.col('attribute').is_in(cost_columns)
+).join(
+    semantic_analysis.filter(pl.col('semantic_category') == 'financial'),
+    left_on='attribute',
+    right_on='column'
+).join(
+    comprehensive_schema_analysis(df).select(['column', 'null_pct']),
+    left_on='attribute',
+    right_on='column'
+).sort('information_score', descending=True)
+
+print("Cost Column Selection Criteria:")
+print(cost_info.select([
+    'attribute',
+    'semantic_subcategory',
+    'information_score',
+    'null_pct',
+    'entropy'
+]))
+
+# Decision: Select primary cost column
+# Prefer: discounted > amortized > invoiced > list price
+# Require: information_score > 0.1, null_pct < 1%
+primary_cost_col = cost_info.filter(
+    (pl.col('information_score') > 0.1) &
+    (pl.col('null_pct') < 1.0)
+).head(1)['attribute'][0]
+
+print(f"\n✓ PRIMARY COST COLUMN SELECTED: {primary_cost_col}")
+print(f"  Rationale: Highest information score among complete cost columns")
+
+# Columns to DROP (redundant cost metrics)
+redundant_cost_cols = [col for col in cost_columns if col != primary_cost_col]
+print(f"\n⚠ DROPPING {len(redundant_cost_cols)} REDUNDANT COST COLUMNS:")
+for col in redundant_cost_cols:
+    print(f"  - {col}")
+```
+
+```{code-cell} ipython3
+# Create filtered column set for subsequent analysis
+# Include: high-information columns + primary cost metric
+# Exclude: zero-information, redundant costs, high-null (>95%)
+
+informative_cols = attribute_scores.filter(
+    pl.col('information_score') > 0.01  # Threshold: moderate information minimum
+)['attribute'].to_list()
+
+# Remove redundant cost columns
+filtered_cols = [col for col in informative_cols if col not in redundant_cost_cols]
+
+# Remove high-null columns
+low_null_cols = comprehensive_schema_analysis(df).filter(
+    pl.col('null_pct') < 95.0
+)['column'].to_list()
+
+final_cols = [col for col in filtered_cols if col in low_null_cols]
+
+print(f"COLUMN FILTERING SUMMARY:")
+print(f"  Original columns: {len(df.collect_schema())}")
+print(f"  After information filter (score > 0.01): {len(informative_cols)}")
+print(f"  After cost deduplication: {len(filtered_cols)}")
+print(f"  After null filter (<95% null): {len(final_cols)}")
+print(f"\n✓ FINAL ANALYTICAL COLUMN SET: {len(final_cols)} columns")
+
+# Store for subsequent parts
+print("\nFiltered columns by category:")
+for category in ['financial', 'cloud_hierarchy', 'identifier', 'temporal', 'consumption']:
+    category_cols = [col for col in final_cols
+                     if col in semantic_analysis.filter(pl.col('semantic_category') == category)['column'].to_list()]
+    if category_cols:
+        print(f"  {category}: {len(category_cols)} columns")
+```
+
+---
 
 ## Part 4: Cardinality Deep Dive
 
