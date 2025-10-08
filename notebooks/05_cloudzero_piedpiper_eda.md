@@ -34,8 +34,8 @@ This analysis provides a rigorous exploration of the PiedPiper billing dataset, 
 
 # Core libraries
 import polars as pl
+import pandas as pd
 import numpy as np
-import altair as alt
 import seaborn as sns
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
@@ -57,9 +57,6 @@ from cloud_sim.utils import (
 )
 
 # Configure visualization libraries
-alt.data_transformers.enable('default')
-alt.theme.active = 'quartz'  # Clean, professional theme
-
 sns.set_theme(style='whitegrid', palette='colorblind')
 plt.rcParams['figure.figsize'] = (12, 6)
 plt.rcParams['figure.dpi'] = 100
@@ -629,20 +626,19 @@ daily_records.head(10)
 
 ```{code-cell} ipython3
 # Visualize temporal evolution
-chart = alt.Chart(daily_records.to_pandas()).mark_line(point=True, strokeWidth=2).encode(
-    x=alt.X('time:T', title='Date'),
-    y=alt.Y('record_count:Q', title='Record Count', axis=alt.Axis(format=',')),
-    tooltip=[
-        alt.Tooltip('time:T', format='%Y-%m-%d', title='Date'),
-        alt.Tooltip('record_count:Q', format=',', title='Records')
-    ]
-).properties(
-    width=800,
-    height=400,
-    title='Daily Record Volume Evolution'
-).interactive()
+fig, ax = plt.subplots(figsize=(14, 5))
+plot_data = daily_records.to_pandas()
 
-chart
+ax.plot(plot_data['time'], plot_data['record_count'],
+        marker='o', linewidth=2, markersize=4, color='steelblue')
+ax.set_xlabel('Date', fontsize=12, fontweight='bold')
+ax.set_ylabel('Record Count', fontsize=12, fontweight='bold')
+ax.set_title('Daily Record Volume Evolution', fontsize=14, fontweight='bold', pad=15)
+ax.grid(True, alpha=0.3)
+ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
+
+plt.tight_layout()
+plt.show()
 ```
 
 ### Weekly Pattern Detection
@@ -677,24 +673,26 @@ else:
 
 ```{code-cell} ipython3
 # Visualize weekly pattern
-dow_chart = alt.Chart(dow_summary.to_pandas()).mark_bar().encode(
-    x=alt.X('day_name:N', sort=['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-            title='Day of Week'),
-    y=alt.Y('mean_records:Q', title='Mean Record Count'),
-    color=alt.Color('mean_records:Q', scale=alt.Scale(scheme='blues'), legend=None),
-    tooltip=[
-        'day_name',
-        alt.Tooltip('mean_records:Q', format=',.0f', title='Mean Records'),
-        alt.Tooltip('std_records:Q', format=',.0f', title='Std Dev'),
-        alt.Tooltip('num_days:Q', title='Days Observed')
-    ]
-).properties(
-    width=600,
-    height=400,
-    title='Mean Record Volume by Day of Week'
-)
+fig, ax = plt.subplots(figsize=(10, 6))
+plot_data = dow_summary.to_pandas()
 
-dow_chart
+# Order days of week correctly
+day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+plot_data['day_name'] = pd.Categorical(plot_data['day_name'], categories=day_order, ordered=True)
+plot_data = plot_data.sort_values('day_name')
+
+bars = ax.bar(plot_data['day_name'], plot_data['mean_records'],
+               color='steelblue', alpha=0.7, edgecolor='black', linewidth=0.5)
+
+ax.set_xlabel('Day of Week', fontsize=12, fontweight='bold')
+ax.set_ylabel('Mean Record Count', fontsize=12, fontweight='bold')
+ax.set_title('Mean Record Volume by Day of Week', fontsize=14, fontweight='bold', pad=15)
+ax.grid(axis='y', alpha=0.3)
+ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
+plt.xticks(rotation=45, ha='right')
+
+plt.tight_layout()
+plt.show()
 ```
 
 ### Cost Autocorrelation
@@ -741,27 +739,21 @@ else:
 
 ```{code-cell} ipython3
 # Visualize autocorrelation
-autocorr_chart = alt.Chart(autocorr_df.to_pandas()).mark_line(point=True, strokeWidth=2).encode(
-    x=alt.X('lag:O', title='Lag (days)'),
-    y=alt.Y('autocorrelation:Q', title='Autocorrelation Coefficient',
-            scale=alt.Scale(domain=[-1, 1])),
-    tooltip=[
-        'lag',
-        alt.Tooltip('autocorrelation:Q', format='.4f'),
-        alt.Tooltip('p_value:Q', format='.6f')
-    ]
-).properties(
-    width=600,
-    height=400,
-    title='Cost Time Series Autocorrelation'
-)
+fig, ax = plt.subplots(figsize=(10, 6))
+plot_data = autocorr_df.to_pandas()
 
-# Add reference line at 0
-rule = alt.Chart(pl.DataFrame({'y': [0]})).mark_rule(strokeDash=[5, 5], color='red').encode(
-    y='y:Q'
-)
+ax.plot(plot_data['lag'], plot_data['autocorrelation'],
+        marker='o', linewidth=2, markersize=8, color='steelblue')
+ax.axhline(y=0, color='red', linestyle='--', linewidth=2, alpha=0.7, label='Zero correlation')
+ax.set_xlabel('Lag (days)', fontsize=12, fontweight='bold')
+ax.set_ylabel('Autocorrelation Coefficient', fontsize=12, fontweight='bold')
+ax.set_title('Cost Time Series Autocorrelation', fontsize=14, fontweight='bold', pad=15)
+ax.set_ylim(-1, 1)
+ax.grid(True, alpha=0.3)
+ax.legend(fontsize=10)
 
-(autocorr_chart + rule)
+plt.tight_layout()
+plt.show()
 ```
 
 ### Summary
@@ -1009,29 +1001,30 @@ viz_with_outliers = viz_sample.with_columns([
     detect_outliers_iqr(pl.col(primary_cost_col), multiplier=1.5).alias('is_outlier')
 ])
 
-scatter = alt.Chart(viz_with_outliers.to_pandas()).mark_circle(size=60, opacity=0.6).encode(
-    x=alt.X('materialized_usage_amount:Q', 
-            title='Usage Amount',
-            scale=alt.Scale(type='log')),
-    y=alt.Y(f'{primary_cost_col}:Q', 
-            title='Cost ($)',
-            scale=alt.Scale(type='log')),
-    color=alt.Color('is_outlier:N', 
-                   title='Outlier Status',
-                   scale=alt.Scale(domain=[False, True], 
-                                 range=['steelblue', 'red'])),
-    tooltip=[
-        alt.Tooltip(f'{primary_cost_col}:Q', format='$,.2f', title='Cost'),
-        alt.Tooltip('materialized_usage_amount:Q', format=',.2f', title='Usage'),
-        'is_outlier'
-    ]
-).properties(
-    width=700,
-    height=500,
-    title='Cost vs Usage (Outliers Highlighted, Log Scale, 10K Sample)'
-).interactive()
+# Visualize outliers
+fig, ax = plt.subplots(figsize=(12, 8))
+plot_data = viz_with_outliers.to_pandas()
 
-scatter
+# Separate normal and outlier points
+normal = plot_data[~plot_data['is_outlier']]
+outliers = plot_data[plot_data['is_outlier']]
+
+ax.scatter(normal['materialized_usage_amount'], normal[primary_cost_col],
+          c='steelblue', alpha=0.6, s=60, label='Normal', edgecolors='black', linewidth=0.5)
+ax.scatter(outliers['materialized_usage_amount'], outliers[primary_cost_col],
+          c='red', alpha=0.8, s=80, label='Outlier', edgecolors='black', linewidth=0.5)
+
+ax.set_xscale('log')
+ax.set_yscale('log')
+ax.set_xlabel('Usage Amount (Log Scale)', fontsize=12, fontweight='bold')
+ax.set_ylabel('Cost ($, Log Scale)', fontsize=12, fontweight='bold')
+ax.set_title('Cost vs Usage (Outliers Highlighted, Log Scale, 10K Sample)',
+             fontsize=14, fontweight='bold', pad=15)
+ax.grid(True, alpha=0.3)
+ax.legend(fontsize=11, loc='upper left')
+
+plt.tight_layout()
+plt.show()
 ```
 
 ### Summary

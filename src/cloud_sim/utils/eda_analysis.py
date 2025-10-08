@@ -8,7 +8,6 @@ Designed for Polars DataFrames with focus on cloud billing data.
 
 import numpy as np
 import polars as pl
-import altair as alt
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Optional, Tuple, List
@@ -994,22 +993,22 @@ def plot_categorical_frequencies(
 
 def create_info_score_chart(
     attribute_scores: pl.DataFrame,
-    interactive: bool = True
-) -> alt.Chart:
+    figsize: Tuple[int, int] = (12, 10)
+) -> plt.Figure:
     """
-    Create Altair bar chart of attribute information scores.
+    Create horizontal bar chart of attribute information scores.
 
     Args:
         attribute_scores: Output from calculate_attribute_scores()
-        interactive: If True, enable tooltips and interactivity
+        figsize: Figure size (width, height)
 
     Returns:
-        Altair Chart object
+        Matplotlib Figure object
 
     Example:
         >>> scores = calculate_attribute_scores(df)
-        >>> chart = create_info_score_chart(scores)
-        >>> chart.display()
+        >>> fig = create_info_score_chart(scores)
+        >>> plt.show()
     """
     # Filter out zero scores (log scale can't handle zeros)
     # Zero information scores indicate completely null or invariant attributes
@@ -1018,47 +1017,46 @@ def create_info_score_chart(
     if len(filtered_scores) == 0:
         raise ValueError("All attributes have zero information score - cannot visualize")
 
+    # Convert to pandas and sort by score
+    plot_data = filtered_scores.to_pandas().sort_values('information_score', ascending=True)
+
     # Calculate median for reference line
-    median_score = filtered_scores['information_score'].median()
+    median_score = plot_data['information_score'].median()
 
-    base = alt.Chart(filtered_scores.to_pandas())
+    # Create figure
+    height = max(10, len(plot_data) * 0.4)
+    fig, ax = plt.subplots(figsize=(figsize[0], height))
 
-    bar = base.mark_bar().encode(
-        x=alt.X('information_score:Q',
-                title='Information Score (Harmonic Mean)',
-                scale=alt.Scale(type='log')),
-        y=alt.Y('attribute:N',
-                sort='-x',
-                title='Attribute'),
-        color=alt.Color('card_class:N',
-                       title='Cardinality Class',
-                       scale=alt.Scale(scheme='category10')),
-        tooltip=[
-            'attribute',
-            alt.Tooltip('information_score:Q', format='.6f', title='Score'),
-            alt.Tooltip('value_density:Q', format='.6f', title='Value Density'),
-            alt.Tooltip('cardinality_ratio:Q', format='.6f', title='Cardinality Ratio'),
-            alt.Tooltip('entropy:Q', format='.4f', title='Entropy')
-        ] if interactive else []
-    )
+    # Create color palette based on cardinality class
+    card_class_colors = {'High': '#1f77b4', 'Medium': '#ff7f0e', 'Low': '#2ca02c'}
+    colors = [card_class_colors.get(cc, '#gray') for cc in plot_data['card_class']]
 
-    rule = base.mark_rule(color='red', strokeDash=[5, 5]).encode(
-        x=alt.X('median:Q'),
-        size=alt.value(2)
-    ).transform_calculate(
-        median=str(median_score)
-    )
+    # Horizontal bar chart
+    bars = ax.barh(plot_data['attribute'], plot_data['information_score'],
+                   color=colors, alpha=0.7, edgecolor='black', linewidth=0.5)
 
-    chart = (bar + rule).properties(
-        width=700,
-        height=max(400, len(filtered_scores) * 15),
-        title='Attribute Information Scores (Log Scale)'
-    )
+    # Add median reference line
+    ax.axvline(median_score, color='red', linestyle='--', linewidth=2,
+               label=f'Median: {median_score:.4f}', alpha=0.7)
 
-    if interactive:
-        chart = chart.interactive()
+    # Log scale on x-axis
+    ax.set_xscale('log')
+    ax.set_xlabel('Information Score (Log Scale)', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Attribute', fontsize=12, fontweight='bold')
+    ax.set_title('Attribute Information Scores', fontsize=14, fontweight='bold', pad=15)
+    ax.grid(axis='x', alpha=0.3, linestyle='--')
+    ax.legend(fontsize=10)
 
-    return chart
+    # Create legend for cardinality classes
+    from matplotlib.patches import Patch
+    legend_elements = [Patch(facecolor=card_class_colors[cc], label=cc, alpha=0.7)
+                      for cc in ['High', 'Medium', 'Low']]
+    ax.legend(handles=legend_elements + [plt.Line2D([0], [0], color='red', linestyle='--',
+              label=f'Median: {median_score:.4f}')],
+              title='Cardinality Class', loc='lower right', fontsize=9)
+
+    plt.tight_layout()
+    return fig
 
 
 def create_correlation_heatmap(
