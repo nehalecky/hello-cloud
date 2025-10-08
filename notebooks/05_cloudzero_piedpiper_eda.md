@@ -362,39 +362,6 @@ if len(zero_info) > 0:
     print(zero_info.select(['attribute', 'value_density', 'cardinality_ratio', 'entropy']))
 ```
 
-```{code-cell} ipython3
-# Scatter plot: cardinality ratio vs null percentage, colored by entropy
-scatter_data = attribute_scores.join(
-    comprehensive_schema_analysis(df).select(['column', 'null_pct']),
-    left_on='attribute',
-    right_on='column'
-)
-
-scatter = alt.Chart(scatter_data.to_pandas()).mark_circle(size=100).encode(
-    x=alt.X('cardinality_ratio:Q',
-            title='Cardinality Ratio (log scale)',
-            scale=alt.Scale(type='log')),
-    y=alt.Y('null_pct:Q',
-            title='Null Percentage (%)'),
-    color=alt.Color('entropy:Q',
-                   title='Shannon Entropy',
-                   scale=alt.Scale(scheme='viridis')),
-    tooltip=[
-        'attribute',
-        alt.Tooltip('cardinality_ratio:Q', format='.6f'),
-        alt.Tooltip('null_pct:Q', format='.2f'),
-        alt.Tooltip('entropy:Q', format='.3f'),
-        alt.Tooltip('information_score:Q', format='.6f')
-    ]
-).properties(
-    width=700,
-    height=500,
-    title='Attribute Characteristics: Cardinality vs Completeness (colored by Entropy)'
-).interactive()
-
-scatter
-```
-
 ### Interpretation & Decision Tree
 
 We can now classify attributes by information score:
@@ -575,34 +542,6 @@ for card_class in ['Low', 'Medium', 'High']:
     examples = schema_with_class.filter(pl.col('card_class') == card_class)
     print(f"\n{card_class} Cardinality Examples:")
     print(examples.select(['column', 'cardinality_ratio', 'null_pct']).head(5))
-```
-
-```{code-cell} ipython3
-# Visualize cardinality × null interaction
-scatter = alt.Chart(schema_analysis.to_pandas()).mark_circle(size=100).encode(
-    x=alt.X('cardinality_ratio:Q',
-            title='Cardinality Ratio (log scale)',
-            scale=alt.Scale(type='log')),
-    y=alt.Y('null_pct:Q',
-            title='Null Percentage (%)'),
-    color=alt.Color('card_class:N',
-                   title='Cardinality Class',
-                   scale=alt.Scale(scheme='category10')),
-    size=alt.value(150),
-    tooltip=[
-        'column',
-        alt.Tooltip('cardinality_ratio:Q', format='.6f'),
-        alt.Tooltip('null_pct:Q', format='.2f'),
-        'card_class',
-        'quality'
-    ]
-).properties(
-    width=700,
-    height=500,
-    title='Attribute Cardinality vs Data Completeness'
-).interactive()
-
-scatter
 ```
 
 ### Implications for Analysis
