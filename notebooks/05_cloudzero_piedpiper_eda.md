@@ -327,7 +327,7 @@ For numeric columns, we identify highly correlated pairs and keep only the one w
 # Get numeric columns with >5% information score
 numeric_cols = numeric_summary.filter(
     pl.col('column').is_in(
-        attribute_scores.filter(pl.col('information_score') > 0.05)['attribute']
+        attribute_scores.filter(pl.col('information_score') > 0.05)['attribute'].to_list()
     )
 )['column'].to_list()
 
