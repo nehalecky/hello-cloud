@@ -126,7 +126,7 @@ def calculate_attribute_scores(df: pl.LazyFrame, sample_size: int = 100_000) -> 
 
     Returns:
         DataFrame with columns: attribute, value_density, cardinality_ratio,
-        entropy, information_score (sorted by score descending)
+        entropy, information_score, card_class (sorted by score descending)
 
     Example:
         >>> scores = calculate_attribute_scores(df, sample_size=100_000)
@@ -163,7 +163,8 @@ def calculate_attribute_scores(df: pl.LazyFrame, sample_size: int = 100_000) -> 
             'value_density': round(value_density, 6),
             'cardinality_ratio': round(cardinality_ratio, 6),
             'entropy': round(entropy, 4),
-            'information_score': round(harmonic_mean, 6)
+            'information_score': round(harmonic_mean, 6),
+            'card_class': cardinality_classification(cardinality_ratio)
         })
 
     return pl.DataFrame(results).sort('information_score', descending=True)
