@@ -142,8 +142,13 @@ We now separate numeric and categorical columns for appropriate statistical summ
 **Categorical columns** receive cardinality analysis, entropy scores, and top value identification, enabling us to understand the diversity and concentration of categorical values.
 
 ```{code-cell} ipython3
-# Import new summary functions
-from cloud_sim.utils import numeric_column_summary, categorical_column_summary
+# Import new summary and visualization functions
+from cloud_sim.utils import (
+    numeric_column_summary,
+    categorical_column_summary,
+    plot_numeric_distributions,
+    plot_categorical_frequencies
+)
 
 # Generate numeric summary (excludes columns with >95% nulls)
 print("=" * 80)
@@ -157,6 +162,13 @@ with pl.Config(tbl_rows=-1, tbl_width_chars=250, fmt_float='mixed'):
 ```
 
 ```{code-cell} ipython3
+# Visualize numeric distributions with boxplots
+print("Generating boxplots for numeric columns (50K sample)...")
+fig = plot_numeric_distributions(df, sample_size=50_000, figsize=(15, 12), cols_per_row=3)
+plt.show()
+```
+
+```{code-cell} ipython3
 # Generate categorical summary (excludes columns with >95% nulls)
 print("=" * 80)
 print("CATEGORICAL COLUMNS SUMMARY")
@@ -166,6 +178,13 @@ categorical_summary = categorical_column_summary(df, null_threshold=95.0)
 print(f"\n{len(categorical_summary)} categorical columns (after filtering >95% null)")
 with pl.Config(tbl_rows=-1, tbl_width_chars=250):
     display(categorical_summary)
+```
+
+```{code-cell} ipython3
+# Visualize categorical value frequencies with horizontal bar charts
+print("Generating frequency charts for categorical columns (100K sample, top 10 values)...")
+fig = plot_categorical_frequencies(df, top_n=10, sample_size=100_000, figsize=(15, 12), cols_per_row=2)
+plt.show()
 ```
 
 ### Initial Observations

@@ -28,6 +28,8 @@ from .eda_analysis import (
     detect_outliers_zscore,
     detect_outliers_isolation_forest,
     # Visualization
+    plot_numeric_distributions,
+    plot_categorical_frequencies,
     create_info_score_chart,
     create_correlation_heatmap,
 )
@@ -54,6 +56,8 @@ __all__ = [
     "detect_outliers_zscore",
     "detect_outliers_isolation_forest",
     # EDA - Visualization
+    "plot_numeric_distributions",
+    "plot_categorical_frequencies",
     "create_info_score_chart",
     "create_correlation_heatmap",
 ]

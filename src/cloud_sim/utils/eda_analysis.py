@@ -609,6 +609,170 @@ def detect_outliers_isolation_forest(
 # Visualization Helpers
 # ============================================================================
 
+def plot_numeric_distributions(
+    df: pl.LazyFrame,
+    columns: Optional[List[str]] = None,
+    sample_size: int = 50_000,
+    figsize: Tuple[int, int] = (14, 10),
+    cols_per_row: int = 3
+) -> plt.Figure:
+    """
+    Create boxplots for numeric columns to visualize distributions.
+
+    Args:
+        df: Input LazyFrame
+        columns: List of numeric columns to plot (None = auto-detect from numeric_column_summary)
+        sample_size: Sample size for plotting (reduces rendering time)
+        figsize: Figure size (width, height)
+        cols_per_row: Number of subplots per row
+
+    Returns:
+        Matplotlib Figure object
+
+    Example:
+        >>> fig = plot_numeric_distributions(df, sample_size=50_000)
+        >>> plt.show()
+    """
+    # Auto-detect numeric columns if not provided
+    if columns is None:
+        numeric_summary = numeric_column_summary(df, null_threshold=95.0)
+        if len(numeric_summary) == 0:
+            raise ValueError("No numeric columns found after filtering")
+        columns = numeric_summary['column'].to_list()
+
+    # Sample data
+    sample_df = df.select(columns).head(sample_size).collect()
+
+    # Calculate grid dimensions
+    n_cols = len(columns)
+    n_rows = (n_cols + cols_per_row - 1) // cols_per_row
+
+    # Create figure
+    fig, axes = plt.subplots(n_rows, cols_per_row, figsize=figsize)
+    axes = axes.flatten() if n_cols > 1 else [axes]
+
+    # Plot each column
+    for idx, col in enumerate(columns):
+        ax = axes[idx]
+        data = sample_df[col].drop_nulls().to_numpy()
+
+        if len(data) > 0:
+            sns.boxplot(y=data, ax=ax, color='steelblue', width=0.5)
+            ax.set_ylabel('Value', fontsize=10)
+            ax.set_title(col, fontsize=11, fontweight='bold')
+            ax.grid(axis='y', alpha=0.3)
+
+            # Add statistics annotation
+            q25, median, q75 = np.percentile(data, [25, 50, 75])
+            stats_text = f'Q1: {q25:.2e}\nMedian: {median:.2e}\nQ3: {q75:.2e}'
+            ax.text(0.98, 0.97, stats_text, transform=ax.transAxes,
+                   fontsize=8, verticalalignment='top', horizontalalignment='right',
+                   bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+        else:
+            ax.text(0.5, 0.5, 'No data', transform=ax.transAxes,
+                   ha='center', va='center')
+            ax.set_title(col, fontsize=11, fontweight='bold')
+
+    # Hide unused subplots
+    for idx in range(n_cols, len(axes)):
+        axes[idx].set_visible(False)
+
+    plt.tight_layout()
+    return fig
+
+
+def plot_categorical_frequencies(
+    df: pl.LazyFrame,
+    columns: Optional[List[str]] = None,
+    top_n: int = 10,
+    sample_size: int = 100_000,
+    figsize: Tuple[int, int] = (14, 10),
+    cols_per_row: int = 2
+) -> plt.Figure:
+    """
+    Create horizontal bar charts for categorical columns showing top N values.
+
+    This is the categorical analog to boxplots - visualizing the distribution
+    of values by showing frequency of top categories.
+
+    Args:
+        df: Input LazyFrame
+        columns: List of categorical columns to plot (None = auto-detect)
+        top_n: Number of top values to display per column
+        sample_size: Sample size for value counting
+        figsize: Figure size (width, height)
+        cols_per_row: Number of subplots per row
+
+    Returns:
+        Matplotlib Figure object
+
+    Example:
+        >>> fig = plot_categorical_frequencies(df, top_n=10)
+        >>> plt.show()
+    """
+    # Auto-detect categorical columns if not provided
+    if columns is None:
+        categorical_summary = categorical_column_summary(df, null_threshold=95.0)
+        if len(categorical_summary) == 0:
+            raise ValueError("No categorical columns found after filtering")
+        columns = categorical_summary['column'].to_list()
+
+    # Sample data
+    sample_df = df.select(columns).head(sample_size).collect()
+
+    # Calculate grid dimensions
+    n_cols = len(columns)
+    n_rows = (n_cols + cols_per_row - 1) // cols_per_row
+
+    # Create figure
+    fig, axes = plt.subplots(n_rows, cols_per_row, figsize=figsize)
+    axes = axes.flatten() if n_cols > 1 else [axes]
+
+    # Plot each column
+    for idx, col in enumerate(columns):
+        ax = axes[idx]
+
+        # Get top N values
+        value_counts = (sample_df[col]
+                       .value_counts()
+                       .sort('count', descending=True)
+                       .head(top_n))
+
+        if len(value_counts) > 0:
+            values = value_counts[col].to_list()
+            counts = value_counts['count'].to_list()
+
+            # Truncate long labels
+            labels = [str(v)[:30] + '...' if len(str(v)) > 30 else str(v) for v in values]
+
+            # Create horizontal bar chart
+            y_pos = np.arange(len(labels))
+            ax.barh(y_pos, counts, color='steelblue', alpha=0.7)
+            ax.set_yticks(y_pos)
+            ax.set_yticklabels(labels, fontsize=9)
+            ax.invert_yaxis()  # Top value at top
+            ax.set_xlabel('Frequency', fontsize=10)
+            ax.set_title(f'{col} (Top {min(top_n, len(values))})', fontsize=11, fontweight='bold')
+            ax.grid(axis='x', alpha=0.3)
+
+            # Add percentage annotations
+            total = sum(counts)
+            for i, (label, count) in enumerate(zip(labels, counts)):
+                pct = (count / total) * 100
+                ax.text(count, i, f' {pct:.1f}%', va='center', fontsize=8)
+        else:
+            ax.text(0.5, 0.5, 'No data', transform=ax.transAxes,
+                   ha='center', va='center')
+            ax.set_title(col, fontsize=11, fontweight='bold')
+
+    # Hide unused subplots
+    for idx in range(n_cols, len(axes)):
+        axes[idx].set_visible(False)
+
+    plt.tight_layout()
+    return fig
+
+
 def create_info_score_chart(
     attribute_scores: pl.DataFrame,
     interactive: bool = True
