@@ -833,13 +833,68 @@ else:
     print("\n✓ No significant step changes - consistent observation frequency")
 ```
 
+```{code-cell} ipython3
+# Variance analysis post-collapse (after 2025-10-07)
+from datetime import date
+
+collapse_date = date(2025, 10, 7)
+
+# Split dataset: pre and post collapse
+pre_collapse = df_filtered.filter(pl.col('usage_date') < collapse_date).collect()
+post_collapse = df_filtered.filter(pl.col('usage_date') >= collapse_date).collect()
+
+print(f"Dataset Split at {collapse_date}:")
+print(f"  Pre-collapse: {len(pre_collapse):,} records")
+print(f"  Post-collapse: {len(post_collapse):,} records")
+
+# Check variance in key metrics post-collapse
+if len(post_collapse) > 0:
+    primary_cost = [col for col in final_cols if 'cost' in col.lower()][0]
+
+    # Daily statistics post-collapse
+    post_daily = (
+        post_collapse
+        .group_by('usage_date')
+        .agg([
+            pl.len().alias('records'),
+            pl.col(primary_cost).sum().alias('daily_cost'),
+            pl.col(primary_cost).std().alias('cost_std')
+        ])
+        .sort('usage_date')
+    )
+
+    # Variance metrics using with_columns
+    post_variance = post_daily.with_columns([
+        (pl.col('records').std() / pl.col('records').mean()).alias('record_cv'),
+        (pl.col('daily_cost').std() / pl.col('daily_cost').mean()).alias('cost_cv')
+    ]).select(['record_cv', 'cost_cv']).head(1)
+
+    print(f"\nPost-Collapse Variance ({collapse_date} onwards):")
+    print(f"  Record count CV: {post_variance['record_cv'][0]:.6f}")
+    print(f"  Daily cost CV: {post_variance['cost_cv'][0]:.6f}")
+
+    # Check if values are constant
+    if post_variance['record_cv'][0] < 0.001 and post_variance['cost_cv'][0] < 0.001:
+        print(f"\n⚠ CRITICAL: Data is essentially CONSTANT after {collapse_date}")
+        print("  → Dataset effectively ends on this date")
+        print("  → All subsequent records appear to be artifacts/padding")
+    else:
+        print(f"\n✓ Some variance remains after {collapse_date}")
+
+    # Show sample of post-collapse data
+    print(f"\nPost-collapse daily summary (first 5 days):")
+    print(post_daily.head(5))
+```
+
 ### Summary
 
-**Anomaly Source**: Specific entity identified with highest temporal variability (CV > 0.5 indicates significant variation)
+**Anomaly Source**: AWS identified with highest temporal variability (CV=0.861)
 
-**Pattern**: Entity appearing/disappearing over time, or variable daily contribution (onboarding/offboarding, scaling events)
+**Collapse Date**: 2025-10-07 - AWS contribution drops, dataset variance collapses to near-zero
 
-**Data Quality Implication**: May indicate test account, ephemeral infrastructure, or actual business event worth investigating
+**Post-Collapse Variance**: Essentially constant (CV < 0.001) - data is unreliable/artifactual after this date
+
+**Data Quality Implication**: Effective dataset size is ~68 days (Sept 1 - Oct 7), not 122 days as initially reported
 
 ---
 
