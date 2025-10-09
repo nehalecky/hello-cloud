@@ -71,7 +71,8 @@ from loguru import logger
 
 from cloud_sim.utils import (
     configure_notebook_logging,
-    comprehensive_schema_analysis,
+    attribute_analysis,
+    daily_observation_analysis,
     plot_categorical_frequencies,
     calculate_attribute_scores,
     find_correlated_pairs,
@@ -103,66 +104,107 @@ logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date']
 
 ---
 
-### 1.3 Schema Analysis & Filtering
+### 1.3 Temporal Completeness Validation
 
-**Metrics**:
-- **null_ratio**: Proportion of missing values (null/NaN)
-- **zero_ratio**: Proportion of zeros among *non-null* values (for numerical columns)
-- **cardinality_ratio**: Unique values / total rows (1.0 = primary key, <0.05 = low cardinality dimension)
-
-**Filtering criteria**:
-1. **ID columns**: cardinality_ratio > 0.95 (every row nearly unique → not useful for grouping)
-2. **High nulls**: null_ratio > 0.8 (>80% missing → insufficient data)
-3. **High zeros**: zero_ratio > 0.95 (>95% zeros among non-nulls → no signal)
+**Critical Check**: Time series forecasting requires complete, historical data. Validate:
+1. **No future dates**: Dataset should not extend beyond today
+2. **No gaps**: Daily observations must be continuous
+3. **Sufficient history**: Need adequate historical period for pattern detection
 
 ```{code-cell} ipython3
-# Use utility function for comprehensive schema analysis
-schema_df = comprehensive_schema_analysis(df)
+# Analyze daily observation counts
+daily_obs = daily_observation_analysis(df, 'usage_date', include_future_check=True)
 
-logger.info(f"\n📊 Schema Analysis ({total_cols} columns):")
-logger.info("\nCardinality Classifications:")
-logger.info("  • Primary Key (>90%): Nearly unique per row → not useful for grouping")
-logger.info("  • High (50-90%): Fine-grained entities → potential resource IDs")
-logger.info("  • Medium (10-50%): Composite key candidates → forecasting grain")
-logger.info("  • Grouping (<10%): Coarse dimensions → provider, account, region")
+# Summary statistics
+total_days = len(daily_obs)
+days_with_data = daily_obs.filter(~pl.col('is_gap')).shape[0]
+gap_days = daily_obs.filter(pl.col('is_gap')).shape[0]
+future_days = daily_obs.filter(pl.col('is_future')).shape[0] if 'is_future' in daily_obs.columns else 0
 
-# Sort by cardinality to identify grain candidates
-schema_df.sort('cardinality_ratio', descending=True)
-```
+logger.info(f"\n📅 Temporal Completeness Analysis:")
+logger.info(f"   Date Range: {daily_obs['usage_date'].min()} to {daily_obs['usage_date'].max()}")
+logger.info(f"   Total Days in Range: {total_days}")
+logger.info(f"   Days with Data: {days_with_data} ({days_with_data/total_days*100:.1f}%)")
+logger.info(f"   Gap Days (0 records): {gap_days} ({gap_days/total_days*100:.1f}%)")
 
-```{code-cell} ipython3
-# Display full schema table
-with pl.Config(tbl_rows=-1):
-    display(schema_df.sort('cardinality_ratio', descending=True))
+if future_days > 0:
+    logger.warning(f"\n⚠️  FUTURE DATES DETECTED: {future_days} days beyond today")
+    logger.warning(f"   → This indicates synthetic or mislabeled data")
+    logger.warning(f"   → Time series forecasting not applicable to future-dated data")
+    future_dates = daily_obs.filter(pl.col('is_future')).select(['usage_date', 'record_count'])
+    display(future_dates.head(10))
+else:
+    logger.info(f"\n✅ No future dates detected")
 
-# Highlight problematic columns with logging
-primary_keys = schema_df.filter(pl.col('card_class') == 'Primary Key (>90%)')['column'].to_list()
-high_null_cols = schema_df.filter(pl.col('null_pct') > 80)['column'].to_list()
+# Plot daily observation counts
+fig, ax = plt.subplots(figsize=(14, 5))
+ax.bar(daily_obs['usage_date'], daily_obs['record_count'], width=0.8, alpha=0.7)
+ax.axhline(y=0, color='red', linestyle='--', alpha=0.5, label='Gap (0 records)')
+ax.set_xlabel('Date')
+ax.set_ylabel('Daily Record Count')
+ax.set_title('Daily Observation Counts - Temporal Completeness Check')
+ax.grid(axis='y', alpha=0.3)
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
 
-logger.info("\n🎨 Data Quality Summary:")
-if primary_keys:
-    logger.info(f"   🔴 Primary Keys ({len(primary_keys)}): {primary_keys}")
-    logger.info(f"      → Nearly unique per row, not useful for grouping")
-if high_null_cols:
-    logger.info(f"   🟡 High Nulls ({len(high_null_cols)}): {high_null_cols}")
-    logger.info(f"      → >80% missing data")
-
-grouping_dims = schema_df.filter(pl.col('card_class') == 'Grouping (<10%)')['column'].to_list()
-logger.info(f"   ✅ Grouping Dimensions ({len(grouping_dims)}): {grouping_dims}")
-logger.info(f"      → Candidate dimensions for composite keys")
+if gap_days > 0:
+    logger.warning(f"\n⚠️  {gap_days} gap days detected - review timeline continuity")
+    gaps = daily_obs.filter(pl.col('is_gap')).select('usage_date')
+    display(gaps.head(20))
 ```
 
 ---
 
-### 1.4 Categorical Distribution Analysis
+### 1.4 Attribute Analysis
+
+Analyze all columns for cardinality and completeness to identify grain candidates.
+
+```{code-cell} ipython3
+# Attribute analysis (simplified schema analysis)
+attrs = attribute_analysis(df)
+
+logger.info(f"\n📊 Attribute Analysis ({total_cols} columns):")
+logger.info("\nCardinality Interpretation:")
+logger.info("  • >90%: Primary key → not useful for grouping")
+logger.info("  • 50-90%: High cardinality → potential resource IDs")
+logger.info("  • 10-50%: Medium cardinality → composite key candidates")
+logger.info("  • <10%: Low cardinality → grouping dimensions")
+
+# Display sorted by cardinality
+with pl.Config(tbl_rows=-1):
+    display(attrs.sort('cardinality_ratio', descending=True))
+
+# Identify grain candidates
+primary_keys = attrs.filter(pl.col('cardinality_ratio') > 0.9)['column'].to_list()
+high_card = attrs.filter((pl.col('cardinality_ratio') > 0.5) & (pl.col('cardinality_ratio') <= 0.9))['column'].to_list()
+medium_card = attrs.filter((pl.col('cardinality_ratio') > 0.1) & (pl.col('cardinality_ratio') <= 0.5))['column'].to_list()
+grouping_dims = attrs.filter(pl.col('cardinality_ratio') <= 0.1)['column'].to_list()
+
+logger.info(f"\n🎯 Grain Discovery Candidates:")
+logger.info(f"   🔴 Primary Keys ({len(primary_keys)}): {primary_keys}")
+logger.info(f"      → Drop these (record IDs, not analytical dimensions)")
+if high_card:
+    logger.info(f"   🟠 High Cardinality ({len(high_card)}): {high_card}")
+    logger.info(f"      → Potential resource-level identifiers (investigate persistence)")
+if medium_card:
+    logger.info(f"   🟡 Medium Cardinality ({len(medium_card)}): {medium_card}")
+    logger.info(f"      → Good candidates for composite keys")
+logger.info(f"   🟢 Grouping Dimensions ({len(grouping_dims)}): {grouping_dims}")
+logger.info(f"      → Standard dimensions for aggregation")
+```
+
+---
+
+### 1.5 Categorical Distribution Analysis
 
 Visualize value distributions for all categorical (grouping) columns to understand data composition.
 
 ```{code-cell} ipython3
 # Identify categorical columns (low cardinality, typically strings)
 categorical_cols = (
-    schema_df
-    .filter(pl.col('card_class') == 'Grouping (<10%)')
+    attrs
+    .filter(pl.col('cardinality_ratio') <= 0.1)
     .filter(pl.col('dtype').str.contains('Utf8|String'))
     ['column']
     .to_list()
@@ -195,7 +237,7 @@ if categorical_cols:
 
 ---
 
-### 1.5 Cost Column Correlation Analysis
+### 1.6 Cost Column Correlation Analysis
 
 **Hypothesis**: Multiple cost columns represent different accounting treatments (amortized, discounted, etc.) of the same base cost → highly correlated.
 
@@ -243,7 +285,7 @@ else:
 
 ---
 
-### 1.6 Single-Pass Filtering & Reduction Tracking
+### 1.7 Single-Pass Filtering & Reduction Tracking
 
 Apply four filters: (1) ID columns, (2) high nulls, (3) high zeros, (4) redundant costs.
 

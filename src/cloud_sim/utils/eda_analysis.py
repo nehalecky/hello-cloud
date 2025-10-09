@@ -19,24 +19,23 @@ from sklearn.ensemble import IsolationForest
 # Schema & Information Theory
 # ============================================================================
 
-def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
+def attribute_analysis(df: pl.LazyFrame) -> pl.DataFrame:
     """
-    Comprehensive schema analysis showing all columns with statistics.
+    Analyze dataset attributes with focus on cardinality and completeness.
 
-    Computes null counts, cardinality, sample values, and quality indicators
-    for every attribute in the dataset. Use pl.Config(tbl_rows=-1) to display
-    all rows without truncation.
+    Computes null percentages, unique counts, and cardinality ratios for
+    every attribute. Designed for grain discovery and data quality assessment.
 
     Args:
         df: Input LazyFrame to analyze
 
     Returns:
         DataFrame with columns: column, dtype, null_pct, unique_count,
-        cardinality_ratio, sample_value, quality, card_class
+        cardinality_ratio, sample_value
 
     Example:
         >>> with pl.Config(tbl_rows=-1):
-        >>>     display(comprehensive_schema_analysis(df))
+        >>>     display(attribute_analysis(df))
     """
     schema = df.collect_schema()
     total_rows = df.select(pl.len()).collect()[0, 0]
@@ -48,28 +47,98 @@ def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
         pl.all().drop_nulls().first().cast(pl.Utf8).name.suffix('_sample')
     ]).collect()
 
-    # Build comprehensive schema DataFrame
+    # Build attribute analysis DataFrame
     schema_df = pl.DataFrame({
         'column': schema.names(),
         'dtype': [str(dt) for dt in schema.dtypes()],
         'null_pct': [round(stats[f'{col}_nulls'][0] / total_rows * 100, 2) for col in schema.names()],
-        'unique_count': [stats[f'{col}_unique'][0] for col in schema.names()],  # Keep as int
+        'unique_count': [stats[f'{col}_unique'][0] for col in schema.names()],
         'cardinality_ratio': [round(stats[f'{col}_unique'][0] / total_rows, 6) for col in schema.names()],
         'sample_value': [str(stats[f'{col}_sample'][0])[:50] if stats[f'{col}_sample'][0] is not None else '<null>'
                         for col in schema.names()],
-    }).with_columns([
-        # Quality indicator
-        pl.when(pl.col('null_pct') < 1).then(pl.lit('✓'))
-          .when(pl.col('null_pct') < 50).then(pl.lit('⚠'))
-          .otherwise(pl.lit('✗')).alias('quality'),
-        # Cardinality class (forecasting grain analysis)
-        pl.when(pl.col('cardinality_ratio') > 0.9).then(pl.lit('Primary Key (>90%)'))
-          .when(pl.col('cardinality_ratio') > 0.5).then(pl.lit('High (50-90%)'))
-          .when(pl.col('cardinality_ratio') > 0.1).then(pl.lit('Medium (10-50%)'))
-          .otherwise(pl.lit('Grouping (<10%)')).alias('card_class')
-    ])
+    })
 
     return schema_df
+
+
+# Backward compatibility alias
+def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
+    """
+    Deprecated: Use attribute_analysis() instead.
+
+    This function is maintained for backward compatibility but will be removed
+    in a future version. Please update your code to use attribute_analysis().
+    """
+    return attribute_analysis(df)
+
+
+def daily_observation_analysis(
+    df: pl.LazyFrame,
+    date_col: str = 'usage_date',
+    include_future_check: bool = True
+) -> pl.DataFrame:
+    """
+    Analyze daily observation counts for time series completeness validation.
+
+    Computes record counts per day, identifies gaps, and checks for future dates.
+    Critical for determining if dataset is suitable for time series forecasting.
+
+    Args:
+        df: Input LazyFrame
+        date_col: Name of date column to analyze
+        include_future_check: If True, flags dates beyond today (default True)
+
+    Returns:
+        DataFrame with columns: date, record_count, is_gap, is_future (if checked)
+        Sorted by date ascending.
+
+    Example:
+        >>> daily_obs = daily_observation_analysis(df, 'usage_date')
+        >>> # Check for gaps
+        >>> gaps = daily_obs.filter(pl.col('is_gap'))
+        >>> # Check for future dates
+        >>> future = daily_obs.filter(pl.col('is_future'))
+    """
+    from datetime import date as dt_date
+
+    # Daily aggregation
+    daily_counts = (
+        df.group_by(date_col)
+        .agg(pl.len().alias('record_count'))
+        .sort(date_col)
+        .collect()
+    )
+
+    # Get date range
+    min_date = daily_counts[date_col].min()
+    max_date = daily_counts[date_col].max()
+
+    # Create complete date range
+    date_range = pl.date_range(
+        min_date,
+        max_date,
+        interval='1d',
+        eager=True
+    ).alias(date_col)
+
+    # Join to identify gaps
+    complete_timeline = (
+        pl.DataFrame({date_col: date_range})
+        .join(daily_counts, on=date_col, how='left')
+        .with_columns([
+            pl.col('record_count').fill_null(0),
+            (pl.col('record_count') == 0).alias('is_gap')
+        ])
+    )
+
+    # Add future date check if requested
+    if include_future_check:
+        today = dt_date.today()
+        complete_timeline = complete_timeline.with_columns(
+            (pl.col(date_col) > today).alias('is_future')
+        )
+
+    return complete_timeline
 
 
 def numeric_column_summary(

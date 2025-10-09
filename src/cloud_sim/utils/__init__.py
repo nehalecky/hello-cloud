@@ -12,7 +12,9 @@ from .notebook_logging import (
 
 from .eda_analysis import (
     # Schema & Information Theory
-    comprehensive_schema_analysis,
+    attribute_analysis,
+    comprehensive_schema_analysis,  # Deprecated alias
+    daily_observation_analysis,
     numeric_column_summary,
     categorical_column_summary,
     semantic_column_analysis,
@@ -57,7 +59,9 @@ __all__ = [
     "quiet_library_logging",
     "verbose_library_logging",
     # EDA - Schema & Information Theory
-    "comprehensive_schema_analysis",
+    "attribute_analysis",
+    "comprehensive_schema_analysis",  # Deprecated
+    "daily_observation_analysis",
     "numeric_column_summary",
     "categorical_column_summary",
     "semantic_column_analysis",
