@@ -744,6 +744,51 @@ if anomaly_results and culprit['entity_type'] == 'cloud_provider':
 ```
 
 ```{code-cell} ipython3
+# Normalized stacked area: Show percentage contributions
+if anomaly_results and culprit['entity_type'] == 'cloud_provider':
+    # Calculate percentage contributions using with_columns
+    provider_pct_norm = provider_pivot.with_columns([
+        (pl.col(p) / sum(pl.col(c) for c in providers) * 100).alias(f'{p}_pct')
+        for p in providers
+    ])
+
+    print("Provider Percentage Contributions (first 5 days):")
+    pct_cols = [f'{p}_pct' for p in providers]
+    print(provider_pct_norm.select(['usage_date'] + pct_cols).head(5))
+
+    # Visualize normalized stacked area
+    plot_data_pct = provider_pct_norm.select(['usage_date'] + pct_cols).to_pandas().set_index('usage_date')
+
+    fig, ax = plt.subplots(figsize=(18, 6))
+    ax.stackplot(plot_data_pct.index,
+                 *[plot_data_pct[f'{p}_pct'].values for p in providers],
+                 labels=providers, alpha=0.8)
+    ax.set_xlabel('Date', fontweight='bold')
+    ax.set_ylabel('Percentage Contribution (%)', fontweight='bold')
+    ax.set_title('Cloud Provider Contributions Over Time (Normalized %)',
+                 fontweight='bold', fontsize=14)
+    ax.set_ylim(0, 100)
+    ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), framealpha=0.9,
+              borderaxespad=0)
+    ax.grid(alpha=0.3, axis='y')
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x)}%'))
+
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
+    plt.show()
+
+    # Identify when AWS becomes <5% of total
+    aws_dominance = provider_pct_norm.with_columns([
+        pl.col('AWS_pct').alias('aws_contribution_pct')
+    ]).select(['usage_date', 'aws_contribution_pct'])
+
+    aws_collapse = aws_dominance.filter(pl.col('aws_contribution_pct') < 5.0)
+
+    if len(aws_collapse) > 0:
+        print(f"\n⚠ AWS contribution drops below 5% on:")
+        print(aws_collapse.head(1))
+```
+
+```{code-cell} ipython3
 # Observation frequency analysis
 daily_totals = (
     df_filtered
