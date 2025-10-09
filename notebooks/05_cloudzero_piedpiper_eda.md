@@ -592,6 +592,137 @@ else:
 
 ---
 
+## Part 5b: Entity-Level Temporal Anomaly Detection
+
+### Objective
+
+Identify which entity (account, product, service, resource) is driving observed record count variation over time.
+
+### Methodology
+
+For each entity type with medium cardinality, compute daily record contribution and identify entities with highest temporal variability (CV).
+
+```{code-cell} ipython3
+# Candidate entity columns (medium cardinality - good for grouping)
+entity_candidates = (
+    final_schema
+    .filter(pl.col('card_class') == 'Medium')
+    .get_column('column')
+    .to_list()
+)
+
+print(f"Investigating {len(entity_candidates)} entity types for temporal anomalies:")
+print(f"  {', '.join(entity_candidates)}")
+```
+
+```{code-cell} ipython3
+# For each entity type, find which specific entity has highest temporal variability
+def find_variable_entities(df, entity_col, date_col='usage_date', top_n=3):
+    """Find entities with highest record count variation over time."""
+    # Daily entity contributions using with_columns API
+    entity_daily = (
+        df
+        .group_by([date_col, entity_col])
+        .agg(pl.len().alias('daily_records'))
+        .collect()
+    )
+
+    # Compute CV per entity using with_columns
+    entity_stats = (
+        entity_daily
+        .group_by(entity_col)
+        .agg([
+            pl.col('daily_records').mean().alias('mean_records'),
+            pl.col('daily_records').std().alias('std_records'),
+            pl.len().alias('days_present')
+        ])
+        .with_columns(
+            (pl.col('std_records') / pl.col('mean_records')).alias('cv')
+        )
+        .filter(pl.col('days_present') > 10)  # Must appear in >10 days
+        .sort('cv', descending=True)
+    )
+
+    return entity_stats.head(top_n)
+
+# Analyze each entity type
+anomaly_results = []
+for entity_col in entity_candidates[:5]:  # Limit to top 5 for efficiency
+    try:
+        top_variable = find_variable_entities(df_filtered, entity_col, top_n=3)
+        if len(top_variable) > 0:
+            max_cv = top_variable['cv'][0]
+            max_entity = top_variable[entity_col][0]
+            anomaly_results.append({
+                'entity_type': entity_col,
+                'max_cv': max_cv,
+                'variable_entity': max_entity,
+                'mean_daily': top_variable['mean_records'][0]
+            })
+            print(f"\n{entity_col}:")
+            print(f"  Most variable: {max_entity} (CV={max_cv:.3f})")
+    except Exception as e:
+        print(f"  Skipped {entity_col}: {e}")
+
+# Identify culprit entity type
+if anomaly_results:
+    culprit = max(anomaly_results, key=lambda x: x['max_cv'])
+    print(f"\n🎯 ANOMALY SOURCE IDENTIFIED:")
+    print(f"  Entity type: {culprit['entity_type']}")
+    print(f"  Variable entity: {culprit['variable_entity']}")
+    print(f"  Temporal CV: {culprit['max_cv']:.3f}")
+    print(f"  Avg daily records: {culprit['mean_daily']:.0f}")
+```
+
+```{code-cell} ipython3
+# If anomaly found, visualize its temporal pattern
+if anomaly_results:
+    culprit_type = culprit['entity_type']
+    culprit_entity = culprit['variable_entity']
+
+    # Extract culprit's daily record count using with_columns
+    culprit_daily = (
+        df_filtered
+        .filter(pl.col(culprit_type) == culprit_entity)
+        .group_by('usage_date')
+        .agg(pl.len().alias('records'))
+        .sort('usage_date')
+        .collect()
+        .with_columns(
+            pl.col('records').pct_change().alias('pct_change')
+        )
+    )
+
+    print(f"\nCulprit entity '{culprit_entity}' temporal pattern:")
+    print(culprit_daily.tail(10))
+
+    # Plot if significant variation
+    if culprit['max_cv'] > 0.5:
+        import matplotlib.pyplot as plt
+        plot_data = culprit_daily.to_pandas()
+
+        fig, ax = plt.subplots(figsize=(14, 5))
+        ax.plot(plot_data['usage_date'], plot_data['records'],
+                linewidth=2, color='red', marker='o', markersize=4)
+        ax.set_xlabel('Date', fontweight='bold')
+        ax.set_ylabel('Daily Record Count', fontweight='bold')
+        ax.set_title(f"Anomaly Source: {culprit_type}='{culprit_entity}' (CV={culprit['max_cv']:.3f})",
+                     fontweight='bold')
+        ax.grid(alpha=0.3)
+        plt.tight_layout()
+        plt.show()
+```
+
+### Summary
+
+**Anomaly Source**: Specific entity identified with highest temporal variability (CV > 0.5 indicates significant variation)
+
+**Pattern**: Entity appearing/disappearing over time, or variable daily contribution (onboarding/offboarding, scaling events)
+
+**Data Quality Implication**: May indicate test account, ephemeral infrastructure, or actual business event worth investigating
+
+---
+
 ## Part 6: Cost Distribution
 
 ### Objective
@@ -689,3 +820,7 @@ else:
 ---
 
 _Analysis continues with focused exploration of the filtered, high-information column set..._
+
+```{code-cell} ipython3
+
+```
