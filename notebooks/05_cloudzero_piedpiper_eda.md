@@ -886,6 +886,84 @@ if len(post_collapse) > 0:
     print(post_daily.head(5))
 ```
 
+```{code-cell} ipython3
+# PDF and CDF comparison: Pre vs Post collapse
+if len(post_collapse) > 0:
+    primary_cost = [col for col in final_cols if 'cost' in col.lower()][0]
+
+    # Extract cost distributions
+    pre_costs = pre_collapse.get_column(primary_cost).filter(pl.col(primary_cost) > 0).to_numpy()
+    post_costs = post_collapse.get_column(primary_cost).filter(pl.col(primary_cost) > 0).to_numpy()
+
+    print(f"Distribution Samples:")
+    print(f"  Pre-collapse: {len(pre_costs):,} non-zero costs")
+    print(f"  Post-collapse: {len(post_costs):,} non-zero costs")
+
+    # Create comparison plots
+    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
+
+    # PDF: Linear scale
+    axes[0, 0].hist(pre_costs, bins=50, alpha=0.6, density=True, label='Pre-collapse', color='blue')
+    axes[0, 0].hist(post_costs, bins=50, alpha=0.6, density=True, label='Post-collapse', color='red')
+    axes[0, 0].set_xlabel('Cost ($)', fontweight='bold')
+    axes[0, 0].set_ylabel('Density', fontweight='bold')
+    axes[0, 0].set_title('PDF: Cost Distribution (Linear Scale)', fontweight='bold')
+    axes[0, 0].legend()
+    axes[0, 0].grid(alpha=0.3)
+
+    # PDF: Log scale
+    axes[0, 1].hist(pre_costs, bins=50, alpha=0.6, density=True, label='Pre-collapse', color='blue')
+    axes[0, 1].hist(post_costs, bins=50, alpha=0.6, density=True, label='Post-collapse', color='red')
+    axes[0, 1].set_xlabel('Cost ($, log scale)', fontweight='bold')
+    axes[0, 1].set_ylabel('Density', fontweight='bold')
+    axes[0, 1].set_title('PDF: Cost Distribution (Log Scale)', fontweight='bold')
+    axes[0, 1].set_xscale('log')
+    axes[0, 1].legend()
+    axes[0, 1].grid(alpha=0.3)
+
+    # CDF: Linear scale
+    axes[1, 0].hist(pre_costs, bins=100, alpha=0.6, cumulative=True, density=True,
+                    label='Pre-collapse', color='blue', histtype='step', linewidth=2)
+    axes[1, 0].hist(post_costs, bins=100, alpha=0.6, cumulative=True, density=True,
+                    label='Post-collapse', color='red', histtype='step', linewidth=2)
+    axes[1, 0].set_xlabel('Cost ($)', fontweight='bold')
+    axes[1, 0].set_ylabel('Cumulative Probability', fontweight='bold')
+    axes[1, 0].set_title('CDF: Cost Distribution (Linear Scale)', fontweight='bold')
+    axes[1, 0].legend()
+    axes[1, 0].grid(alpha=0.3)
+
+    # CDF: Log scale
+    axes[1, 1].hist(pre_costs, bins=100, alpha=0.6, cumulative=True, density=True,
+                    label='Pre-collapse', color='blue', histtype='step', linewidth=2)
+    axes[1, 1].hist(post_costs, bins=100, alpha=0.6, cumulative=True, density=True,
+                    label='Post-collapse', color='red', histtype='step', linewidth=2)
+    axes[1, 1].set_xlabel('Cost ($, log scale)', fontweight='bold')
+    axes[1, 1].set_ylabel('Cumulative Probability', fontweight='bold')
+    axes[1, 1].set_title('CDF: Cost Distribution (Log Scale)', fontweight='bold')
+    axes[1, 1].set_xscale('log')
+    axes[1, 1].legend()
+    axes[1, 1].grid(alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+    # Statistical comparison
+    from scipy import stats
+
+    # KS test: Are distributions different?
+    ks_stat, ks_pval = stats.ks_2samp(pre_costs, post_costs)
+
+    print(f"\nDistribution Comparison (Kolmogorov-Smirnov Test):")
+    print(f"  KS statistic: {ks_stat:.6f}")
+    print(f"  p-value: {ks_pval:.6f}")
+
+    if ks_pval < 0.001:
+        print("  → Distributions are SIGNIFICANTLY DIFFERENT (p < 0.001)")
+        print("  → Post-collapse data has fundamentally different characteristics")
+    else:
+        print("  → Distributions are similar (p > 0.001)")
+```
+
 ### Summary
 
 **Anomaly Source**: AWS identified with highest temporal variability (CV=0.861)
