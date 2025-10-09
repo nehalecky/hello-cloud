@@ -924,8 +924,16 @@ if len(post_collapse) > 0:
         print(f"    → Actual values: {sorted(post_daily_cost.unique().to_list())}")
 
     # Individual transaction costs
-    pre_txn_costs = pre_collapse.get_column(primary_cost).filter(pl.col(primary_cost) > 0)
-    post_txn_costs = post_collapse.get_column(primary_cost).filter(pl.col(primary_cost) > 0)
+    pre_txn_costs = (
+        pre_collapse
+        .filter(pl.col(primary_cost) > 0)
+        .get_column(primary_cost)
+    )
+    post_txn_costs = (
+        post_collapse
+        .filter(pl.col(primary_cost) > 0)
+        .get_column(primary_cost)
+    )
 
     pre_unique_txn = pre_txn_costs.n_unique()
     post_unique_txn = post_txn_costs.n_unique()
