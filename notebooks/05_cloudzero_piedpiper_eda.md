@@ -100,38 +100,132 @@ logger.info(f"Dataset: {total_rows:,} rows × {total_cols} columns")
 logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date'][0]}")
 ```
 
+**Schema Analysis Metrics**:
+
+For each column, we compute three key metrics to understand data characteristics:
+
+1. **null_pct** (Null Percentage):
+   - Percentage of missing/null values (0-100%)
+   - Identifies data quality issues
+   - $\text{null\_pct} = \frac{\text{count(null values)}}{\text{total rows}} \times 100$
+
+2. **cardinality_ratio** (Cardinality Ratio):
+   - Ratio of unique values to total rows (0.0-1.0)
+   - **Interpretation**:
+     - $\approx 1.0$: Every value unique → likely an ID column (not useful for grouping)
+     - $< 0.05$: Low cardinality → good candidate for categorical grouping/filtering
+     - Intermediate: Medium cardinality, may or may not be useful for grouping
+   - $\text{cardinality\_ratio} = \frac{\text{n\_unique}}{\text{total rows}}$
+   - **Only meaningful for categorical/discrete columns**
+
+3. **entropy** (Shannon Entropy):
+   - Measures information content: $H(X) = -\sum_{i} p(x_i) \log_2 p(x_i)$
+   - **Interpretation**:
+     - $H = 0$: Constant value (no information)
+     - High $H$: Many different values, evenly distributed
+     - $H = \log_2(n)$ maximum when all values equally likely
+   - Combined with cardinality for "information score"
+   - **Only meaningful for categorical/discrete columns**
+
+**How we use these metrics**:
+- **High null_pct**: Flag for data quality issues or investigation
+- **cardinality_ratio ≈ 1.0**: Detect ID columns to exclude from analysis
+- **cardinality_ratio < 0.05 + high entropy**: Good dimensions for grouping (e.g., cloud_provider, region)
+- **Low entropy + low cardinality**: Constant or near-constant columns (may drop)
+
 ```{code-cell} ipython3
-# Comprehensive schema analysis: cardinality, entropy, null rates
+# Unified schema analysis: combine categorical and numerical columns
 logger.info(f"{'='*80}")
-logger.info(f"SCHEMA ANALYSIS - All {total_cols} Columns")
+logger.info(f"UNIFIED SCHEMA ANALYSIS - All {total_cols} Columns")
 logger.info(f"{'='*80}\n")
 
 # Set Polars display options to show all rows
-pl.Config.set_tbl_rows(100)  # Show up to 100 rows (more than we need)
+pl.Config.set_tbl_rows(100)
 
-schema_analysis = comprehensive_schema_analysis(df)
-schema_analysis  # Display as rich table in notebook
+df_collected = df.collect()
+
+# Build unified schema table
+schema_rows = []
+for col in df_collected.columns:
+    dtype = df_collected.schema[col]
+    series = df_collected[col]
+
+    # Common metrics
+    null_count = series.null_count()
+    null_pct = (null_count / len(series)) * 100
+
+    # Determine if categorical or numerical
+    is_categorical = dtype in [pl.Utf8, pl.Categorical, pl.Boolean, pl.Date]
+
+    if is_categorical:
+        # Compute cardinality and entropy for categorical
+        n_unique = series.n_unique()
+        cardinality_ratio = n_unique / len(series)
+
+        # Shannon entropy
+        value_counts = series.value_counts()
+        if len(value_counts) > 0:
+            probs = value_counts['count'] / value_counts['count'].sum()
+            entropy = -(probs * probs.log(base=2)).sum()
+            # Handle NaN from log(0)
+            if entropy != entropy:  # NaN check
+                entropy = 0.0
+        else:
+            entropy = 0.0
+    else:
+        # Numerical columns: cardinality_ratio and entropy not meaningful
+        cardinality_ratio = None
+        entropy = None
+
+    schema_rows.append({
+        'column': col,
+        'dtype': str(dtype),
+        'type': 'categorical' if is_categorical else 'numerical',
+        'null_pct': round(null_pct, 2),
+        'cardinality_ratio': round(cardinality_ratio, 4) if cardinality_ratio is not None else None,
+        'entropy': round(entropy, 2) if entropy is not None else None
+    })
+
+schema_analysis = pl.DataFrame(schema_rows)
+schema_analysis  # Display as rich table
 ```
 
-```{code-cell} ipython3
-# Additional: Attribute information scores
-logger.info(f"\n{'='*80}")
-logger.info(f"ATTRIBUTE INFORMATION SCORES (Entropy + Cardinality)")
-logger.info(f"{'='*80}\n")
+**Observations from Unified Schema**:
 
-attribute_scores = calculate_attribute_scores(df)
-attribute_scores.sort('information_score', descending=True)  # Display sorted table
-```
+Filtering the table by key metrics reveals:
 
-**Observations**:
+1. **ID Columns** (cardinality_ratio ≈ 1.0):
+   - `uuid`: Record identifier (not analytical dimension) → **Drop**
 
-From the schema, we immediately identify:
-1. **uuid**: Cardinality ≈ row count → record identifier (not analytical dimension)
-2. **6 cost columns**: Likely correlated measurements of the same billing amount
-3. **Candidate resource attributes**: provider, account, region, product_family, usage_type
-4. **Temporal dimension**: usage_date (daily grain)
+2. **Temporal Dimension**:
+   - `usage_date`: Date type, defines $t$ in $(t, r, c)$
+
+3. **Cost Measurements** (numerical, type='numerical'):
+   - 6 cost columns: `materialized_cost`, `materialized_amortized_cost`, etc.
+   - Hypothesis: Highly correlated ($r > 0.95$) → Keep only one
+
+4. **Candidate Resource Dimensions** (low cardinality_ratio, categorical):
+   - `cloud_provider`: Cardinality ratio ~0.0001 (12 unique / 8.3M rows)
+   - `cloud_account_id`: Low cardinality, identifies accounts
+   - `region`: Geographic dimension
+   - `product_family`: Service type dimension
+   - `usage_type`: Granular usage classification
 
 **Hypothesis**: The resource identifier $r$ is a **compound key** of (provider, account, region, product, usage\_type), and we seek the most granular combination with temporal persistence.
+
+**Filtering Example** (use in notebook):
+```python
+# Find low-cardinality categorical columns (good for grouping)
+good_dimensions = schema_analysis.filter(
+    (pl.col('type') == 'categorical') &
+    (pl.col('cardinality_ratio') < 0.05)
+)
+
+# Find ID columns to exclude
+id_columns = schema_analysis.filter(
+    (pl.col('cardinality_ratio') > 0.99)
+)
+```
 
 ---
 
