@@ -440,12 +440,23 @@ logger.info(f"   - All show stable temporal patterns suitable for forecasting")
 ```
 
 ```{code-cell} ipython3
-# Seasonality Analysis: AWS vs Non-AWS
+# Seasonality Analysis: AWS vs Non-AWS (CLEAN 37-DAY PERIOD ONLY)
 # Check if weekly patterns (high weekday, low weekend) exist beyond AWS
+# IMPORTANT: Use only pre-collapse period (Sept 1 - Oct 6) to avoid data quality artifacts
+
+# Explicitly filter to clean period, regardless of df_clean definition
+df_seasonality = (
+    df
+    .filter(pl.col('usage_date') < COLLAPSE_DATE)
+    .collect()
+)
+
+logger.info(f"\n🔍 Seasonality analysis using {df_seasonality['usage_date'].n_unique()} days")
+logger.info(f"   Date range: {df_seasonality['usage_date'].min()} to {df_seasonality['usage_date'].max()}")
 
 # Compute daily totals by provider
 daily_by_provider = (
-    df_collected
+    df_seasonality
     .with_columns([
         pl.col('usage_date').dt.weekday().alias('weekday'),  # 0=Mon, 6=Sun
         pl.when(pl.col('cloud_provider') == 'AWS')
