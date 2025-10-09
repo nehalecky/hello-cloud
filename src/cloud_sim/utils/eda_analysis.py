@@ -25,10 +25,11 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
 
     Computes metrics for grain discovery and feature selection:
     - Value density: proportion of non-null values (completeness)
-    - Zero ratio: proportion of zero values (for numeric columns)
+    - Nonzero density: proportion of non-zero values (for numeric columns)
     - Cardinality ratio: unique_count / total_rows (uniqueness)
     - Entropy: Shannon entropy measuring value distribution confusion
-    - Information score: harmonic mean of density, cardinality, entropy
+    - Information score: harmonic mean of (value_density, nonzero_density,
+                         cardinality_ratio, entropy) - all "higher is better"
 
     Args:
         df: Input LazyFrame to analyze
@@ -36,7 +37,7 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
 
     Returns:
         DataFrame with columns: column, dtype, value_density, null_pct,
-        zero_ratio, cardinality_ratio, entropy, information_score, sample_value
+        nonzero_density, cardinality_ratio, entropy, information_score, sample_value
         Sorted by information_score descending.
 
     Example:
@@ -56,7 +57,7 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
     # Sample for entropy calculation
     df_sample = df.head(sample_size).collect()
 
-    # Identify numeric columns for zero_ratio calculation
+    # Identify numeric columns for nonzero_density calculation
     numeric_types = (pl.Int8, pl.Int16, pl.Int32, pl.Int64,
                      pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64,
                      pl.Float32, pl.Float64)
@@ -71,12 +72,12 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
         value_density = (total_rows - null_count) / total_rows
         null_pct = (null_count / total_rows) * 100
 
-        # Zero ratio (numeric columns only)
+        # Nonzero density (numeric columns only) - higher is better
         if isinstance(schema[col], numeric_types):
             zero_count = df.select((pl.col(col) == 0).sum()).collect()[0, 0]
-            zero_ratio = zero_count / total_rows
+            nonzero_density = (total_rows - zero_count) / total_rows
         else:
-            zero_ratio = None  # Non-numeric columns
+            nonzero_density = 1.0  # Non-numeric: treat as "all nonzero" for scoring
 
         # Cardinality ratio
         cardinality_ratio = unique_count / total_rows
@@ -84,11 +85,12 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
         # Shannon entropy (on sample)
         entropy = shannon_entropy(df_sample[col])
 
-        # Information score: harmonic mean of (value_density, cardinality_ratio, entropy)
-        # Add small epsilon to avoid division by zero
+        # Information score: harmonic mean of (value_density, nonzero_density,
+        # cardinality_ratio, entropy) - all metrics are "higher is better"
         epsilon = 1e-10
-        information_score = 3.0 / (
+        information_score = 4.0 / (
             1.0 / (value_density + epsilon) +
+            1.0 / (nonzero_density + epsilon) +
             1.0 / (cardinality_ratio + epsilon) +
             1.0 / (entropy + epsilon)
         )
@@ -101,7 +103,7 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
             'dtype': str(schema[col]),
             'value_density': round(value_density, 6),
             'null_pct': round(null_pct, 2),
-            'zero_ratio': round(zero_ratio, 6) if zero_ratio is not None else None,
+            'nonzero_density': round(nonzero_density, 6),
             'cardinality_ratio': round(cardinality_ratio, 6),
             'entropy': round(entropy, 4),
             'information_score': round(information_score, 6),

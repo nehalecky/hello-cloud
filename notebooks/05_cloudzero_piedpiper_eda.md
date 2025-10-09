@@ -115,12 +115,18 @@ date_col = date_cols[0]
 # Rename to 'date' for simplicity
 df = df.rename({date_col: 'date'})
 logger.info(f"Renamed {date_col} → 'date'")
+
+# Compute date range
+date_range = df.select([
+    pl.col('date').min().alias('min_date'),
+    pl.col('date').max().alias('max_date')
+]).collect()
 logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date'][0]}")
 ```
 
 **Noted** Max date spans into the future `2025-12-31`. 
 
-Let's inspect the temporal record density and plot. 
+Let's inspect the temporal record density and plot.
 
 ```{code-cell} ipython3
 # Daily counts with percent change
@@ -165,21 +171,16 @@ The data shows a significant drop on a specific date, with future-dated records 
 
 ```{code-cell} ipython3
 # Find earliest date with >30% drop (pct_change < -0.30)
-anomalies = daily.filter(pl.col('pct_change') < -0.30).sort('date')
-
-if len(anomalies) > 0:
-    CUTOFF_DATE = anomalies['date'][0]
-    logger.info(f"First anomaly (>30% drop): {CUTOFF_DATE}")
-else:
-    # Fallback: use largest drop
-    CUTOFF_DATE = daily.sort('pct_change').head(1)['date'][0]
-    logger.info(f"No >30% drop found, using largest drop: {CUTOFF_DATE}")
-
-# Filter df to clean period
-if daily['date'].dtype == pl.Date:
-    df = df.filter(pl.col('date') < CUTOFF_DATE)
-else:
-    df = df.filter(pl.col('date').dt.date() < CUTOFF_DATE)
+CUTOFF_DATE = (daily.filter(
+    pl.col('pct_change') < -0.30)
+    .sort('date')['date'][0]
+              )
+df = df.filter(pl.col('date').dt.date() < CUTOFF_DATE)
+# # Filter df to clean period
+# if daily['date'].dtype == pl.Date:
+#     df = df.filter(pl.col('date') < CUTOFF_DATE)
+# else:
+#     df = df.filter(pl.col('date').dt.date() < CUTOFF_DATE)
 
 # Summary
 stats = df.select([
@@ -189,7 +190,8 @@ stats = df.select([
     pl.col('date').max().alias('end')
 ]).collect()
 
-print(f"Filtered to: {stats['rows'][0]:,} rows, {stats['days'][0]} days ({stats['start'][0]} to {stats['end'][0]})")
+logger.info(f"Filtered to: {stats['rows'][0]:,} rows, {stats['days'][0]} days ({stats['start'][0]} to {stats['end'][0]})")
+stats
 ```
 
 ---
@@ -199,19 +201,19 @@ print(f"Filtered to: {stats['rows'][0]:,} rows, {stats['days'][0]} days ({stats[
 **Methodology**: We analyze the information density in each attribute using metrics that capture value density, cardinality, and confusion, allowing us to understand the information available within each attribute. We leverage this to find ideal attributes that support our event and time series discrimination efforts.
 
 #### Value Density
-The density of non-null values across attributes (completeness indicator). Low values imply high sparsity (many nulls), which are likely not informative for modeling or grain discovery.
+The density of non-null values across attributes (completeness indicator). Low values imply high sparsity (many nulls), which are likely not informative for modeling or grain discovery. **Higher is better**.
 
-#### Zero Ratio (Numeric Columns)
-The density of zero values among numeric attributes. High zero ratios may indicate measurement artifacts, optional features, or sparse usage patterns. For cost columns, zeros represent periods of no consumption.
+#### Nonzero Density (Numeric Columns)
+The density of non-zero values among numeric attributes. High nonzero density indicates rich variation; low values indicate dominance of zeros (measurement artifacts, optional features, sparse usage). For cost columns, low nonzero density represents frequent periods of no consumption. Non-numeric columns default to 1.0 (treated as "all nonzero" for scoring). **Higher is better**.
 
 #### Cardinality Ratio
-The ratio of unique values to total observations (`unique_count / total_rows`). Maximum cardinality equals the number of observations. Values approaching 1.0 imply nearly distinct values per observation (primary keys), offering little grouping utility. Values near 0.0 indicate coarse grouping dimensions.
+The ratio of unique values to total observations (`unique_count / total_rows`). Maximum cardinality equals the number of observations. Values approaching 1.0 imply nearly distinct values per observation (primary keys), offering little grouping utility. Values near 0.0 indicate coarse grouping dimensions. Among non-primary-key columns, higher cardinality provides better discrimination. **Higher is better** (after filtering primary keys).
 
 #### Value Confusion (Shannon Entropy)
-Measures the "confusion" or information content of value assignments via [Shannon entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory)). Low entropy implies concentration in few values (zero confusion, minimal information). High entropy implies uniform distribution across many values (maximum confusion, rich information). Generally, we want higher entropy for informative features.
+Measures the "confusion" or information content of value assignments via [Shannon entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory)). Low entropy implies concentration in few values (zero confusion, minimal information). High entropy implies uniform distribution across many values (maximum confusion, rich information). **Higher is better** for informative features.
 
 #### Information Score
-Harmonic mean of value density, cardinality ratio, and entropy. This composite metric requires attributes to score well on **all three dimensions**—completeness, uniqueness, and distributional richness. Higher scores indicate more informative attributes for grain discovery and modeling.
+Harmonic mean of **four** metrics: value density, nonzero density, cardinality ratio, and entropy. This composite metric requires attributes to score well on **all four dimensions**—all with positive linear relationships (higher = better). The harmonic mean penalizes imbalance: an attribute must perform well across completeness, non-sparsity, uniqueness, and distributional richness. Higher scores indicate more informative attributes for grain discovery and modeling.
 
 These size-normalized metrics help identify attributes with little discriminatory information, which can be filtered to simplify analysis and modeling tasks.
 
