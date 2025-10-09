@@ -120,15 +120,18 @@ date_cols = [
 
 print(f"Date/Datetime columns found: {date_cols}")
 date_col = date_cols[0]
-print(f"Using: {date_col}")
+
+# Rename to 'date' for simplicity
+df = df.rename({date_col: 'date'})
+print(f"Renamed {date_col} → 'date'")
 ```
 
 ```{code-cell} ipython3
 # Daily counts with percent change
 daily = (
-    df.group_by(date_col)
+    df.group_by('date')
     .agg(pl.len().alias('count'))
-    .sort(date_col)
+    .sort('date')
     .collect()
     .with_columns(pl.col('count').pct_change().alias('pct_change'))
 )
@@ -137,7 +140,7 @@ daily = (
 fig, ax1 = plt.subplots(figsize=(14, 6))
 
 # Log scale bar chart for counts
-ax1.bar(daily[date_col], daily['count'], width=0.8, alpha=0.6, color='steelblue', label='Record Count')
+ax1.bar(daily['date'], daily['count'], width=0.8, alpha=0.6, color='steelblue', label='Record Count')
 ax1.set_yscale('log')
 ax1.set_ylabel('Daily Record Count (log scale)', color='steelblue')
 ax1.set_xlabel('Date')
@@ -146,7 +149,7 @@ ax1.grid(axis='y', alpha=0.3)
 
 # Overlay percent change on second y-axis
 ax2 = ax1.twinx()
-ax2.plot(daily[date_col], daily['pct_change'], color='orange', marker='o', linewidth=1.5, label='Percent Change')
+ax2.plot(daily['date'], daily['pct_change'], color='orange', marker='o', linewidth=1.5, label='Percent Change')
 ax2.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
 ax2.set_ylabel('Percent Change', color='orange')
 ax2.tick_params(axis='y', labelcolor='orange')
@@ -166,34 +169,31 @@ The data shows a significant drop on a specific date, with future-dated records 
 
 ```{code-cell} ipython3
 # Find earliest date with >30% drop (pct_change < -0.30)
-anomalies = daily.filter(pl.col('pct_change') < -0.30).sort(date_col)
+anomalies = daily.filter(pl.col('pct_change') < -0.30).sort('date')
 
 if len(anomalies) > 0:
-    CUTOFF_DATE = anomalies[date_col][0]
+    CUTOFF_DATE = anomalies['date'][0]
     print(f"First anomaly (>30% drop): {CUTOFF_DATE}")
 else:
     # Fallback: use largest drop
-    CUTOFF_DATE = daily.sort('pct_change').head(1)[date_col][0]
+    CUTOFF_DATE = daily.sort('pct_change').head(1)['date'][0]
     print(f"No >30% drop found, using largest drop: {CUTOFF_DATE}")
 
-print(f"Filtering data before: {CUTOFF_DATE}")
-
-# Create analysis dataset
-if daily[date_col].dtype == pl.Date:
-    df_analysis = df.filter(pl.col(date_col) < CUTOFF_DATE)
+# Filter df to clean period
+if daily['date'].dtype == pl.Date:
+    df = df.filter(pl.col('date') < CUTOFF_DATE)
 else:
-    df_analysis = df.filter(pl.col(date_col).dt.date() < CUTOFF_DATE)
+    df = df.filter(pl.col('date').dt.date() < CUTOFF_DATE)
 
 # Summary
-stats = df_analysis.select([
+stats = df.select([
     pl.len().alias('rows'),
-    pl.col(date_col).n_unique().alias('days'),
-    pl.col(date_col).min().alias('start'),
-    pl.col(date_col).max().alias('end')
+    pl.col('date').n_unique().alias('days'),
+    pl.col('date').min().alias('start'),
+    pl.col('date').max().alias('end')
 ]).collect()
 
-print(f"Analysis dataset: {stats['rows'][0]:,} rows, {stats['days'][0]} days")
-print(f"Period: {stats['start'][0]} to {stats['end'][0]}")
+print(f"Filtered to: {stats['rows'][0]:,} rows, {stats['days'][0]} days ({stats['start'][0]} to {stats['end'][0]})")
 ```
 
 ---
@@ -203,8 +203,8 @@ print(f"Period: {stats['start'][0]} to {stats['end'][0]}")
 Analyze all columns for cardinality and completeness to identify grain candidates.
 
 ```{code-cell} ipython3
-# Attribute analysis (simplified schema analysis)
-attrs = attribute_analysis(df_analysis)
+# Attribute analysis
+attrs = attribute_analysis(df)
 
 logger.info(f"\n📊 Attribute Analysis ({total_cols} columns):")
 logger.info("\nCardinality Interpretation:")
@@ -258,7 +258,7 @@ logger.info(f"   {categorical_cols}")
 # Plot top 10 values for each categorical with log scale
 if categorical_cols:
     fig = plot_categorical_frequencies(
-        df_analysis,
+        df,
         columns=categorical_cols,
         top_n=10,
         log_scale=True,           # Logarithmic scale for wide frequency ranges
@@ -285,7 +285,7 @@ if categorical_cols:
 
 ```{code-cell} ipython3
 # Identify all cost columns
-cost_columns = [c for c in df_analysis.collect_schema().names() if 'cost' in c.lower()]
+cost_columns = [c for c in df.collect_schema().names() if 'cost' in c.lower()]
 
 logger.info(f"\n💰 Cost Columns Found: {len(cost_columns)}")
 logger.info(f"   {cost_columns}")
@@ -293,7 +293,7 @@ logger.info(f"   {cost_columns}")
 
 ```{code-cell} ipython3
 # Compute correlation matrix for cost columns
-cost_corr = df_analysis.select(cost_columns).collect().corr()
+cost_corr = df.select(cost_columns).collect().corr()
 
 logger.info(f"\n📊 Cost Column Correlation Matrix:")
 cost_corr
