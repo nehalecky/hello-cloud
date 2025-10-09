@@ -170,13 +170,7 @@ CUTOFF_DATE = (daily.filter(
     .sort('date')['date'][0]
               )
 df = df.filter(pl.col('date').dt.date() < CUTOFF_DATE)
-# # Filter df to clean period
-# if daily['date'].dtype == pl.Date:
-#     df = df.filter(pl.col('date') < CUTOFF_DATE)
-# else:
-#     df = df.filter(pl.col('date').dt.date() < CUTOFF_DATE)
 
-# Summary
 stats = df.select([
     pl.len().alias('rows'),
     pl.col('date').n_unique().alias('days'),
@@ -250,6 +244,63 @@ if medium_card:
 logger.info(f"\n🟢 Grouping Dimensions ({len(grouping_dims)}):")
 logger.info(f"   {grouping_dims}")
 logger.info(f"   → Standard dimensions for aggregation")
+```
+
+**Filtering Strategy**: We cannot filter solely on `information_score` because harmonic mean is dominated by the lowest input. Low-cardinality grouping dimensions (like `cloud_provider`, `region`) score poorly due to cardinality ratio ≈ 0, yet they're critical for hierarchical analysis. Instead, we use **cardinality-stratified filtering**—different criteria for different column roles:
+
+- **Primary keys (>90%)**: Always drop (no analytical value)
+- **High cardinality (50-90%)**: Keep if complete (potential resource IDs like `cloud_id`)
+- **Medium cardinality (10-50%)**: Keep if info score > threshold (composite key candidates)
+- **Grouping dimensions (<10%)**: Keep if highly complete (hierarchical dimensions)
+- **Sparse columns**: Drop if value_density < 80% (too many nulls)
+
+This preserves valuable low-cardinality columns while removing noise.
+
+```{code-cell} ipython3
+# Stratified filtering: different criteria by cardinality class
+
+# DROP: Primary keys (>90% cardinality, no grouping utility)
+drop_primary_keys = attrs.filter(pl.col('cardinality_ratio') > 0.9)['column'].to_list()
+
+# DROP: Sparse columns (value_density < 80%, too many nulls)
+drop_sparse = attrs.filter(pl.col('value_density') < 0.8)['column'].to_list()
+
+# KEEP: Grouping dimensions (<10% cardinality) if highly complete
+keep_grouping = attrs.filter(
+    (pl.col('cardinality_ratio') <= 0.1) &
+    (pl.col('value_density') > 0.95)  # Must be highly complete
+)['column'].to_list()
+
+# KEEP: High cardinality (50-90%) if complete (potential resource IDs)
+keep_resource_ids = attrs.filter(
+    (pl.col('cardinality_ratio') > 0.5) &
+    (pl.col('cardinality_ratio') <= 0.9) &
+    (pl.col('value_density') > 0.95)  # Must be highly complete
+)['column'].to_list()
+
+# KEEP: Medium cardinality (10-50%) if info score is decent
+keep_composite_candidates = attrs.filter(
+    (pl.col('cardinality_ratio') > 0.1) &
+    (pl.col('cardinality_ratio') <= 0.5) &
+    (pl.col('information_score') > 0.3)  # Balanced across dimensions
+)['column'].to_list()
+
+# Combine filters
+drop_cols = list(set(drop_primary_keys + drop_sparse))
+keep_cols = list(set(keep_grouping + keep_resource_ids + keep_composite_candidates))
+
+logger.info(f"\n🗑️  Dropping {len(drop_cols)} columns:")
+logger.info(f"   Primary keys: {sorted(drop_primary_keys)}")
+logger.info(f"   Sparse columns: {sorted(drop_sparse)}")
+
+logger.info(f"\n✅ Keeping {len(keep_cols)} columns:")
+logger.info(f"   Grouping dims: {sorted(keep_grouping)}")
+logger.info(f"   Resource IDs: {sorted(keep_resource_ids)}")
+logger.info(f"   Composite candidates: {sorted(keep_composite_candidates)}")
+
+# Apply filter
+df_filtered = df.select([col for col in df.collect_schema().names() if col not in drop_cols])
+logger.info(f"\n📊 Schema reduced: {len(df.collect_schema())} → {len(df_filtered.collect_schema())} columns")
 ```
 
 ---
