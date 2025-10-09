@@ -36,6 +36,21 @@ from .eda_analysis import (
     create_correlation_heatmap,
 )
 
+from .cost_analysis import (
+    # Correlation & Redundancy
+    find_correlated_pairs,
+    select_from_pairs,
+    # Temporal Quality
+    temporal_quality_metrics,
+    # Cost Distribution
+    cost_distribution_metrics,
+    # Entity Analysis
+    detect_entity_anomalies,
+    normalize_by_period,
+    # Data Splitting
+    split_at_date,
+)
+
 __all__ = [
     # Logging
     "configure_notebook_logging",
@@ -64,4 +79,16 @@ __all__ = [
     "plot_categorical_frequencies",
     "create_info_score_chart",
     "create_correlation_heatmap",
+    # Cost Analysis - Correlation & Redundancy
+    "find_correlated_pairs",
+    "select_from_pairs",
+    # Cost Analysis - Temporal Quality
+    "temporal_quality_metrics",
+    # Cost Analysis - Distribution
+    "cost_distribution_metrics",
+    # Cost Analysis - Entity Analysis
+    "detect_entity_anomalies",
+    "normalize_by_period",
+    # Cost Analysis - Data Splitting
+    "split_at_date",
 ]
