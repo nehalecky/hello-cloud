@@ -102,18 +102,25 @@ logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date']
 
 ```{code-cell} ipython3
 # Comprehensive schema analysis: cardinality, entropy, null rates
-schema_analysis = comprehensive_schema_analysis(df)
-logger.info(f"\n{'='*80}")
-logger.info(f"SCHEMA ANALYSIS - All {total_cols} Columns")
 logger.info(f"{'='*80}")
-logger.info(f"\n{schema_analysis}")
+logger.info(f"SCHEMA ANALYSIS - All {total_cols} Columns")
+logger.info(f"{'='*80}\n")
 
+# Set Polars display options to show all rows
+pl.Config.set_tbl_rows(100)  # Show up to 100 rows (more than we need)
+
+schema_analysis = comprehensive_schema_analysis(df)
+schema_analysis  # Display as rich table in notebook
+```
+
+```{code-cell} ipython3
 # Additional: Attribute information scores
-attribute_scores = calculate_attribute_scores(df)
 logger.info(f"\n{'='*80}")
 logger.info(f"ATTRIBUTE INFORMATION SCORES (Entropy + Cardinality)")
-logger.info(f"{'='*80}")
-logger.info(f"\n{attribute_scores.sort('information_score', descending=True)}")
+logger.info(f"{'='*80}\n")
+
+attribute_scores = calculate_attribute_scores(df)
+attribute_scores.sort('information_score', descending=True)  # Display sorted table
 ```
 
 **Observations**:
@@ -124,7 +131,7 @@ From the schema, we immediately identify:
 3. **Candidate resource attributes**: provider, account, region, product_family, usage_type
 4. **Temporal dimension**: usage_date (daily grain)
 
-**Hypothesis**: The resource identifier **r** is a **compound key** of (provider, account, region, product, usage_type), and we seek the most granular combination with temporal persistence.
+**Hypothesis**: The resource identifier $r$ is a **compound key** of (provider, account, region, product, usage\_type), and we seek the most granular combination with temporal persistence.
 
 ---
 
@@ -132,7 +139,7 @@ From the schema, we immediately identify:
 
 **Observation**: 6 cost columns exist - likely different accounting treatments of the same billing amount.
 
-**Hypothesis**: Cost columns are highly correlated (r > 0.95), representing redundant measurements.
+**Hypothesis**: Cost columns are highly correlated ($r > 0.95$), representing redundant measurements.
 
 ```{code-cell} ipython3
 # Test cost column correlation hypothesis
@@ -164,7 +171,7 @@ if min_corr > 0.95:
     logger.info(f"   ✅ Hypothesis confirmed: All cost columns r > 0.95")
     logger.info(f"   → Keeping only 'materialized_cost' (foundational base cost)")
 else:
-    logger.warning(f"   ⚠️  Some correlations < 0.95, investigate further")
+    logger.warning(f"   ⚠️  Some correlations r < 0.95, investigate further")
 ```
 
 **Decision**: Keep **materialized_cost** as **PRIMARY_COST** - the foundational base cost before accounting adjustments.
@@ -335,16 +342,16 @@ logger.info(f"   - Providers: {clean_stats['providers'][0]}" + (f" (excluding {E
 
 **Summary - Part 1**:
 
-1. **Event Space Model**: Defined E₀ (all cloud consumption) and E (CloudZero-observed subset)
+1. **Event Space Model**: Defined $\mathbf{E}_0$ (all cloud consumption) and $\mathbf{E}$ (CloudZero-observed subset)
 2. **Schema Analysis**: 38 columns → comprehensive cardinality, entropy, information scores computed
 3. **Dimensionality Reduction**:
    - Dropped uuid (record ID, not analytical dimension)
-   - Validated cost column correlation hypothesis (all r > 0.95)
+   - Validated cost column correlation hypothesis (all $r > 0.95$)
    - Retained materialized_cost as PRIMARY_COST (foundational base cost)
    - Result: 38 → 32 columns
 4. **Data Quality Assessment**:
    - Detected Oct 7, 2025 anomaly via daily cost variance analysis
-   - AWS costs froze (CV ≈ 0) post-collapse
+   - AWS costs froze ($CV \approx 0$) post-collapse
    - Decision algorithm: Choose clean period vs exclude provider based on contribution %
    - **Analysis dataset**: Determined empirically, not assumed
 
@@ -362,23 +369,28 @@ logger.info(f"   - Providers: {clean_stats['providers'][0]}" + (f" (excluding {E
 
 ```{code-cell} ipython3
 # Show dataset structure and head
-logger.info(f"\n{'='*80}")
+logger.info(f"{'='*80}")
 logger.info(f"TIDY DENORMALIZED TABLE - Final Analysis Dataset")
 logger.info(f"{'='*80}")
-logger.info(f"\nShape: {clean_stats['rows'][0]:,} rows × {len(df_clean.collect_schema())} columns")
-logger.info(f"Period: {clean_stats['days'][0]} days ({clean_stats['start_date'][0]} to {clean_stats['end_date'][0]})")
+logger.info(f"Shape: {clean_stats['rows'][0]:,} rows × {len(df_clean.collect_schema())} columns")
+logger.info(f"Period: {clean_stats['days'][0]} days ({clean_stats['start_date'][0]} to {clean_stats['end_date'][0]})\n")
 
-# Show schema
-logger.info(f"\nSchema:")
-for col, dtype in df_clean.collect_schema().items():
-    logger.info(f"  {col:<40} {dtype}")
+# Show schema as DataFrame for nice display
+schema_df = pl.DataFrame({
+    'column': list(df_clean.collect_schema().keys()),
+    'dtype': [str(dtype) for dtype in df_clean.collect_schema().values()]
+})
+logger.info("Schema:")
+schema_df
+```
 
+```{code-cell} ipython3
 # Show head (first 10 records)
-df_head = df_clean.head(10).collect()
-logger.info(f"\n{'='*80}")
-logger.info(f"Sample Records (first 10 rows)")
 logger.info(f"{'='*80}")
-logger.info(f"\n{df_head}")
+logger.info(f"Sample Records (first 10 rows)")
+logger.info(f"{'='*80}\n")
+
+df_clean.head(10).collect()  # Display as rich table
 ```
 
 **Structure**: Denormalized billing events where each row represents $(t, \text{attributes}, c)$ - a daily cost observation for a specific resource configuration.
@@ -391,6 +403,10 @@ logger.info(f"\n{df_head}")
 
 ```{code-cell} ipython3
 # Distribution by cloud provider
+logger.info(f"{'='*80}")
+logger.info(f"DISTRIBUTION BY CLOUD PROVIDER")
+logger.info(f"{'='*80}\n")
+
 provider_stats = (
     df_clean
     .group_by('cloud_provider')
@@ -403,12 +419,15 @@ provider_stats = (
     .collect()
 )
 
-logger.info(f"\n{'='*80}")
-logger.info(f"DISTRIBUTION BY CLOUD PROVIDER")
-logger.info(f"{'='*80}")
-logger.info(f"\n{provider_stats}")
+provider_stats  # Display as rich table
+```
 
+```{code-cell} ipython3
 # Distribution by region (top 15)
+logger.info(f"{'='*80}")
+logger.info(f"DISTRIBUTION BY REGION (Top 15)")
+logger.info(f"{'='*80}\n")
+
 region_stats = (
     df_clean
     .group_by('region')
@@ -421,10 +440,7 @@ region_stats = (
     .collect()
 )
 
-logger.info(f"\n{'='*80}")
-logger.info(f"DISTRIBUTION BY REGION (Top 15)")
-logger.info(f"{'='*80}")
-logger.info(f"\n{region_stats}")
+region_stats  # Display as rich table
 ```
 
 ```{code-cell} ipython3
@@ -582,9 +598,10 @@ grain_results = [
     for name, cols in grain_candidates
 ]
 
+logger.info("📊 Grain Persistence Comparison (37 days, ≥30 day threshold):\n")
+
 grain_comparison = pl.DataFrame(grain_results)
-logger.info(f"\n📊 Grain Persistence Comparison (37 days, ≥30 day threshold):")
-logger.info(f"\n{grain_comparison.select(['Grain', 'entities', 'stable_pct', 'median_days'])}")
+grain_comparison.select(['Grain', 'entities', 'stable_pct', 'median_days'])  # Display table
 ```
 
 ```{code-cell} ipython3
@@ -609,7 +626,7 @@ logger.info(f"   Median persistence: {optimal['median_days'][0]} days")
 ```
 
 **Findings**:
-- **Optimal grain**: Most granular combination with ≥70% entities present ≥30 days
+- **Optimal grain**: Most granular $r$ combination with ≥70% entities present ≥30 days
 - This grain enables time series forecasting (stable entities over time)
 - Represents business-actionable dimensions (account, region, product, etc.)
 
@@ -617,7 +634,7 @@ logger.info(f"   Median persistence: {optimal['median_days'][0]} days")
 
 ## Part 3: Time Series Validation
 
-Validate the optimal grain produces meaningful time series for forecasting.
+Validate the optimal grain produces meaningful time series for forecasting - ensuring identified $r$ yields trackable $(t, c)$ patterns.
 
 ```{code-cell} ipython3
 # Get top 10 stable, high-cost entities at optimal grain
@@ -638,9 +655,10 @@ top_entities = (
 total_cost = df_clean.select(pl.col(PRIMARY_COST).sum()).collect()[0, 0]
 top_10_cost = top_entities['total_cost'].sum()
 
-logger.info(f"\n💰 Top 10 Entities at {OPTIMAL_GRAIN}:")
-logger.info(f"   Drive {top_10_cost / total_cost * 100:.1f}% of total spend")
-logger.info(f"\n{top_entities}")
+logger.info(f"💰 Top 10 Entities at {OPTIMAL_GRAIN}")
+logger.info(f"   Drive {top_10_cost / total_cost * 100:.1f}% of total spend\n")
+
+top_entities  # Display as rich table
 ```
 
 ```{code-cell} ipython3
