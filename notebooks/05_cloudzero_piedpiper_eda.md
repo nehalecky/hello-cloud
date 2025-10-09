@@ -712,7 +712,7 @@ if anomaly_results and culprit['entity_type'] == 'cloud_provider':
     import matplotlib.pyplot as plt
     plot_data = provider_pivot.to_pandas().set_index('usage_date')
 
-    fig, ax = plt.subplots(figsize=(16, 6))
+    fig, ax = plt.subplots(figsize=(18, 6))
     ax.stackplot(plot_data.index, *[plot_data[col].values for col in providers],
                  labels=providers, alpha=0.8)
     ax.set_xlabel('Date', fontweight='bold')
@@ -720,11 +720,12 @@ if anomaly_results and culprit['entity_type'] == 'cloud_provider':
     ax.set_title('Cloud Provider Record Contributions Over Time (Stacked Area)',
                  fontweight='bold', fontsize=14)
     ax.set_yscale('log')
-    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), framealpha=0.9)
+    ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), framealpha=0.9,
+              borderaxespad=0)
     ax.grid(alpha=0.3, axis='y', which='both')
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 0.85, 1])  # Leave space for legend on right
     plt.show()
 
     # Identify changepoint (if AWS drops)
