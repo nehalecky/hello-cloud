@@ -448,46 +448,28 @@ for category in ['financial', 'cloud_hierarchy', 'identifier', 'temporal', 'cons
 ```
 
 ```{code-cell} ipython3
-# Visualize BEFORE/AFTER correlation to show redundancy removal effectiveness
+# Quantify redundancy reduction (stats only - no wasteful plotting)
 final_numeric_cols = [col for col in final_cols if col in numeric_cols and col not in columns_to_drop]
 
-print(f"Numeric columns: {len(numeric_cols)} → {len(final_numeric_cols)}")
+def max_off_diagonal_corr(corr_matrix):
+    """Pure function: compute max absolute off-diagonal correlation."""
+    corr_np = corr_matrix.to_numpy()
+    np.fill_diagonal(corr_np, 0)
+    return np.abs(corr_np).max()
 
-if len(final_numeric_cols) > 1 and len(numeric_cols) > len(final_numeric_cols):
-    # Show before/after comparison
-    fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+# Before/after stats
+max_corr_before = max_off_diagonal_corr(corr_matrix)
+print(f"Correlation Redundancy Reduction:")
+print(f"  Numeric columns: {len(numeric_cols)} → {len(final_numeric_cols)}")
+print(f"  Max |correlation| before: {max_corr_before:.3f}")
 
-    # BEFORE: Original correlation matrix
-    corr_before = corr_matrix.to_pandas()
-    sns.heatmap(corr_before.abs(), annot=False, cmap='RdBu_r', vmin=0, vmax=1,
-                square=True, ax=axes[0], cbar_kws={'label': '|Correlation|'})
-    axes[0].set_title(f'BEFORE: {len(numeric_cols)} numeric columns\n(High redundancy)', fontweight='bold')
-
-    # AFTER: Filtered correlation matrix
+if len(final_numeric_cols) > 1:
     final_corr = sample_df.select(final_numeric_cols).corr()
-    corr_after = final_corr.to_pandas()
-    sns.heatmap(corr_after.abs(), annot=True, fmt='.2f', cmap='RdBu_r', vmin=0, vmax=1,
-                square=True, ax=axes[1], cbar_kws={'label': '|Correlation|'})
-    axes[1].set_title(f'AFTER: {len(final_numeric_cols)} numeric columns\n(Low redundancy)', fontweight='bold')
-
-    plt.tight_layout()
-    plt.show()
-
-    # Verify low redundancy (functional calculation)
-    def max_off_diagonal_corr(corr_matrix):
-        """Pure function: compute max absolute off-diagonal correlation."""
-        corr_np = corr_matrix.to_numpy()
-        np.fill_diagonal(corr_np, 0)
-        return np.abs(corr_np).max()
-
-    max_corr = max_off_diagonal_corr(final_corr)
-    print(f"\n✓ Maximum absolute correlation in final set: {max_corr:.3f}")
-    print(f"  → {'Successfully' if max_corr < CORR_THRESHOLD else 'Failed to'} reduce redundancy below {CORR_THRESHOLD}")
-
-elif len(final_numeric_cols) <= 1:
-    print(f"\n⚠ Only {len(final_numeric_cols)} numeric column(s) remaining - no correlation matrix to display")
+    max_corr_after = max_off_diagonal_corr(final_corr)
+    print(f"  Max |correlation| after: {max_corr_after:.3f}")
+    print(f"  ✓ {'Success' if max_corr_after < CORR_THRESHOLD else 'Partial'} - redundancy {'eliminated' if max_corr_after < CORR_THRESHOLD else 'reduced'}")
 else:
-    print("\n✓ No redundant columns were removed (all correlations below threshold)")
+    print(f"  → {len(final_numeric_cols)} numeric column(s) retained")
 ```
 
 ---
