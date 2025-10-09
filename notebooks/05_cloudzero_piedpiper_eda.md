@@ -25,9 +25,37 @@ kernelspec:
 
 ---
 
-## Part 1: Data Loading & Quality Assessment
+## Part 1: Conceptual Model & Schema Analysis
 
-Load dataset, understand schema, identify and filter anomalous data.
+### 1.1 Expected Event Space
+
+**Assumptions**:
+
+Cloud billing data represents resource consumption events aggregated by CloudZero's data pipeline. We can conceptualize the **event space** as:
+
+- **E₀** (full space): All cloud resource consumption across all providers, accounts, and time
+- **E** (observed): Subset captured by CloudZero's ingestion pipeline, where **E ⊆ E₀**
+
+**Known sampling biases**:
+1. **Provider coverage**: Only resources with cost allocation tags are visible
+2. **Temporal granularity**: Daily aggregation (not real-time or hourly)
+3. **Data quality**: Provider-specific pipeline issues may cause artifactual patterns
+
+**Expected billing event schema**:
+
+A billing record fundamentally contains:
+- **t** (timestamp): When resource was consumed (daily grain)
+- **r** (resource): Identifier for the billable cloud resource
+- **c** (cost): Dollar amount for the consumption
+- **attributes**: Provider, account, region, product, usage type (dimensions that may define **r**)
+
+**Central question**: What compound key defines the resource identifier **r** such that we can track spending over time?
+
+This is the **grain discovery problem** - finding the most granular combination of attributes whose entities persist temporally, enabling forecasting.
+
+---
+
+### 1.2 Raw Schema Analysis
 
 ```{code-cell} ipython3
 # Imports and logging setup
@@ -41,6 +69,7 @@ from loguru import logger
 from cloud_sim.utils import (
     configure_notebook_logging,
     comprehensive_schema_analysis,
+    calculate_attribute_scores,
     find_correlated_pairs,
     select_from_pairs,
     temporal_quality_metrics,
@@ -58,7 +87,6 @@ DATA_PATH = Path('/Users/nehalecky/Projects/cloudzero/cloud-resource-simulator/d
 df = pl.scan_parquet(DATA_PATH)
 
 # Basic stats
-schema_analysis = comprehensive_schema_analysis(df)
 total_rows = len(df.collect())
 total_cols = len(df.collect_schema())
 date_range = df.select([
@@ -68,18 +96,46 @@ date_range = df.select([
 
 logger.info(f"Dataset: {total_rows:,} rows × {total_cols} columns")
 logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date'][0]}")
-logger.info(f"\n{schema_analysis}")
 ```
 
 ```{code-cell} ipython3
-# Drop non-informative columns
-# - uuid: Record ID only (cardinality = row count, not helpful for analysis)
-# - Redundant cost metrics: All cost columns highly correlated (r > 0.95)
-#   Keep only PRIMARY_COST = 'materialized_cost' (most foundational)
+# Comprehensive schema analysis: cardinality, entropy, null rates
+schema_analysis = comprehensive_schema_analysis(df)
+logger.info(f"\n{'='*80}")
+logger.info(f"SCHEMA ANALYSIS - All {total_cols} Columns")
+logger.info(f"{'='*80}")
+logger.info(f"\n{schema_analysis}")
 
-PRIMARY_COST = 'materialized_cost'
+# Additional: Attribute information scores
+attribute_scores = calculate_attribute_scores(df)
+logger.info(f"\n{'='*80}")
+logger.info(f"ATTRIBUTE INFORMATION SCORES (Entropy + Cardinality)")
+logger.info(f"{'='*80}")
+logger.info(f"\n{attribute_scores.sort('information_score', descending=True)}")
+```
 
-cost_columns = [
+**Observations**:
+
+From the schema, we immediately identify:
+1. **uuid**: Cardinality ≈ row count → record identifier (not analytical dimension)
+2. **6 cost columns**: Likely correlated measurements of the same billing amount
+3. **Candidate resource attributes**: provider, account, region, product_family, usage_type
+4. **Temporal dimension**: usage_date (daily grain)
+
+**Hypothesis**: The resource identifier **r** is a **compound key** of (provider, account, region, product, usage_type), and we seek the most granular combination with temporal persistence.
+
+---
+
+### 1.3 Dimensionality Reduction: Cost Columns
+
+**Observation**: 6 cost columns exist - likely different accounting treatments of the same billing amount.
+
+**Hypothesis**: Cost columns are highly correlated (r > 0.95), representing redundant measurements.
+
+```{code-cell} ipython3
+# Test cost column correlation hypothesis
+cost_columns_all = [
+    'materialized_cost',
     'materialized_amortized_cost',
     'materialized_discounted_cost',
     'materialized_discounted_amortized_cost',
@@ -87,16 +143,61 @@ cost_columns = [
     'materialized_public_on_demand_cost'
 ]
 
-logger.info(f"\n🔗 Cost column correlations (justifying redundancy):")
-all_cost_cols = [PRIMARY_COST] + cost_columns
-cost_corr = df.select(all_cost_cols).collect().corr()
+# Compute correlation matrix
+cost_corr = df.select(cost_columns_all).collect().corr()
+
+logger.info(f"\n{'='*80}")
+logger.info(f"COST COLUMN CORRELATION MATRIX")
+logger.info(f"{'='*80}")
 logger.info(f"\n{cost_corr}")
-logger.info(f"   → All pairwise correlations > 0.95, keeping only {PRIMARY_COST}")
 
-df = df.drop(['uuid'] + cost_columns)
+# Check if all pairwise correlations > 0.95
+min_corr = cost_corr.select([
+    pl.all().exclude(cost_columns_all[0])
+]).min().to_numpy().min()
 
-logger.info(f"\n🗑️  Dropped uuid + {len(cost_columns)} redundant cost columns")
+logger.info(f"\n📊 Minimum pairwise correlation: {min_corr:.4f}")
+
+if min_corr > 0.95:
+    logger.info(f"   ✅ Hypothesis confirmed: All cost columns r > 0.95")
+    logger.info(f"   → Keeping only 'materialized_cost' (foundational base cost)")
+else:
+    logger.warning(f"   ⚠️  Some correlations < 0.95, investigate further")
 ```
+
+**Decision**: Keep **materialized_cost** as **PRIMARY_COST** - the foundational base cost before accounting adjustments.
+
+```{code-cell} ipython3
+# Drop redundant columns
+PRIMARY_COST = 'materialized_cost'
+
+columns_to_drop = [
+    'uuid',  # Record ID (cardinality ≈ rows)
+    'materialized_amortized_cost',
+    'materialized_discounted_cost',
+    'materialized_discounted_amortized_cost',
+    'materialized_invoiced_amortized_cost',
+    'materialized_public_on_demand_cost'
+]
+
+df = df.drop(columns_to_drop)
+
+logger.info(f"\n🗑️  Dropped {len(columns_to_drop)} columns:")
+logger.info(f"   - uuid (record identifier)")
+logger.info(f"   - 5 redundant cost measurements")
+logger.info(f"\n✅ Retained: {len(df.collect_schema())} columns")
+logger.info(f"   - Primary cost metric: {PRIMARY_COST}")
+```
+
+**Result**: Reduced from 38 → 32 columns, retaining all analytical dimensions.
+
+---
+
+### 1.4 Temporal Data Quality Assessment
+
+**Question**: Given the 122-day period, are billing records uniformly reliable throughout, or do data quality issues exist?
+
+**Approach**: Inspect daily record counts and cost variability over time to detect anomalous patterns.
 
 ```{code-cell} ipython3
 # Data quality check: Identify anomalous period
@@ -230,18 +331,41 @@ logger.info(f"   - Period: {clean_stats['start_date'][0]} to {clean_stats['end_d
 logger.info(f"   - Providers: {clean_stats['providers'][0]}" + (f" (excluding {EXCLUDED_PROVIDER})" if EXCLUDED_PROVIDER else ""))
 ```
 
-**Findings**:
-- Full dataset: 8.3M records over 122 days, 38 columns
-- **Dropped non-informative columns**: `uuid` (record ID), 5 redundant cost metrics (r > 0.95)
-- **Primary cost metric**: `materialized_cost` (foundational base cost, all others highly correlated)
-- **Data quality check**: Analyzed AWS cost variance pre/post Oct 7
-- **Analysis period**: Determined by empirical cost variance (not assumed)
+**Summary - Part 1**:
+
+1. **Event Space Model**: Defined E₀ (all cloud consumption) and E (CloudZero-observed subset)
+2. **Schema Analysis**: 38 columns → comprehensive cardinality, entropy, information scores computed
+3. **Dimensionality Reduction**:
+   - Dropped uuid (record ID, not analytical dimension)
+   - Validated cost column correlation hypothesis (all r > 0.95)
+   - Retained materialized_cost as PRIMARY_COST (foundational base cost)
+   - Result: 38 → 32 columns
+4. **Data Quality Assessment**:
+   - Detected Oct 7, 2025 anomaly via daily cost variance analysis
+   - AWS costs froze (CV ≈ 0) post-collapse
+   - Decision algorithm: Choose clean period vs exclude provider based on contribution %
+   - **Analysis dataset**: Determined empirically, not assumed
+
+**Key Variables Established**:
+- `PRIMARY_COST = 'materialized_cost'` (the measurement **c**)
+- `COLLAPSE_DATE = date(2025, 10, 7)` (data quality boundary)
+- `df_clean` (analysis-ready dataset)
+- **Remaining question**: What compound key defines resource **r**?
 
 ---
 
 ## Part 2: Grain Discovery & Entity Persistence
 
-Identify the most granular compound key whose entities persist across time, enabling forecasting.
+**Goal**: Identify the resource identifier **r** - the most granular compound key whose entities persist temporally.
+
+**Approach**: Test candidate compound keys with increasing granularity, measuring:
+1. **Cardinality** (total unique entities)
+2. **Stability** (% entities present ≥30 days)
+3. **Temporal persistence** (median days present)
+
+**Selection criterion**: Maximize granularity while maintaining ≥70% stability (entities suitable for time series forecasting).
+
+This is a **hypothesis testing exercise** - we propose grain candidates, measure persistence, and select the optimal balance between granularity and stability.
 
 ```{code-cell} ipython3
 # Helper: Create short entity labels for plots
