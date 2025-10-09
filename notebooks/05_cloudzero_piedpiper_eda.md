@@ -887,91 +887,85 @@ if len(post_collapse) > 0:
 ```
 
 ```{code-cell} ipython3
-# PDF and CDF comparison: Pre vs Post collapse
+# Direct uniqueness check: Easiest way to detect constant data
 if len(post_collapse) > 0:
     primary_cost = [col for col in final_cols if 'cost' in col.lower()][0]
 
-    # Extract cost distributions (filter DataFrame first, then get column)
-    pre_costs = (
-        pre_collapse
-        .filter(pl.col(primary_cost) > 0)
-        .get_column(primary_cost)
-        .to_numpy()
-    )
-    post_costs = (
-        post_collapse
-        .filter(pl.col(primary_cost) > 0)
-        .get_column(primary_cost)
-        .to_numpy()
-    )
+    # Count unique values: Pre vs Post
+    print("UNIQUENESS CHECK (Simple Diagnostic):")
+    print("="*60)
 
-    print(f"Distribution Samples:")
-    print(f"  Pre-collapse: {len(pre_costs):,} non-zero costs")
-    print(f"  Post-collapse: {len(post_costs):,} non-zero costs")
+    # Daily record counts
+    pre_daily_counts = pre_collapse.group_by('usage_date').agg(pl.len()).get_column('len')
+    post_daily_counts = post_collapse.group_by('usage_date').agg(pl.len()).get_column('len')
 
-    # Create comparison plots
-    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
+    pre_unique_records = pre_daily_counts.n_unique()
+    post_unique_records = post_daily_counts.n_unique()
 
-    # PDF: Linear scale
-    axes[0, 0].hist(pre_costs, bins=50, alpha=0.6, density=True, label='Pre-collapse', color='blue')
-    axes[0, 0].hist(post_costs, bins=50, alpha=0.6, density=True, label='Post-collapse', color='red')
-    axes[0, 0].set_xlabel('Cost ($)', fontweight='bold')
-    axes[0, 0].set_ylabel('Density', fontweight='bold')
-    axes[0, 0].set_title('PDF: Cost Distribution (Linear Scale)', fontweight='bold')
-    axes[0, 0].legend()
-    axes[0, 0].grid(alpha=0.3)
+    print(f"\nDaily Record Counts:")
+    print(f"  Pre-collapse:  {pre_unique_records} unique values")
+    print(f"  Post-collapse: {post_unique_records} unique values")
+    if post_unique_records <= 3:
+        print(f"    → POST-COLLAPSE IS CONSTANT/NEAR-CONSTANT (≤3 unique values)")
+        print(f"    → Actual values: {sorted(post_daily_counts.unique().to_list())}")
 
-    # PDF: Log scale
-    axes[0, 1].hist(pre_costs, bins=50, alpha=0.6, density=True, label='Pre-collapse', color='blue')
-    axes[0, 1].hist(post_costs, bins=50, alpha=0.6, density=True, label='Post-collapse', color='red')
-    axes[0, 1].set_xlabel('Cost ($, log scale)', fontweight='bold')
-    axes[0, 1].set_ylabel('Density', fontweight='bold')
-    axes[0, 1].set_title('PDF: Cost Distribution (Log Scale)', fontweight='bold')
-    axes[0, 1].set_xscale('log')
-    axes[0, 1].legend()
-    axes[0, 1].grid(alpha=0.3)
+    # Daily cost totals
+    pre_daily_cost = pre_collapse.group_by('usage_date').agg(pl.col(primary_cost).sum()).get_column(primary_cost)
+    post_daily_cost = post_collapse.group_by('usage_date').agg(pl.col(primary_cost).sum()).get_column(primary_cost)
 
-    # CDF: Linear scale
-    axes[1, 0].hist(pre_costs, bins=100, alpha=0.6, cumulative=True, density=True,
-                    label='Pre-collapse', color='blue', histtype='step', linewidth=2)
-    axes[1, 0].hist(post_costs, bins=100, alpha=0.6, cumulative=True, density=True,
-                    label='Post-collapse', color='red', histtype='step', linewidth=2)
-    axes[1, 0].set_xlabel('Cost ($)', fontweight='bold')
-    axes[1, 0].set_ylabel('Cumulative Probability', fontweight='bold')
-    axes[1, 0].set_title('CDF: Cost Distribution (Linear Scale)', fontweight='bold')
-    axes[1, 0].legend()
-    axes[1, 0].grid(alpha=0.3)
+    pre_unique_costs = pre_daily_cost.n_unique()
+    post_unique_costs = post_daily_cost.n_unique()
 
-    # CDF: Log scale
-    axes[1, 1].hist(pre_costs, bins=100, alpha=0.6, cumulative=True, density=True,
-                    label='Pre-collapse', color='blue', histtype='step', linewidth=2)
-    axes[1, 1].hist(post_costs, bins=100, alpha=0.6, cumulative=True, density=True,
-                    label='Post-collapse', color='red', histtype='step', linewidth=2)
-    axes[1, 1].set_xlabel('Cost ($, log scale)', fontweight='bold')
-    axes[1, 1].set_ylabel('Cumulative Probability', fontweight='bold')
-    axes[1, 1].set_title('CDF: Cost Distribution (Log Scale)', fontweight='bold')
-    axes[1, 1].set_xscale('log')
-    axes[1, 1].legend()
-    axes[1, 1].grid(alpha=0.3)
+    print(f"\nDaily Cost Totals:")
+    print(f"  Pre-collapse:  {pre_unique_costs} unique values")
+    print(f"  Post-collapse: {post_unique_costs} unique values")
+    if post_unique_costs <= 3:
+        print(f"    → POST-COLLAPSE IS CONSTANT/NEAR-CONSTANT (≤3 unique values)")
+        print(f"    → Actual values: {sorted(post_daily_cost.unique().to_list())}")
 
-    plt.tight_layout()
-    plt.show()
+    # Individual transaction costs
+    pre_txn_costs = pre_collapse.get_column(primary_cost).filter(pl.col(primary_cost) > 0)
+    post_txn_costs = post_collapse.get_column(primary_cost).filter(pl.col(primary_cost) > 0)
 
-    # Statistical comparison
-    from scipy import stats
+    pre_unique_txn = pre_txn_costs.n_unique()
+    post_unique_txn = post_txn_costs.n_unique()
 
-    # KS test: Are distributions different?
-    ks_stat, ks_pval = stats.ks_2samp(pre_costs, post_costs)
+    print(f"\nIndividual Transaction Costs:")
+    print(f"  Pre-collapse:  {pre_unique_txn:,} unique values")
+    print(f"  Post-collapse: {post_unique_txn:,} unique values")
+    if post_unique_txn <= 10:
+        print(f"    → POST-COLLAPSE IS DEGENERATE (≤10 unique values)")
+        print(f"    → Top values: {sorted(post_txn_costs.unique().to_list())[:10]}")
 
-    print(f"\nDistribution Comparison (Kolmogorov-Smirnov Test):")
-    print(f"  KS statistic: {ks_stat:.6f}")
-    print(f"  p-value: {ks_pval:.6f}")
-
-    if ks_pval < 0.001:
-        print("  → Distributions are SIGNIFICANTLY DIFFERENT (p < 0.001)")
-        print("  → Post-collapse data has fundamentally different characteristics")
+    print("\n" + "="*60)
+    print("VERDICT:")
+    if post_unique_records <= 3 and post_unique_costs <= 3:
+        print("  ⚠ DATA IS CONSTANT after collapse - same values repeat daily")
+        print("  → Dataset is UNUSABLE after 2025-10-07")
+    elif post_unique_txn < 100:
+        print("  ⚠ DATA IS DEGENERATE after collapse - very few unique values")
+        print("  → Dataset quality severely degraded after 2025-10-07")
     else:
-        print("  → Distributions are similar (p > 0.001)")
+        print("  ✓ Some variance remains after collapse")
+```
+
+```{code-cell} ipython3
+# If data looks constant, show the repeating pattern
+if len(post_collapse) > 0 and post_unique_records <= 3:
+    print("REPEATING PATTERN (Post-Collapse):")
+    print("="*60)
+
+    post_pattern = (
+        post_collapse
+        .group_by('usage_date')
+        .agg([
+            pl.len().alias('records'),
+            pl.col(primary_cost).sum().alias('daily_cost')
+        ])
+        .sort('usage_date')
+    )
+
+    print(post_pattern)
 ```
 
 ### Summary
