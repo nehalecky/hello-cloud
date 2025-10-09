@@ -224,26 +224,26 @@ Now we classify attributes by cardinality to guide composite key construction:
 
 ```{code-cell} ipython3
 # Classify columns by cardinality for grain discovery
-primary_keys = attrs.filter(pl.col('cardinality_ratio') > 0.9)['column'].to_list()
-high_card = attrs.filter((pl.col('cardinality_ratio') > 0.5) & (pl.col('cardinality_ratio') <= 0.9))['column'].to_list()
-medium_card = attrs.filter((pl.col('cardinality_ratio') > 0.1) & (pl.col('cardinality_ratio') <= 0.5))['column'].to_list()
-grouping_dims = attrs.filter(pl.col('cardinality_ratio') <= 0.1)['column'].to_list()
+# primary_keys = attrs.filter(pl.col('cardinality_ratio') > 0.9)['column'].to_list()
+# high_card = attrs.filter((pl.col('cardinality_ratio') > 0.5) & (pl.col('cardinality_ratio') <= 0.9))['column'].to_list()
+# medium_card = attrs.filter((pl.col('cardinality_ratio') > 0.1) & (pl.col('cardinality_ratio') <= 0.5))['column'].to_list()
+# grouping_dims = attrs.filter(pl.col('cardinality_ratio') <= 0.1)['column'].to_list()
 
-logger.info(f"\n🎯 Grain Discovery Classification:")
-logger.info(f"\n🔴 Primary Keys ({len(primary_keys)}):")
-logger.info(f"   {primary_keys}")
-logger.info(f"   → Drop these (record IDs, not analytical dimensions)")
-if high_card:
-    logger.info(f"\n🟠 High Cardinality ({len(high_card)}):")
-    logger.info(f"   {high_card}")
-    logger.info(f"   → Potential resource-level identifiers (investigate persistence)")
-if medium_card:
-    logger.info(f"\n🟡 Medium Cardinality ({len(medium_card)}):")
-    logger.info(f"   {medium_card}")
-    logger.info(f"   → Good candidates for composite keys")
-logger.info(f"\n🟢 Grouping Dimensions ({len(grouping_dims)}):")
-logger.info(f"   {grouping_dims}")
-logger.info(f"   → Standard dimensions for aggregation")
+# logger.info(f"\n🎯 Grain Discovery Classification:")
+# logger.info(f"\n🔴 Primary Keys ({len(primary_keys)}):")
+# logger.info(f"   {primary_keys}")
+# logger.info(f"   → Drop these (record IDs, not analytical dimensions)")
+# if high_card:
+#     logger.info(f"\n🟠 High Cardinality ({len(high_card)}):")
+#     logger.info(f"   {high_card}")
+#     logger.info(f"   → Potential resource-level identifiers (investigate persistence)")
+# if medium_card:
+#     logger.info(f"\n🟡 Medium Cardinality ({len(medium_card)}):")
+#     logger.info(f"   {medium_card}")
+#     logger.info(f"   → Good candidates for composite keys")
+# logger.info(f"\n🟢 Grouping Dimensions ({len(grouping_dims)}):")
+# logger.info(f"   {grouping_dims}")
+# logger.info(f"   → Standard dimensions for aggregation")
 ```
 
 **Filtering Strategy**: We cannot filter solely on `information_score` because harmonic mean is dominated by the lowest input. Low-cardinality grouping dimensions (like `cloud_provider`, `region`) score poorly due to cardinality ratio ≈ 0, yet they're critical for hierarchical analysis. Instead, we use **cardinality-stratified filtering**—different criteria for different column roles:
@@ -263,7 +263,7 @@ This preserves valuable low-cardinality columns while removing noise.
 drop_primary_keys = attrs.filter(pl.col('cardinality_ratio') > 0.9)['column'].to_list()
 
 # DROP: Sparse columns (value_density < 80%, too many nulls)
-drop_sparse = attrs.filter(pl.col('value_density') < 0.8)['column'].to_list()
+drop_sparse = attrs.filter(pl.col('value_density') < 0.6)['column'].to_list()
 
 # KEEP: Grouping dimensions (<10% cardinality) if highly complete
 keep_grouping = attrs.filter(
@@ -299,8 +299,8 @@ logger.info(f"   Resource IDs: {sorted(keep_resource_ids)}")
 logger.info(f"   Composite candidates: {sorted(keep_composite_candidates)}")
 
 # Apply filter
-df_filtered = df.select([col for col in df.collect_schema().names() if col not in drop_cols])
-logger.info(f"\n📊 Schema reduced: {len(df.collect_schema())} → {len(df_filtered.collect_schema())} columns")
+df = df.select([col for col in df.collect_schema().names() if col not in drop_cols])
+logger.info(f"\n📊 Schema reduced: {len(df.collect_schema())} → {len(df.collect_schema())} columns")
 ```
 
 ---
@@ -318,6 +318,10 @@ categorical_cols = (
     ['column']
     .to_list()
 )
+
+# Filter to columns that actually exist in current dataframe
+available_cols = df.collect_schema().names()
+categorical_cols = [col for col in categorical_cols if col in available_cols]
 
 logger.info(f"\n📊 Categorical Columns ({len(categorical_cols)}):")
 logger.info(f"   {categorical_cols}")
