@@ -324,12 +324,15 @@ with pl.Config(tbl_rows=15):
 For numeric columns, we identify highly correlated pairs and keep only the one with higher information score.
 
 ```{code-cell} ipython3
-# Get numeric columns with >5% information score
-numeric_cols = numeric_summary.filter(
-    pl.col('column').is_in(
-        attribute_scores.filter(pl.col('information_score') > 0.05)['attribute'].to_list()
-    )
-)['column'].to_list()
+# Functional approach: Get numeric columns with sufficient information
+numeric_cols = (
+    numeric_summary
+    .filter(pl.col('column').is_in(
+        attribute_scores.filter(pl.col('information_score') > 0.01)['attribute'].to_list()
+    ))
+    .get_column('column')
+    .to_list()
+)
 
 print(f"Analyzing {len(numeric_cols)} numeric columns for correlation...")
 
@@ -339,51 +342,83 @@ corr_matrix = sample_df.select(numeric_cols).corr()
 
 print("✓ Correlation matrix computed")
 
-# Find highly correlated pairs (|r| > 0.90)
+# Functional approach: Find correlated pairs and identify columns to drop
 CORR_THRESHOLD = 0.90
-columns_to_drop = set()
 
-corr_pandas = corr_matrix.to_pandas()
-for i in range(len(numeric_cols)):
-    for j in range(i+1, len(numeric_cols)):
-        col_i = numeric_cols[i]
-        col_j = numeric_cols[j]
-        corr_val = abs(corr_pandas.iloc[i, j])
+def find_correlated_pairs(corr_df, cols, threshold):
+    """Pure function: returns list of (col_i, col_j, corr_val) tuples above threshold."""
+    corr_np = corr_df.to_numpy()
+    pairs = [
+        (cols[i], cols[j], abs(corr_np[i, j]))
+        for i in range(len(cols))
+        for j in range(i+1, len(cols))
+        if abs(corr_np[i, j]) > threshold
+    ]
+    return pairs
 
-        if corr_val > CORR_THRESHOLD:
-            # Get information scores
-            score_i = attribute_scores.filter(pl.col('attribute') == col_i)['information_score'][0]
-            score_j = attribute_scores.filter(pl.col('attribute') == col_j)['information_score'][0]
+def select_columns_to_keep(pairs, score_df):
+    """Pure function: from correlated pairs, select which columns to keep based on info score."""
+    # Build score lookup dict (functional transform)
+    score_map = {
+        row['attribute']: row['information_score']
+        for row in score_df.iter_rows(named=True)
+    }
 
-            # Drop the one with lower information score
-            if score_i > score_j:
-                columns_to_drop.add(col_j)
-                print(f"  Dropping {col_j} (r={corr_val:.3f} with {col_i}, lower info score)")
-            else:
-                columns_to_drop.add(col_i)
-                print(f"  Dropping {col_i} (r={corr_val:.3f} with {col_j}, lower info score)")
+    # For each pair, determine which to drop (functional map)
+    drops = set()
+    for col_i, col_j, corr_val in pairs:
+        score_i = score_map.get(col_i, 0)
+        score_j = score_map.get(col_j, 0)
 
-print(f"\n✓ Identified {len(columns_to_drop)} redundant numeric columns to drop")
+        to_drop = col_j if score_i > score_j else col_i
+        to_keep = col_i if score_i > score_j else col_j
+
+        drops.add(to_drop)
+        print(f"  Dropping {to_drop} (r={corr_val:.3f} with {to_keep}, lower info score)")
+
+    return drops
+
+# Execute functional pipeline
+corr_pairs = find_correlated_pairs(corr_matrix, numeric_cols, CORR_THRESHOLD)
+columns_to_drop = select_columns_to_keep(corr_pairs, attribute_scores) if corr_pairs else set()
+
+print(f"\n✓ Found {len(corr_pairs)} correlated pairs")
+print(f"✓ Identified {len(columns_to_drop)} redundant numeric columns to drop")
 ```
 
 ### Step 3: Create Final Column Set
 
 ```{code-cell} ipython3
-# Start with all columns
+# Functional approach: Build final column set with protected essentials
 all_cols = df.collect_schema().names()
 
-# Remove low-information columns (score < 0.01)
-low_info_cols = attribute_scores.filter(
-    pl.col('information_score') < 0.01
-)['attribute'].to_list()
+# Essential columns that must be kept (temporal, identifiers, primary metrics)
+essential_cols = {
+    'usage_date',           # Temporal dimension (required for time series)
+    'uuid',                 # Primary identifier
+    'resource_id',          # Resource tracking
+    'materialized_discounted_cost',  # Primary cost metric
+    'materialized_usage_amount',     # Primary usage metric
+    'cloud_provider',       # Top-level hierarchy
+}
 
-# Remove high-null columns (>95% null)
-high_null_cols = schema_analysis.filter(
-    pl.col('null_pct') > 95.0
-)['column'].to_list()
+# Build exclusion sets (functional pipeline)
+low_info_cols = (
+    attribute_scores
+    .filter(pl.col('information_score') < 0.01)
+    .get_column('attribute')
+    .to_list()
+)
 
-# Combine all exclusions
-all_drops = set(columns_to_drop) | set(low_info_cols) | set(high_null_cols)
+high_null_cols = (
+    schema_analysis
+    .filter(pl.col('null_pct') > 95.0)
+    .get_column('column')
+    .to_list()
+)
+
+# Combine exclusions but preserve essentials
+all_drops = (set(columns_to_drop) | set(low_info_cols) | set(high_null_cols)) - essential_cols
 final_cols = [col for col in all_cols if col not in all_drops]
 
 # Create filtered dataframe
@@ -413,27 +448,46 @@ for category in ['financial', 'cloud_hierarchy', 'identifier', 'temporal', 'cons
 ```
 
 ```{code-cell} ipython3
-# Visualize final correlation matrix (should show low redundancy)
+# Visualize BEFORE/AFTER correlation to show redundancy removal effectiveness
 final_numeric_cols = [col for col in final_cols if col in numeric_cols and col not in columns_to_drop]
 
-if len(final_numeric_cols) > 1:
-    final_corr = sample_df.select(final_numeric_cols).corr()
+print(f"Numeric columns: {len(numeric_cols)} → {len(final_numeric_cols)}")
 
-    fig = create_correlation_heatmap(
-        final_corr,
-        title=f'Final Numeric Features Correlation Matrix ({len(final_numeric_cols)} cols)',
-        annotate=True,
-        figsize=(10, 8)
-    )
+if len(final_numeric_cols) > 1 and len(numeric_cols) > len(final_numeric_cols):
+    # Show before/after comparison
+    fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+
+    # BEFORE: Original correlation matrix
+    corr_before = corr_matrix.to_pandas()
+    sns.heatmap(corr_before.abs(), annot=False, cmap='RdBu_r', vmin=0, vmax=1,
+                square=True, ax=axes[0], cbar_kws={'label': '|Correlation|'})
+    axes[0].set_title(f'BEFORE: {len(numeric_cols)} numeric columns\n(High redundancy)', fontweight='bold')
+
+    # AFTER: Filtered correlation matrix
+    final_corr = sample_df.select(final_numeric_cols).corr()
+    corr_after = final_corr.to_pandas()
+    sns.heatmap(corr_after.abs(), annot=True, fmt='.2f', cmap='RdBu_r', vmin=0, vmax=1,
+                square=True, ax=axes[1], cbar_kws={'label': '|Correlation|'})
+    axes[1].set_title(f'AFTER: {len(final_numeric_cols)} numeric columns\n(Low redundancy)', fontweight='bold')
+
+    plt.tight_layout()
     plt.show()
 
-    # Verify low redundancy
-    corr_np = final_corr.to_numpy()
-    np.fill_diagonal(corr_np, 0)  # Ignore diagonal
-    max_corr = np.abs(corr_np).max()
+    # Verify low redundancy (functional calculation)
+    def max_off_diagonal_corr(corr_matrix):
+        """Pure function: compute max absolute off-diagonal correlation."""
+        corr_np = corr_matrix.to_numpy()
+        np.fill_diagonal(corr_np, 0)
+        return np.abs(corr_np).max()
+
+    max_corr = max_off_diagonal_corr(final_corr)
     print(f"\n✓ Maximum absolute correlation in final set: {max_corr:.3f}")
-    if max_corr < CORR_THRESHOLD:
-        print(f"  → Successfully reduced redundancy below {CORR_THRESHOLD} threshold")
+    print(f"  → {'Successfully' if max_corr < CORR_THRESHOLD else 'Failed to'} reduce redundancy below {CORR_THRESHOLD}")
+
+elif len(final_numeric_cols) <= 1:
+    print(f"\n⚠ Only {len(final_numeric_cols)} numeric column(s) remaining - no correlation matrix to display")
+else:
+    print("\n✓ No redundant columns were removed (all correlations below threshold)")
 ```
 
 ---
