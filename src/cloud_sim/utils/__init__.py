@@ -14,7 +14,7 @@ from .eda_analysis import (
     # Schema & Information Theory
     attribute_analysis,
     comprehensive_schema_analysis,  # Deprecated alias
-    daily_observation_analysis,
+    daily_observation_counts,
     numeric_column_summary,
     categorical_column_summary,
     semantic_column_analysis,
@@ -61,7 +61,7 @@ __all__ = [
     # EDA - Schema & Information Theory
     "attribute_analysis",
     "comprehensive_schema_analysis",  # Deprecated
-    "daily_observation_analysis",
+    "daily_observation_counts",
     "numeric_column_summary",
     "categorical_column_summary",
     "semantic_column_analysis",

@@ -72,7 +72,7 @@ from loguru import logger
 from cloud_sim.utils import (
     configure_notebook_logging,
     attribute_analysis,
-    daily_observation_analysis,
+    daily_observation_counts,
     plot_categorical_frequencies,
     calculate_attribute_scores,
     find_correlated_pairs,
@@ -104,54 +104,61 @@ logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date']
 
 ---
 
-### 1.3 Temporal Completeness Validation
+### 1.3 Daily Observation Distribution
 
-**Critical Check**: Time series forecasting requires complete, historical data. Validate:
-1. **No future dates**: Dataset should not extend beyond today
-2. **No gaps**: Daily observations must be continuous
-3. **Sufficient history**: Need adequate historical period for pattern detection
+**Question**: Is this dataset suitable for time series forecasting?
+
+Check daily record counts to understand temporal coverage and identify issues.
 
 ```{code-cell} ipython3
-# Analyze daily observation counts
-daily_obs = daily_observation_analysis(df, 'usage_date', include_future_check=True)
+from datetime import date as dt_date
 
-# Summary statistics
-total_days = len(daily_obs)
-days_with_data = daily_obs.filter(~pl.col('is_gap')).shape[0]
-gap_days = daily_obs.filter(pl.col('is_gap')).shape[0]
-future_days = daily_obs.filter(pl.col('is_future')).shape[0] if 'is_future' in daily_obs.columns else 0
+# Simple groupby: count records per day
+daily = daily_observation_counts(df, 'usage_date')
 
-logger.info(f"\n📅 Temporal Completeness Analysis:")
-logger.info(f"   Date Range: {daily_obs['usage_date'].min()} to {daily_obs['usage_date'].max()}")
-logger.info(f"   Total Days in Range: {total_days}")
-logger.info(f"   Days with Data: {days_with_data} ({days_with_data/total_days*100:.1f}%)")
-logger.info(f"   Gap Days (0 records): {gap_days} ({gap_days/total_days*100:.1f}%)")
+# Summary stats
+min_date = daily['usage_date'].min()
+max_date = daily['usage_date'].max()
+today = dt_date.today()
+days_in_future = (daily['usage_date'] > today).sum()
 
-if future_days > 0:
-    logger.warning(f"\n⚠️  FUTURE DATES DETECTED: {future_days} days beyond today")
-    logger.warning(f"   → This indicates synthetic or mislabeled data")
-    logger.warning(f"   → Time series forecasting not applicable to future-dated data")
-    future_dates = daily_obs.filter(pl.col('is_future')).select(['usage_date', 'record_count'])
-    display(future_dates.head(10))
-else:
-    logger.info(f"\n✅ No future dates detected")
+logger.info(f"\n📅 Daily Observation Summary:")
+logger.info(f"   Date Range: {min_date} to {max_date}")
+logger.info(f"   Today: {today}")
+logger.info(f"   Days of Data: {len(daily)}")
+logger.info(f"   Days in Future: {days_in_future}")
 
-# Plot daily observation counts
+if days_in_future > 0:
+    logger.warning(f"\n⚠️  FUTURE DATES DETECTED")
+    logger.warning(f"   → {days_in_future} days extend beyond {today}")
+    logger.warning(f"   → Dataset contains synthetic or mislabeled data")
+    logger.warning(f"   → NOT SUITABLE for time series forecasting")
+
+# Distribution statistics
+logger.info(f"\n📊 Daily Count Distribution:")
+logger.info(f"   Mean: {daily['count'].mean():.0f} records/day")
+logger.info(f"   Median: {daily['count'].median():.0f} records/day")
+logger.info(f"   Min: {daily['count'].min():,} records/day")
+logger.info(f"   Max: {daily['count'].max():,} records/day")
+
+# Plot daily counts
 fig, ax = plt.subplots(figsize=(14, 5))
-ax.bar(daily_obs['usage_date'], daily_obs['record_count'], width=0.8, alpha=0.7)
-ax.axhline(y=0, color='red', linestyle='--', alpha=0.5, label='Gap (0 records)')
+ax.bar(daily['usage_date'], daily['count'], width=0.8, alpha=0.7)
+ax.axvline(x=today, color='red', linestyle='--', linewidth=2, label=f'Today ({today})')
 ax.set_xlabel('Date')
 ax.set_ylabel('Daily Record Count')
-ax.set_title('Daily Observation Counts - Temporal Completeness Check')
+ax.set_title('Daily Observation Counts')
+ax.legend()
 ax.grid(axis='y', alpha=0.3)
 plt.xticks(rotation=45)
 plt.tight_layout()
 plt.show()
 
-if gap_days > 0:
-    logger.warning(f"\n⚠️  {gap_days} gap days detected - review timeline continuity")
-    gaps = daily_obs.filter(pl.col('is_gap')).select('usage_date')
-    display(gaps.head(20))
+# Show future dates if they exist
+if days_in_future > 0:
+    future_data = daily.filter(pl.col('usage_date') > today)
+    logger.info(f"\n🔴 Future Dates ({len(future_data)} days):")
+    display(future_data)
 ```
 
 ---

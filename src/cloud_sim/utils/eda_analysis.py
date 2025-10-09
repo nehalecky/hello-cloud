@@ -72,73 +72,31 @@ def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
     return attribute_analysis(df)
 
 
-def daily_observation_analysis(
+def daily_observation_counts(
     df: pl.LazyFrame,
-    date_col: str = 'usage_date',
-    include_future_check: bool = True
+    date_col: str = 'usage_date'
 ) -> pl.DataFrame:
     """
-    Analyze daily observation counts for time series completeness validation.
-
-    Computes record counts per day, identifies gaps, and checks for future dates.
-    Critical for determining if dataset is suitable for time series forecasting.
+    Count records per day - simple groupby for distribution analysis.
 
     Args:
         df: Input LazyFrame
-        date_col: Name of date column to analyze
-        include_future_check: If True, flags dates beyond today (default True)
+        date_col: Name of date column to group by
 
     Returns:
-        DataFrame with columns: date, record_count, is_gap, is_future (if checked)
+        DataFrame with columns: date, count
         Sorted by date ascending.
 
     Example:
-        >>> daily_obs = daily_observation_analysis(df, 'usage_date')
-        >>> # Check for gaps
-        >>> gaps = daily_obs.filter(pl.col('is_gap'))
-        >>> # Check for future dates
-        >>> future = daily_obs.filter(pl.col('is_future'))
+        >>> daily = daily_observation_counts(df, 'usage_date')
+        >>> daily.describe()  # See distribution stats
     """
-    from datetime import date as dt_date
-
-    # Daily aggregation
-    daily_counts = (
+    return (
         df.group_by(date_col)
-        .agg(pl.len().alias('record_count'))
+        .agg(pl.len().alias('count'))
         .sort(date_col)
         .collect()
     )
-
-    # Get date range
-    min_date = daily_counts[date_col].min()
-    max_date = daily_counts[date_col].max()
-
-    # Create complete date range
-    date_range = pl.date_range(
-        min_date,
-        max_date,
-        interval='1d',
-        eager=True
-    ).alias(date_col)
-
-    # Join to identify gaps
-    complete_timeline = (
-        pl.DataFrame({date_col: date_range})
-        .join(daily_counts, on=date_col, how='left')
-        .with_columns([
-            pl.col('record_count').fill_null(0),
-            (pl.col('record_count') == 0).alias('is_gap')
-        ])
-    )
-
-    # Add future date check if requested
-    if include_future_check:
-        today = dt_date.today()
-        complete_timeline = complete_timeline.with_columns(
-            (pl.col(date_col) > today).alias('is_future')
-        )
-
-    return complete_timeline
 
 
 def numeric_column_summary(
