@@ -36,8 +36,8 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
         sample_size: Sample size for entropy calculation (default 50k)
 
     Returns:
-        DataFrame with columns: column, dtype, value_density, null_pct,
-        nonzero_density, cardinality_ratio, entropy, information_score, sample_value
+        DataFrame with columns: column, dtype, value_density, nonzero_density,
+        cardinality_ratio, entropy, information_score, sample_value
         Sorted by information_score descending.
 
     Example:
@@ -68,9 +68,8 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
         null_count = stats[f'{col}_nulls'][0]
         unique_count = stats[f'{col}_unique'][0]
 
-        # Value density (complement of null ratio)
+        # Value density (complement of null ratio, "higher is better")
         value_density = (total_rows - null_count) / total_rows
-        null_pct = (null_count / total_rows) * 100
 
         # Nonzero density (numeric columns only) - higher is better
         if isinstance(schema[col], numeric_types):
@@ -102,7 +101,6 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
             'column': col,
             'dtype': str(schema[col]),
             'value_density': round(value_density, 6),
-            'null_pct': round(null_pct, 2),
             'nonzero_density': round(nonzero_density, 6),
             'cardinality_ratio': round(cardinality_ratio, 6),
             'entropy': round(entropy, 4),

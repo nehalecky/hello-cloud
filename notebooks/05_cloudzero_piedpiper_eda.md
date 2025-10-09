@@ -109,7 +109,7 @@ date_cols = [
     if isinstance(dtype, (pl.Date, pl.Datetime))
 ]
 
-print(f"Date/Datetime columns found: {date_cols}")
+logger.info(f"Date/Datetime columns found: {date_cols}")
 date_col = date_cols[0]
 
 # Rename to 'date' for simplicity
@@ -129,45 +129,39 @@ logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date']
 Let's inspect the temporal record density and plot.
 
 ```{code-cell} ipython3
-# Daily counts with percent change
+# Daily counts
 daily = (
     df.group_by('date')
     .agg(pl.len().alias('count'))
     .sort('date')
     .collect()
-    .with_columns(pl.col('count').pct_change().alias('pct_change'))
 )
 
-# Single plot with dual y-axes
-fig, ax1 = plt.subplots(figsize=(14, 6))
-
-# Log scale bar chart for counts
-ax1.bar(daily['date'], daily['count'], width=0.8, alpha=0.6, color='steelblue', label='Record Count')
-ax1.set_yscale('log')
-ax1.set_ylabel('Daily Record Count (log scale)', color='steelblue')
-ax1.set_xlabel('Date')
-ax1.tick_params(axis='y', labelcolor='steelblue')
-ax1.grid(axis='y', alpha=0.3)
-
-# Overlay percent change on second y-axis
-ax2 = ax1.twinx()
-ax2.plot(daily['date'], daily['pct_change'], color='orange', marker='o', linewidth=1.5, label='Percent Change')
-ax2.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
-ax2.set_ylabel('Percent Change', color='orange')
-ax2.tick_params(axis='y', labelcolor='orange')
-
-plt.title('Temporal Observation Density')
+# Simple log-scale time series
+fig, ax = plt.subplots(figsize=(14, 4))
+ax.plot(daily['date'], daily['count'], linewidth=2, color='steelblue')
+ax.set_yscale('log')
+ax.set_ylabel('Daily Record Count (log scale)')
+ax.set_xlabel('Date')
+ax.set_title('Temporal Observation Density')
+ax.grid(True, alpha=0.3)
 plt.xticks(rotation=45)
 plt.tight_layout()
 plt.show()
 ```
 
+**Observation**: The time series shows a sharp drop at a specific date, with data continuing into the future. Something is off—let's investigate the magnitude of day-over-day changes to identify the anomaly.
+
 ```{code-cell} ipython3
-# Inspect largest drops
-daily.sort('pct_change').head(10)
+# Compute percent change to quantify anomaly
+daily = daily.with_columns(pl.col('count').pct_change().alias('pct_change'))
+
+# Find largest drops
+logger.info("Largest day-over-day drops:")
+daily.sort('pct_change').head(5)
 ```
 
-The data shows a significant drop on a specific date, with future-dated records beyond today. We'll filter to the period before the anomaly for analysis.
+The data shows a significant drop (>30%) on a specific date. We'll filter to the period before this anomaly for clean analysis.
 
 ```{code-cell} ipython3
 # Find earliest date with >30% drop (pct_change < -0.30)
