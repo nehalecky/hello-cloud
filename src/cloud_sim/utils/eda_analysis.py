@@ -74,23 +74,36 @@ def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
 
 def daily_observation_counts(
     df: pl.LazyFrame,
-    date_col: str = 'usage_date'
+    date_col: Optional[str] = None
 ) -> pl.DataFrame:
     """
     Count records per day - simple groupby for distribution analysis.
 
+    Auto-detects date column if not specified (looks for Date/Datetime types).
+
     Args:
         df: Input LazyFrame
-        date_col: Name of date column to group by
+        date_col: Name of date column to group by (None = auto-detect)
 
     Returns:
         DataFrame with columns: date, count
         Sorted by date ascending.
 
     Example:
-        >>> daily = daily_observation_counts(df, 'usage_date')
+        >>> daily = daily_observation_counts(df)  # Auto-detects date column
         >>> daily.describe()  # See distribution stats
     """
+    # Auto-detect date column if not provided
+    if date_col is None:
+        schema = df.collect_schema()
+        date_cols = [
+            name for name, dtype in schema.items()
+            if isinstance(dtype, (pl.Date, pl.Datetime))
+        ]
+        if not date_cols:
+            raise ValueError("No Date or Datetime columns found in schema")
+        date_col = date_cols[0]  # Use first date column found
+
     return (
         df.group_by(date_col)
         .agg(pl.len().alias('count'))

@@ -111,22 +111,23 @@ Here we note that there are dates that span into the future. We'll inspect the t
 ### 1.3 Temporal Observation Density
 
 ```{code-cell} ipython3
-# Daily counts with percent change
-daily = (
-    daily_observation_counts(df, 'usage_date')
-    .sort('usage_date')
-    .with_columns(pl.col('count').pct_change().alias('pct_change'))
-)
+# Daily counts with percent change (auto-detects date column)
+daily = daily_observation_counts(df)
+date_col = daily.columns[0]  # First column is the date
+print(f"Detected date column: {date_col}")
+
+# Add percent change
+daily = daily.with_columns(pl.col('count').pct_change().alias('pct_change'))
 
 # Plot counts and percent change
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
 
-ax1.bar(daily['usage_date'], daily['count'], width=0.8, alpha=0.7)
+ax1.bar(daily[date_col], daily['count'], width=0.8, alpha=0.7)
 ax1.set_ylabel('Daily Record Count')
 ax1.set_title('Temporal Observation Density')
 ax1.grid(axis='y', alpha=0.3)
 
-ax2.plot(daily['usage_date'], daily['pct_change'], marker='o', linewidth=1)
+ax2.plot(daily[date_col], daily['pct_change'], marker='o', linewidth=1)
 ax2.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
 ax2.set_xlabel('Date')
 ax2.set_ylabel('Percent Change')
@@ -147,22 +148,22 @@ The data shows a significant drop on a specific date, with future-dated records 
 ```{code-cell} ipython3
 # Find date of largest drop
 anomaly_row = daily.sort('pct_change').head(1)
-CUTOFF_DATE = anomaly_row['usage_date'][0]
+CUTOFF_DATE = anomaly_row[date_col][0]
 
 print(f"Filtering data before: {CUTOFF_DATE}")
 
 # Create analysis dataset
-if daily['usage_date'].dtype == pl.Date:
-    df_analysis = df.filter(pl.col('usage_date') < CUTOFF_DATE)
+if daily[date_col].dtype == pl.Date:
+    df_analysis = df.filter(pl.col(date_col) < CUTOFF_DATE)
 else:
-    df_analysis = df.filter(pl.col('usage_date').dt.date() < CUTOFF_DATE)
+    df_analysis = df.filter(pl.col(date_col).dt.date() < CUTOFF_DATE)
 
 # Summary
 stats = df_analysis.select([
     pl.len().alias('rows'),
-    pl.col('usage_date').n_unique().alias('days'),
-    pl.col('usage_date').min().alias('start'),
-    pl.col('usage_date').max().alias('end')
+    pl.col(date_col).n_unique().alias('days'),
+    pl.col(date_col).min().alias('start'),
+    pl.col(date_col).max().alias('end')
 ]).collect()
 
 print(f"Analysis dataset: {stats['rows'][0]:,} rows, {stats['days'][0]} days")
