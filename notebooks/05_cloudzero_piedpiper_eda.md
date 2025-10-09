@@ -111,13 +111,27 @@ Here we note that there are dates that span into the future. We'll inspect the t
 ### 1.3 Temporal Observation Density
 
 ```{code-cell} ipython3
-# Daily counts with percent change (auto-detects date column)
-daily = daily_observation_counts(df)
-date_col = daily.columns[0]  # First column is the date
-print(f"Detected date column: {date_col}")
+# Identify date column from schema
+schema = df.collect_schema()
+date_cols = [
+    name for name, dtype in schema.items()
+    if isinstance(dtype, (pl.Date, pl.Datetime))
+]
 
-# Add percent change
-daily = daily.with_columns(pl.col('count').pct_change().alias('pct_change'))
+print(f"Date/Datetime columns found: {date_cols}")
+date_col = date_cols[0]
+print(f"Using: {date_col}")
+```
+
+```{code-cell} ipython3
+# Daily counts with percent change
+daily = (
+    df.group_by(date_col)
+    .agg(pl.len().alias('count'))
+    .sort(date_col)
+    .collect()
+    .with_columns(pl.col('count').pct_change().alias('pct_change'))
+)
 
 # Plot counts and percent change
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
