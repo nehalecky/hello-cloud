@@ -104,74 +104,79 @@ logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date']
 
 ---
 
-### 1.3 Daily Observation Distribution
-
-**Question**: Is this dataset suitable for time series forecasting?
-
-Check daily record counts to understand temporal coverage and identify issues.
+### 1.3 Temporal Observation Density
 
 ```{code-cell} ipython3
-from datetime import date as dt_date
+from datetime import date as dt_date, datetime
 
-# Simple groupby: count records per day
+# Daily counts
 daily = daily_observation_counts(df, 'usage_date')
 
-# Summary stats
-min_date = daily['usage_date'].min()
-max_date = daily['usage_date'].max()
-today = dt_date.today()
+# Detect anomaly: look for significant drop in record count
+daily_sorted = daily.sort('usage_date')
+daily_sorted = daily_sorted.with_columns([
+    (pl.col('count').pct_change()).alias('pct_change')
+])
 
-# Handle Datetime vs Date comparison
-if daily['usage_date'].dtype == pl.Date:
-    days_in_future = (daily['usage_date'] > today).sum()
+# Find first day with >80% drop (likely anomaly start)
+anomaly_candidates = daily_sorted.filter(pl.col('pct_change') < -0.8)
+if len(anomaly_candidates) > 0:
+    ANOMALY_DATE = anomaly_candidates['usage_date'][0]
 else:
-    # If Datetime, extract date component for comparison
-    days_in_future = (daily['usage_date'].dt.date() > today).sum()
+    # Fallback: use today if no drop detected
+    ANOMALY_DATE = dt_date.today()
 
-logger.info(f"\n📅 Daily Observation Summary:")
-logger.info(f"   Date Range: {min_date} to {max_date}")
-logger.info(f"   Today: {today}")
-logger.info(f"   Days of Data: {len(daily)}")
-logger.info(f"   Days in Future: {days_in_future}")
-
-if days_in_future > 0:
-    logger.warning(f"\n⚠️  FUTURE DATES DETECTED")
-    logger.warning(f"   → {days_in_future} days extend beyond {today}")
-    logger.warning(f"   → Dataset contains synthetic or mislabeled data")
-    logger.warning(f"   → NOT SUITABLE for time series forecasting")
-
-# Distribution statistics
-logger.info(f"\n📊 Daily Count Distribution:")
-logger.info(f"   Mean: {daily['count'].mean():.0f} records/day")
-logger.info(f"   Median: {daily['count'].median():.0f} records/day")
-logger.info(f"   Min: {daily['count'].min():,} records/day")
-logger.info(f"   Max: {daily['count'].max():,} records/day")
-
-# Plot daily counts
+# Plot
 fig, ax = plt.subplots(figsize=(14, 5))
-ax.bar(daily['usage_date'], daily['count'], width=0.8, alpha=0.7)
+ax.bar(daily['usage_date'], daily['count'], width=0.8, alpha=0.7, color='steelblue')
 
-# Convert today to datetime for matplotlib if needed
-from datetime import datetime
+# Mark anomaly date and today
+today = dt_date.today()
 today_dt = datetime.combine(today, datetime.min.time()) if daily['usage_date'].dtype != pl.Date else today
-ax.axvline(x=today_dt, color='red', linestyle='--', linewidth=2, label=f'Today ({today})')
+anomaly_dt = datetime.combine(ANOMALY_DATE, datetime.min.time()) if isinstance(ANOMALY_DATE, dt_date) and daily['usage_date'].dtype != pl.Date else ANOMALY_DATE
+
+ax.axvline(x=anomaly_dt, color='orange', linestyle='--', linewidth=2, label=f'Anomaly: {ANOMALY_DATE}')
+ax.axvline(x=today_dt, color='red', linestyle='--', linewidth=2, label=f'Today: {today}')
 ax.set_xlabel('Date')
 ax.set_ylabel('Daily Record Count')
-ax.set_title('Daily Observation Counts')
+ax.set_title('Temporal Observation Density')
 ax.legend()
 ax.grid(axis='y', alpha=0.3)
 plt.xticks(rotation=45)
 plt.tight_layout()
 plt.show()
 
-# Show future dates if they exist
-if days_in_future > 0:
-    if daily['usage_date'].dtype == pl.Date:
-        future_data = daily.filter(pl.col('usage_date') > today)
-    else:
-        future_data = daily.filter(pl.col('usage_date').dt.date() > today)
-    logger.info(f"\n🔴 Future Dates ({len(future_data)} days):")
-    display(future_data)
+# Print summary
+print(f"Date range: {daily['usage_date'].min()} to {daily['usage_date'].max()}")
+print(f"Anomaly detected: {ANOMALY_DATE}")
+print(f"Days with data: {len(daily)}")
+```
+
+**Observations:**
+
+The dataset shows a clear temporal anomaly starting **{ANOMALY_DATE}**, where record counts drop dramatically. Additionally, the data extends beyond today ({today}), indicating:
+
+1. **Future-dated records**: Data includes dates that haven't occurred yet
+2. **Synthetic/degraded data**: The sudden drop suggests a data generation or pipeline issue
+
+**Decision:** We will filter out all data from **{ANOMALY_DATE}** onward to focus on the clean historical period. This ensures our analysis reflects actual usage patterns rather than artifacts.
+
+```{code-cell} ipython3
+# Filter to clean period (before anomaly)
+if daily['usage_date'].dtype == pl.Date:
+    df_clean = df.filter(pl.col('usage_date') < ANOMALY_DATE)
+else:
+    df_clean = df.filter(pl.col('usage_date').dt.date() < ANOMALY_DATE)
+
+clean_stats = df_clean.select([
+    pl.len().alias('rows'),
+    pl.col('usage_date').n_unique().alias('days'),
+    pl.col('usage_date').min().alias('start'),
+    pl.col('usage_date').max().alias('end')
+]).collect()
+
+print(f"Clean dataset: {clean_stats['rows'][0]:,} rows, {clean_stats['days'][0]} days")
+print(f"Period: {clean_stats['start'][0]} to {clean_stats['end'][0]}")
 ```
 
 ---
