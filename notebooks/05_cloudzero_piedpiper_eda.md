@@ -614,6 +614,10 @@ logger.info(f"\n{top_entities}")
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 1, figsize=(14, 10))
 
+# Get full date range for alignment
+all_dates = df_clean.select('usage_date').unique().sort('usage_date').collect()
+date_range = all_dates['usage_date']
+
 # Plot 1: Absolute daily spend
 ax1 = axes[0]
 for i, entity_key in enumerate(top_entities.select(OPTIMAL_COLS).to_dicts()[:5]):
@@ -626,6 +630,10 @@ for i, entity_key in enumerate(top_entities.select(OPTIMAL_COLS).to_dicts()[:5])
         .collect()
     )
 
+    # Skip if empty
+    if len(entity_ts) == 0:
+        continue
+
     ax1.plot(entity_ts['usage_date'], entity_ts['daily_cost'],
              label=f"Entity {i+1}", marker='o', linewidth=2)
 
@@ -637,31 +645,42 @@ ax1.grid(True, alpha=0.3)
 
 # Plot 2: Stacked area showing cumulative contribution
 ax2 = axes[1]
-daily_totals = (
-    df_clean
-    .group_by('usage_date')
-    .agg(pl.col(PRIMARY_COST).sum().alias('total'))
-    .sort('usage_date')
-    .collect()
-)
 
+# Build aligned time series for stacking
 stack_data = []
-for entity_key in top_entities.select(OPTIMAL_COLS).to_dicts()[:5]:
+valid_labels = []
+
+for i, entity_key in enumerate(top_entities.select(OPTIMAL_COLS).to_dicts()[:5]):
     entity_ts = (
         df_clean
         .filter(pl.all_horizontal([pl.col(k) == v for k, v in entity_key.items()]))
         .group_by('usage_date')
         .agg(pl.col(PRIMARY_COST).sum().alias('cost'))
-        .sort('usage_date')
         .collect()
     )
-    stack_data.append(entity_ts['cost'].to_numpy())
 
-dates = daily_totals['usage_date'].to_numpy()
-ax2.stackplot(dates, *stack_data, labels=[f'Entity {i+1}' for i in range(5)], alpha=0.8)
-ax2.set_xlabel('Date')
-ax2.set_ylabel(f'Daily {PRIMARY_COST}')
-ax2.set_title(f'Top 5 Entities - Cumulative Spend Contribution ({OPTIMAL_GRAIN})')
+    # Skip if empty
+    if len(entity_ts) == 0:
+        continue
+
+    # Align to full date range (fill missing dates with 0)
+    aligned = (
+        all_dates
+        .join(entity_ts, on='usage_date', how='left')
+        .with_columns(pl.col('cost').fill_null(0))
+        .sort('usage_date')
+    )
+
+    stack_data.append(aligned['cost'].to_numpy())
+    valid_labels.append(f'Entity {i+1}')
+
+# Only plot if we have data
+if len(stack_data) > 0:
+    dates = date_range.to_numpy()
+    ax2.stackplot(dates, *stack_data, labels=valid_labels, alpha=0.8)
+    ax2.set_xlabel('Date')
+    ax2.set_ylabel(f'Daily {PRIMARY_COST}')
+    ax2.set_title(f'Top {len(stack_data)} Entities - Cumulative Spend Contribution ({OPTIMAL_GRAIN})')
 ax2.legend(loc='upper left')
 ax2.grid(True, alpha=0.3)
 
