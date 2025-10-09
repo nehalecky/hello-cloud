@@ -131,34 +131,25 @@ schema_df.sort('cardinality_ratio', descending=True)
 ```
 
 ```{code-cell} ipython3
-# Color-code table by thresholds with stronger colors
-import pandas as pd
+# Display full schema table
+with pl.Config(tbl_rows=-1):
+    display(schema_df.sort('cardinality_ratio', descending=True))
 
-def color_threshold(val, col):
-    """Color cells exceeding thresholds with bold colors."""
-    if pd.isna(val):
-        return ''
+# Highlight problematic columns with logging
+primary_keys = schema_df.filter(pl.col('card_class') == 'Primary Key (>90%)')['column'].to_list()
+high_null_cols = schema_df.filter(pl.col('null_pct') > 80)['column'].to_list()
 
-    if col == 'cardinality_ratio' and val > 0.95:
-        return 'background-color: #ff6666; color: white; font-weight: bold'  # Bright red: ID column
-    elif col == 'null_ratio' and val > 0.8:
-        return 'background-color: #ffcc00; color: black; font-weight: bold'  # Bright yellow: High nulls
-    elif col == 'zero_ratio' and val > 0.95:
-        return 'background-color: #ff9933; color: white; font-weight: bold'  # Bright orange: High zeros
-    return ''
+logger.info("\n🎨 Data Quality Summary:")
+if primary_keys:
+    logger.info(f"   🔴 Primary Keys ({len(primary_keys)}): {primary_keys}")
+    logger.info(f"      → Nearly unique per row, not useful for grouping")
+if high_null_cols:
+    logger.info(f"   🟡 High Nulls ({len(high_null_cols)}): {high_null_cols}")
+    logger.info(f"      → >80% missing data")
 
-# Convert to pandas for styling, display
-schema_pd = schema_df.to_pandas().set_index('column')
-styled = schema_pd.style.apply(
-    lambda col: [color_threshold(v, col.name) for v in col],
-    axis=0
-)
-
-logger.info("\n🎨 Threshold Highlights:")
-logger.info("   🔴 Red (cardinality > 0.95): ID columns → drop")
-logger.info("   🟡 Yellow (null_ratio > 0.8): High nulls → drop")
-logger.info("   🟠 Orange (zero_ratio > 0.95): High zeros → drop")
-styled
+grouping_dims = schema_df.filter(pl.col('card_class') == 'Grouping (<10%)')['column'].to_list()
+logger.info(f"   ✅ Grouping Dimensions ({len(grouping_dims)}): {grouping_dims}")
+logger.info(f"      → Candidate dimensions for composite keys")
 ```
 
 ---
@@ -180,16 +171,18 @@ categorical_cols = (
 logger.info(f"\n📊 Categorical Columns ({len(categorical_cols)}):")
 logger.info(f"   {categorical_cols}")
 
-# Plot top 10 values for each categorical
+# Plot top 10 values for each categorical with log scale
 if categorical_cols:
     fig = plot_categorical_frequencies(
         df,
         columns=categorical_cols,
         top_n=10,
+        log_scale=True,           # Logarithmic scale for wide frequency ranges
+        shared_xaxis=True,        # Same scale across all subplots for comparison
         figsize=(16, max(4, len(categorical_cols) * 2)),
         cols_per_row=2
     )
-    plt.suptitle('Categorical Value Distributions (Top 10 per column)',
+    plt.suptitle('Categorical Value Distributions (Top 10 per column, log scale)',
                  fontsize=14, fontweight='bold', y=1.0)
     plt.show()
 
@@ -197,6 +190,7 @@ if categorical_cols:
     logger.info("   • Data concentration (Pareto principle)")
     logger.info("   • Grain candidates (which dimensions to composite)")
     logger.info("   • Potential filtering targets (rare/dominant values)")
+    logger.info("   • Log scale reveals patterns across wide frequency ranges")
 ```
 
 ---

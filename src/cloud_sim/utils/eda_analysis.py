@@ -906,7 +906,9 @@ def plot_categorical_frequencies(
     top_n: int = 10,
     sample_size: int = 100_000,
     figsize: Tuple[int, int] = (14, 10),
-    cols_per_row: int = 2
+    cols_per_row: int = 2,
+    log_scale: bool = True,
+    shared_xaxis: bool = True
 ) -> plt.Figure:
     """
     Create horizontal bar charts for categorical columns showing top N values.
@@ -921,12 +923,14 @@ def plot_categorical_frequencies(
         sample_size: Sample size for value counting
         figsize: Figure size (width, height)
         cols_per_row: Number of subplots per row
+        log_scale: Use logarithmic scale for x-axis (default True)
+        shared_xaxis: Use same x-axis limits across all subplots (default True)
 
     Returns:
         Matplotlib Figure object
 
     Example:
-        >>> fig = plot_categorical_frequencies(df, top_n=10)
+        >>> fig = plot_categorical_frequencies(df, top_n=10, log_scale=True)
         >>> plt.show()
     """
     # Auto-detect categorical columns if not provided
@@ -947,15 +951,23 @@ def plot_categorical_frequencies(
     fig, axes = plt.subplots(n_rows, cols_per_row, figsize=figsize)
     axes = axes.flatten() if n_cols > 1 else [axes]
 
-    # Plot each column
-    for idx, col in enumerate(columns):
-        ax = axes[idx]
-
-        # Get top N values
+    # First pass: collect all counts to determine global max for shared axis
+    all_value_counts = {}
+    global_max = 0
+    for col in columns:
         value_counts = (sample_df[col]
                        .value_counts()
                        .sort('count', descending=True)
                        .head(top_n))
+        all_value_counts[col] = value_counts
+        if len(value_counts) > 0:
+            col_max = value_counts['count'].max()
+            global_max = max(global_max, col_max)
+
+    # Plot each column
+    for idx, col in enumerate(columns):
+        ax = axes[idx]
+        value_counts = all_value_counts[col]
 
         if len(value_counts) > 0:
             values = value_counts[col].to_list()
@@ -970,7 +982,21 @@ def plot_categorical_frequencies(
             ax.set_yticks(y_pos)
             ax.set_yticklabels(labels, fontsize=9)
             ax.invert_yaxis()  # Top value at top
-            ax.set_xlabel('Frequency', fontsize=10)
+
+            # Apply log scale if requested
+            if log_scale:
+                ax.set_xscale('log')
+                ax.set_xlabel('Frequency (log scale)', fontsize=10)
+            else:
+                ax.set_xlabel('Frequency', fontsize=10)
+
+            # Apply shared x-axis limits
+            if shared_xaxis:
+                if log_scale:
+                    ax.set_xlim(1, global_max * 1.5)
+                else:
+                    ax.set_xlim(0, global_max * 1.1)
+
             ax.set_title(f'{col} (Top {min(top_n, len(values))})', fontsize=11, fontweight='bold')
             ax.grid(axis='x', alpha=0.3)
 
