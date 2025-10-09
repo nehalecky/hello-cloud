@@ -716,11 +716,12 @@ if anomaly_results and culprit['entity_type'] == 'cloud_provider':
     ax.stackplot(plot_data.index, *[plot_data[col].values for col in providers],
                  labels=providers, alpha=0.8)
     ax.set_xlabel('Date', fontweight='bold')
-    ax.set_ylabel('Daily Record Count', fontweight='bold')
+    ax.set_ylabel('Daily Record Count (Log Scale)', fontweight='bold')
     ax.set_title('Cloud Provider Record Contributions Over Time (Stacked Area)',
                  fontweight='bold', fontsize=14)
-    ax.legend(loc='upper left', framealpha=0.9)
-    ax.grid(alpha=0.3, axis='y')
+    ax.set_yscale('log')
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), framealpha=0.9)
+    ax.grid(alpha=0.3, axis='y', which='both')
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
 
     plt.tight_layout()
