@@ -232,7 +232,7 @@ else:
     logger.warning(f"   → Review which cost columns differ significantly")
 ```
 
-**Decision**: Keep `materialized_discounted_cost` (CloudZero standard discounted cost metric), drop other 5 variants.
+**Decision**: Keep `materialized_cost` (base cost, no accounting adjustments), rename to `cost` for simplicity.
 
 ---
 
@@ -242,7 +242,7 @@ Apply four filters: (1) ID columns, (2) high nulls, (3) high zeros, (4) redundan
 
 ```{code-cell} ipython3
 # Define primary cost metric
-PRIMARY_COST = 'materialized_discounted_cost'
+PRIMARY_COST = 'materialized_cost'
 
 # Filter 1: ID columns (cardinality > 0.95)
 id_cols = schema_df.filter(pl.col('cardinality_ratio') > 0.95)['column'].to_list()
@@ -275,8 +275,13 @@ df = df.drop(columns_to_drop)
 cols_after = len(df.collect_schema())
 reduction_ratio = (cols_before - cols_after) / cols_before
 
+# Rename PRIMARY_COST to 'cost' for simplicity
+df = df.rename({PRIMARY_COST: 'cost'})
+PRIMARY_COST = 'cost'
+
 logger.info(f"\n📉 Column Reduction: {cols_before} → {cols_after} ({reduction_ratio:.1%} reduction)")
 logger.info(f"✅ Tidy schema ready: {cols_after} informative columns")
+logger.info(f"✅ Renamed: materialized_cost → cost")
 ```
 
 ```{code-cell} ipython3
@@ -291,8 +296,8 @@ logger.info(f"      - availability_zone, product_family, usage_type")
 logger.info(f"\n   Resource Identifiers:")
 logger.info(f"      - resource_id, service_code, operation")
 logger.info(f"\n   Cost Metric:")
-logger.info(f"      - {PRIMARY_COST}")
-logger.info(f"\n   Other: {[c for c in remaining_cols if c not in ['usage_date', 'cloud_provider', 'cloud_account_id', 'region', 'availability_zone', 'product_family', 'usage_type', 'resource_id', 'service_code', 'operation', PRIMARY_COST]]}")
+logger.info(f"      - cost (base materialized cost, no adjustments)")
+logger.info(f"\n   Other: {[c for c in remaining_cols if c not in ['usage_date', 'cloud_provider', 'cloud_account_id', 'region', 'availability_zone', 'product_family', 'usage_type', 'resource_id', 'service_code', 'operation', 'cost']]}")
 ```
 
 ```{code-cell} ipython3
@@ -693,14 +698,14 @@ $\therefore$ Grain validated for time series modeling
 - Filter 1: ID columns (cardinality > 0.95) → uuid
 - Filter 2: High nulls (>80%) → [varies by dataset]
 - Filter 3: High zeros (>95% among non-nulls) → [varies by dataset]
-- Filter 4: Redundant costs → 5 cost variants (kept materialized_discounted_cost)
+- Filter 4: Redundant costs → 5 cost variants (kept materialized_cost, renamed to cost)
 - **Column reduction**: 38 → 32 columns (16% reduction)
 
 **Remaining 5.8M Records Contain**:
 - **Temporal**: Daily grain (37 days)
 - **Cloud hierarchy**: Provider → Account → Region → Availability Zone
 - **Resource dimensions**: Service, Product Family, Usage Type, Resource ID
-- **Cost metric**: materialized_discounted_cost (CloudZero standard)
+- **Cost metric**: cost (base materialized_cost, no accounting adjustments)
 - **Cardinality**: X providers, Y accounts, Z regions, W products (see dimensional analysis)
 
 **Data Quality Issue**: AWS pipeline collapse post-Oct 7 (costs frozen, CV ≈ 0)
@@ -720,7 +725,7 @@ $\therefore$ Grain validated for time series modeling
 (t, r, c) where:
     t = usage_date
     r = compound_key(provider, account, region, product, ...)
-    c = materialized_discounted_cost
+    c = cost  # base materialized_cost
 ```
 
 ✅ Entities persist across observation period
