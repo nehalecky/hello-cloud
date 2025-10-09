@@ -90,21 +90,12 @@ logger.info("PiedPiper EDA - Notebook initialized")
 DATA_PATH = Path('~/Projects/cloudzero/cloud-resource-simulator/data/piedpiper_optimized_daily.parquet')
 df = pl.scan_parquet(DATA_PATH)
 
-# Basic statistics
+# Basic shape
 total_rows = len(df.collect())
 total_cols = len(df.collect_schema()) # Schema is lazy, no data pulled
-date_range = df.select([
-    pl.col('usage_date').min().alias('min_date'),
-    pl.col('usage_date').max().alias('max_date')
-]).collect()
-
 logger.info(f"Dataset: {total_rows:,} rows × {total_cols} columns")
-logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date'][0]}")
+df.head(5).collect()
 ```
-
-Here we note that there are dates that span into the future. We'll inspect the temporal record density.
-
-+++
 
 ---
 
@@ -123,8 +114,13 @@ date_col = date_cols[0]
 
 # Rename to 'date' for simplicity
 df = df.rename({date_col: 'date'})
-print(f"Renamed {date_col} → 'date'")
+logger.info(f"Renamed {date_col} → 'date'")
+logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date'][0]}")
 ```
+
+**Noted** Max date spans into the future `2025-12-31`. 
+
+Let's inspect the temporal record density and plot. 
 
 ```{code-cell} ipython3
 # Daily counts with percent change
@@ -173,11 +169,11 @@ anomalies = daily.filter(pl.col('pct_change') < -0.30).sort('date')
 
 if len(anomalies) > 0:
     CUTOFF_DATE = anomalies['date'][0]
-    print(f"First anomaly (>30% drop): {CUTOFF_DATE}")
+    logger.info(f"First anomaly (>30% drop): {CUTOFF_DATE}")
 else:
     # Fallback: use largest drop
     CUTOFF_DATE = daily.sort('pct_change').head(1)['date'][0]
-    print(f"No >30% drop found, using largest drop: {CUTOFF_DATE}")
+    logger.info(f"No >30% drop found, using largest drop: {CUTOFF_DATE}")
 
 # Filter df to clean period
 if daily['date'].dtype == pl.Date:
@@ -198,42 +194,66 @@ print(f"Filtered to: {stats['rows'][0]:,} rows, {stats['days'][0]} days ({stats[
 
 ---
 
-### 1.4 Attribute Analysis
+### 1.4 General Attribute Analysis
 
-Analyze all columns for cardinality and completeness to identify grain candidates.
+**Methodology**: We analyze the information density in each attribute using metrics that capture value density, cardinality, and confusion, allowing us to understand the information available within each attribute. We leverage this to find ideal attributes that support our event and time series discrimination efforts.
+
+#### Value Density
+The density of non-null values across attributes (completeness indicator). Low values imply high sparsity (many nulls), which are likely not informative for modeling or grain discovery.
+
+#### Zero Ratio (Numeric Columns)
+The density of zero values among numeric attributes. High zero ratios may indicate measurement artifacts, optional features, or sparse usage patterns. For cost columns, zeros represent periods of no consumption.
+
+#### Cardinality Ratio
+The ratio of unique values to total observations (`unique_count / total_rows`). Maximum cardinality equals the number of observations. Values approaching 1.0 imply nearly distinct values per observation (primary keys), offering little grouping utility. Values near 0.0 indicate coarse grouping dimensions.
+
+#### Value Confusion (Shannon Entropy)
+Measures the "confusion" or information content of value assignments via [Shannon entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory)). Low entropy implies concentration in few values (zero confusion, minimal information). High entropy implies uniform distribution across many values (maximum confusion, rich information). Generally, we want higher entropy for informative features.
+
+#### Information Score
+Harmonic mean of value density, cardinality ratio, and entropy. This composite metric requires attributes to score well on **all three dimensions**—completeness, uniqueness, and distributional richness. Higher scores indicate more informative attributes for grain discovery and modeling.
+
+These size-normalized metrics help identify attributes with little discriminatory information, which can be filtered to simplify analysis and modeling tasks.
 
 ```{code-cell} ipython3
-# Attribute analysis
-attrs = attribute_analysis(df)
+# Compute comprehensive attribute analysis
+attrs = attribute_analysis(df, sample_size=50_000)
 
-logger.info(f"\n📊 Attribute Analysis ({total_cols} columns):")
-logger.info("\nCardinality Interpretation:")
-logger.info("  • >90%: Primary key → not useful for grouping")
-logger.info("  • 50-90%: High cardinality → potential resource IDs")
-logger.info("  • 10-50%: Medium cardinality → composite key candidates")
-logger.info("  • <10%: Low cardinality → grouping dimensions")
-
-# Display sorted by cardinality
+# Display all columns sorted by information score
 with pl.Config(tbl_rows=-1):
-    display(attrs.sort('cardinality_ratio', descending=True))
+    display(attrs)
+```
 
-# Identify grain candidates
+The table above is sorted by **information score** (highest first), which ranks attributes by their combined utility across completeness, uniqueness, and distributional richness. High-scoring attributes are the most informative for grain discovery and modeling.
+
+**Interpretation**:
+- **Top scorers**: Attributes with balanced completeness, moderate-to-high cardinality, and rich value distributions—ideal grain candidates
+- **Low scorers**: Either sparse (many nulls), low-cardinality (coarse dimensions), or low-entropy (concentrated values)—useful for filtering or hierarchical aggregation but not fine-grained keys
+
+Now we classify attributes by cardinality to guide composite key construction:
+
+```{code-cell} ipython3
+# Classify columns by cardinality for grain discovery
 primary_keys = attrs.filter(pl.col('cardinality_ratio') > 0.9)['column'].to_list()
 high_card = attrs.filter((pl.col('cardinality_ratio') > 0.5) & (pl.col('cardinality_ratio') <= 0.9))['column'].to_list()
 medium_card = attrs.filter((pl.col('cardinality_ratio') > 0.1) & (pl.col('cardinality_ratio') <= 0.5))['column'].to_list()
 grouping_dims = attrs.filter(pl.col('cardinality_ratio') <= 0.1)['column'].to_list()
 
-logger.info(f"\n🎯 Grain Discovery Candidates:")
-logger.info(f"   🔴 Primary Keys ({len(primary_keys)}): {primary_keys}")
-logger.info(f"      → Drop these (record IDs, not analytical dimensions)")
+logger.info(f"\n🎯 Grain Discovery Classification:")
+logger.info(f"\n🔴 Primary Keys ({len(primary_keys)}):")
+logger.info(f"   {primary_keys}")
+logger.info(f"   → Drop these (record IDs, not analytical dimensions)")
 if high_card:
-    logger.info(f"   🟠 High Cardinality ({len(high_card)}): {high_card}")
-    logger.info(f"      → Potential resource-level identifiers (investigate persistence)")
+    logger.info(f"\n🟠 High Cardinality ({len(high_card)}):")
+    logger.info(f"   {high_card}")
+    logger.info(f"   → Potential resource-level identifiers (investigate persistence)")
 if medium_card:
-    logger.info(f"   🟡 Medium Cardinality ({len(medium_card)}): {medium_card}")
-    logger.info(f"      → Good candidates for composite keys")
-logger.info(f"   🟢 Grouping Dimensions ({len(grouping_dims)}): {grouping_dims}")
-logger.info(f"      → Standard dimensions for aggregation")
+    logger.info(f"\n🟡 Medium Cardinality ({len(medium_card)}):")
+    logger.info(f"   {medium_card}")
+    logger.info(f"   → Good candidates for composite keys")
+logger.info(f"\n🟢 Grouping Dimensions ({len(grouping_dims)}):")
+logger.info(f"   {grouping_dims}")
+logger.info(f"   → Standard dimensions for aggregation")
 ```
 
 ---

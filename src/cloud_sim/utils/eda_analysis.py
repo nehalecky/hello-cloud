@@ -19,46 +19,96 @@ from sklearn.ensemble import IsolationForest
 # Schema & Information Theory
 # ============================================================================
 
-def attribute_analysis(df: pl.LazyFrame) -> pl.DataFrame:
+def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFrame:
     """
-    Analyze dataset attributes with focus on cardinality and completeness.
+    Comprehensive attribute analysis with information density metrics.
 
-    Computes null percentages, unique counts, and cardinality ratios for
-    every attribute. Designed for grain discovery and data quality assessment.
+    Computes metrics for grain discovery and feature selection:
+    - Value density: proportion of non-null values (completeness)
+    - Zero ratio: proportion of zero values (for numeric columns)
+    - Cardinality ratio: unique_count / total_rows (uniqueness)
+    - Entropy: Shannon entropy measuring value distribution confusion
+    - Information score: harmonic mean of density, cardinality, entropy
 
     Args:
         df: Input LazyFrame to analyze
+        sample_size: Sample size for entropy calculation (default 50k)
 
     Returns:
-        DataFrame with columns: column, dtype, null_pct, unique_count,
-        cardinality_ratio, sample_value
+        DataFrame with columns: column, dtype, value_density, null_pct,
+        zero_ratio, cardinality_ratio, entropy, information_score, sample_value
+        Sorted by information_score descending.
 
     Example:
-        >>> with pl.Config(tbl_rows=-1):
-        >>>     display(attribute_analysis(df))
+        >>> attrs = attribute_analysis(df)
+        >>> attrs.filter(pl.col('information_score') > 0.5)  # High-info columns
     """
     schema = df.collect_schema()
     total_rows = df.select(pl.len()).collect()[0, 0]
 
-    # Collect statistics in parallel
+    # Collect basic statistics in parallel
     stats = df.select([
         pl.all().null_count().name.suffix('_nulls'),
         pl.all().n_unique().name.suffix('_unique'),
         pl.all().drop_nulls().first().cast(pl.Utf8).name.suffix('_sample')
     ]).collect()
 
-    # Build attribute analysis DataFrame
-    schema_df = pl.DataFrame({
-        'column': schema.names(),
-        'dtype': [str(dt) for dt in schema.dtypes()],
-        'null_pct': [round(stats[f'{col}_nulls'][0] / total_rows * 100, 2) for col in schema.names()],
-        'unique_count': [stats[f'{col}_unique'][0] for col in schema.names()],
-        'cardinality_ratio': [round(stats[f'{col}_unique'][0] / total_rows, 6) for col in schema.names()],
-        'sample_value': [str(stats[f'{col}_sample'][0])[:50] if stats[f'{col}_sample'][0] is not None else '<null>'
-                        for col in schema.names()],
-    })
+    # Sample for entropy calculation
+    df_sample = df.head(sample_size).collect()
 
-    return schema_df
+    # Identify numeric columns for zero_ratio calculation
+    numeric_types = (pl.Int8, pl.Int16, pl.Int32, pl.Int64,
+                     pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64,
+                     pl.Float32, pl.Float64)
+
+    # Compute per-column metrics
+    results = []
+    for col in schema.names():
+        null_count = stats[f'{col}_nulls'][0]
+        unique_count = stats[f'{col}_unique'][0]
+
+        # Value density (complement of null ratio)
+        value_density = (total_rows - null_count) / total_rows
+        null_pct = (null_count / total_rows) * 100
+
+        # Zero ratio (numeric columns only)
+        if isinstance(schema[col], numeric_types):
+            zero_count = df.select((pl.col(col) == 0).sum()).collect()[0, 0]
+            zero_ratio = zero_count / total_rows
+        else:
+            zero_ratio = None  # Non-numeric columns
+
+        # Cardinality ratio
+        cardinality_ratio = unique_count / total_rows
+
+        # Shannon entropy (on sample)
+        entropy = shannon_entropy(df_sample[col])
+
+        # Information score: harmonic mean of (value_density, cardinality_ratio, entropy)
+        # Add small epsilon to avoid division by zero
+        epsilon = 1e-10
+        information_score = 3.0 / (
+            1.0 / (value_density + epsilon) +
+            1.0 / (cardinality_ratio + epsilon) +
+            1.0 / (entropy + epsilon)
+        )
+
+        # Sample value
+        sample_val = str(stats[f'{col}_sample'][0])[:50] if stats[f'{col}_sample'][0] is not None else '<null>'
+
+        results.append({
+            'column': col,
+            'dtype': str(schema[col]),
+            'value_density': round(value_density, 6),
+            'null_pct': round(null_pct, 2),
+            'zero_ratio': round(zero_ratio, 6) if zero_ratio is not None else None,
+            'cardinality_ratio': round(cardinality_ratio, 6),
+            'entropy': round(entropy, 4),
+            'information_score': round(information_score, 6),
+            'sample_value': sample_val,
+        })
+
+    return pl.DataFrame(results).sort('information_score', descending=True)
 
 
 # Backward compatibility alias
