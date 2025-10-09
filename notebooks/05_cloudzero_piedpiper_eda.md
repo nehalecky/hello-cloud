@@ -968,6 +968,80 @@ if len(post_collapse) > 0 and post_unique_records <= 3:
     print(post_pattern)
 ```
 
+```{code-cell} ipython3
+# Percentage change time series: Normalized space for comparison
+primary_cost = [col for col in final_cols if 'cost' in col.lower()][0]
+
+# Daily aggregations with pct_change using with_columns
+daily_metrics = (
+    df_filtered
+    .group_by('usage_date')
+    .agg([
+        pl.len().alias('records'),
+        pl.col(primary_cost).sum().alias('cost')
+    ])
+    .sort('usage_date')
+    .collect()
+    .with_columns([
+        pl.col('records').pct_change().alias('records_pct_change'),
+        pl.col('cost').pct_change().alias('cost_pct_change')
+    ])
+)
+
+# Split at collapse date
+collapse_date = date(2025, 10, 7)
+pre_pct = daily_metrics.filter(pl.col('usage_date') < collapse_date)
+post_pct = daily_metrics.filter(pl.col('usage_date') >= collapse_date)
+
+print("Percentage Change Time Series (Normalized Space):")
+print(f"Pre-collapse variability:")
+print(f"  Records pct_change std: {pre_pct['records_pct_change'].std():.6f}")
+print(f"  Cost pct_change std: {pre_pct['cost_pct_change'].std():.6f}")
+
+print(f"\nPost-collapse variability:")
+print(f"  Records pct_change std: {post_pct['records_pct_change'].std():.6f}")
+print(f"  Cost pct_change std: {post_pct['cost_pct_change'].std():.6f}")
+
+# Visualize pct_change
+fig, axes = plt.subplots(2, 1, figsize=(16, 8), sharex=True)
+
+plot_data = daily_metrics.to_pandas()
+
+# Records % change
+axes[0].plot(plot_data['usage_date'], plot_data['records_pct_change'] * 100,
+             linewidth=2, color='steelblue', marker='o', markersize=3)
+axes[0].axvline(collapse_date, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                label='Collapse Date')
+axes[0].axhline(0, color='black', linestyle='-', linewidth=0.5, alpha=0.3)
+axes[0].set_ylabel('Record Count\n% Change', fontweight='bold')
+axes[0].set_title('Daily Percentage Change: Record Counts', fontweight='bold')
+axes[0].legend()
+axes[0].grid(alpha=0.3)
+
+# Cost % change
+axes[1].plot(plot_data['usage_date'], plot_data['cost_pct_change'] * 100,
+             linewidth=2, color='darkgreen', marker='o', markersize=3)
+axes[1].axvline(collapse_date, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                label='Collapse Date')
+axes[1].axhline(0, color='black', linestyle='-', linewidth=0.5, alpha=0.3)
+axes[1].set_xlabel('Date', fontweight='bold')
+axes[1].set_ylabel('Cost\n% Change', fontweight='bold')
+axes[1].set_title('Daily Percentage Change: Costs', fontweight='bold')
+axes[1].legend()
+axes[1].grid(alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Verdict
+if post_pct['records_pct_change'].std() < 0.01 and post_pct['cost_pct_change'].std() < 0.01:
+    print("\n⚠ VERDICT: Post-collapse pct_change is FLAT (std < 0.01)")
+    print("  → Zero day-to-day variation after collapse")
+    print("  → Data is constant/artifactual")
+else:
+    print(f"\n✓ Some variation remains (std > 0.01)")
+```
+
 ### Summary
 
 **Anomaly Source**: AWS identified with highest temporal variability (CV=0.861)
