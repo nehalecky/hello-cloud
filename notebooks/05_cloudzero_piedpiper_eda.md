@@ -120,7 +120,13 @@ daily = daily_observation_counts(df, 'usage_date')
 min_date = daily['usage_date'].min()
 max_date = daily['usage_date'].max()
 today = dt_date.today()
-days_in_future = (daily['usage_date'] > today).sum()
+
+# Handle Datetime vs Date comparison
+if daily['usage_date'].dtype == pl.Date:
+    days_in_future = (daily['usage_date'] > today).sum()
+else:
+    # If Datetime, extract date component for comparison
+    days_in_future = (daily['usage_date'].dt.date() > today).sum()
 
 logger.info(f"\n📅 Daily Observation Summary:")
 logger.info(f"   Date Range: {min_date} to {max_date}")
@@ -144,7 +150,11 @@ logger.info(f"   Max: {daily['count'].max():,} records/day")
 # Plot daily counts
 fig, ax = plt.subplots(figsize=(14, 5))
 ax.bar(daily['usage_date'], daily['count'], width=0.8, alpha=0.7)
-ax.axvline(x=today, color='red', linestyle='--', linewidth=2, label=f'Today ({today})')
+
+# Convert today to datetime for matplotlib if needed
+from datetime import datetime
+today_dt = datetime.combine(today, datetime.min.time()) if daily['usage_date'].dtype != pl.Date else today
+ax.axvline(x=today_dt, color='red', linestyle='--', linewidth=2, label=f'Today ({today})')
 ax.set_xlabel('Date')
 ax.set_ylabel('Daily Record Count')
 ax.set_title('Daily Observation Counts')
@@ -156,7 +166,10 @@ plt.show()
 
 # Show future dates if they exist
 if days_in_future > 0:
-    future_data = daily.filter(pl.col('usage_date') > today)
+    if daily['usage_date'].dtype == pl.Date:
+        future_data = daily.filter(pl.col('usage_date') > today)
+    else:
+        future_data = daily.filter(pl.col('usage_date').dt.date() > today)
     logger.info(f"\n🔴 Future Dates ({len(future_data)} days):")
     display(future_data)
 ```
