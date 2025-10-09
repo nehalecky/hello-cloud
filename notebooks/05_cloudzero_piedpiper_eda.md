@@ -891,9 +891,19 @@ if len(post_collapse) > 0:
 if len(post_collapse) > 0:
     primary_cost = [col for col in final_cols if 'cost' in col.lower()][0]
 
-    # Extract cost distributions
-    pre_costs = pre_collapse.get_column(primary_cost).filter(pl.col(primary_cost) > 0).to_numpy()
-    post_costs = post_collapse.get_column(primary_cost).filter(pl.col(primary_cost) > 0).to_numpy()
+    # Extract cost distributions (filter DataFrame first, then get column)
+    pre_costs = (
+        pre_collapse
+        .filter(pl.col(primary_cost) > 0)
+        .get_column(primary_cost)
+        .to_numpy()
+    )
+    post_costs = (
+        post_collapse
+        .filter(pl.col(primary_cost) > 0)
+        .get_column(primary_cost)
+        .to_numpy()
+    )
 
     print(f"Distribution Samples:")
     print(f"  Pre-collapse: {len(pre_costs):,} non-zero costs")
