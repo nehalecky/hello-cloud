@@ -133,21 +133,26 @@ daily = (
     .with_columns(pl.col('count').pct_change().alias('pct_change'))
 )
 
-# Plot counts and percent change
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
+# Single plot with dual y-axes
+fig, ax1 = plt.subplots(figsize=(14, 6))
 
-ax1.bar(daily[date_col], daily['count'], width=0.8, alpha=0.7)
-ax1.set_ylabel('Daily Record Count')
-ax1.set_title('Temporal Observation Density')
+# Log scale bar chart for counts
+ax1.bar(daily[date_col], daily['count'], width=0.8, alpha=0.6, color='steelblue', label='Record Count')
+ax1.set_yscale('log')
+ax1.set_ylabel('Daily Record Count (log scale)', color='steelblue')
+ax1.set_xlabel('Date')
+ax1.tick_params(axis='y', labelcolor='steelblue')
 ax1.grid(axis='y', alpha=0.3)
 
-ax2.plot(daily[date_col], daily['pct_change'], marker='o', linewidth=1)
+# Overlay percent change on second y-axis
+ax2 = ax1.twinx()
+ax2.plot(daily[date_col], daily['pct_change'], color='orange', marker='o', linewidth=1.5, label='Percent Change')
 ax2.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
-ax2.set_xlabel('Date')
-ax2.set_ylabel('Percent Change')
-ax2.set_title('Daily Count Change Rate')
-ax2.grid(axis='y', alpha=0.3)
+ax2.set_ylabel('Percent Change', color='orange')
+ax2.tick_params(axis='y', labelcolor='orange')
 
+plt.title('Temporal Observation Density')
+plt.xticks(rotation=45)
 plt.tight_layout()
 plt.show()
 ```
@@ -160,9 +165,16 @@ daily.sort('pct_change').head(10)
 The data shows a significant drop on a specific date, with future-dated records beyond today. We'll filter to the period before the anomaly for analysis.
 
 ```{code-cell} ipython3
-# Find date of largest drop
-anomaly_row = daily.sort('pct_change').head(1)
-CUTOFF_DATE = anomaly_row[date_col][0]
+# Find earliest date with >30% drop (pct_change < -0.30)
+anomalies = daily.filter(pl.col('pct_change') < -0.30).sort(date_col)
+
+if len(anomalies) > 0:
+    CUTOFF_DATE = anomalies[date_col][0]
+    print(f"First anomaly (>30% drop): {CUTOFF_DATE}")
+else:
+    # Fallback: use largest drop
+    CUTOFF_DATE = daily.sort('pct_change').head(1)[date_col][0]
+    print(f"No >30% drop found, using largest drop: {CUTOFF_DATE}")
 
 print(f"Filtering data before: {CUTOFF_DATE}")
 
