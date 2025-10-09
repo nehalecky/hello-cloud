@@ -209,9 +209,57 @@ plt.show()
 
 ---
 
-### 1.4 Single-Pass Filtering & Reduction Tracking
+### 1.4 Cost Column Correlation Analysis
 
-Apply three filters: (1) ID columns, (2) high nulls, (3) high zeros.
+**Hypothesis**: Multiple cost columns represent different accounting treatments (amortized, discounted, etc.) of the same base cost → highly correlated.
+
+```{code-cell} ipython3
+# Identify all cost columns
+cost_columns = [c for c in df_collected.columns if 'cost' in c.lower()]
+
+logger.info(f"\n💰 Cost Columns Found: {len(cost_columns)}")
+logger.info(f"   {cost_columns}")
+```
+
+```{code-cell} ipython3
+# Compute correlation matrix for cost columns
+cost_corr = df.select(cost_columns).collect().corr()
+
+logger.info(f"\n📊 Cost Column Correlation Matrix:")
+cost_corr
+```
+
+```{code-cell} ipython3
+# Analyze pairwise correlations
+import numpy as np
+
+corr_np = cost_corr.to_numpy()
+np.fill_diagonal(corr_np, np.nan)  # Exclude diagonal (self-correlation = 1.0)
+min_corr = np.nanmin(np.abs(corr_np))
+max_corr = np.nanmax(np.abs(corr_np))
+mean_corr = np.nanmean(np.abs(corr_np))
+
+logger.info(f"\n📈 Pairwise Correlation Statistics:")
+logger.info(f"   Min |r|: {min_corr:.4f}")
+logger.info(f"   Max |r|: {max_corr:.4f}")
+logger.info(f"   Mean |r|: {mean_corr:.4f}")
+
+if min_corr > 0.95:
+    logger.info(f"\n✅ All pairwise correlations |r| > 0.95")
+    logger.info(f"   → Cost columns are redundant representations")
+    logger.info(f"   → Safe to keep only one: materialized_discounted_cost")
+else:
+    logger.warning(f"\n⚠️  Some correlations |r| < 0.95")
+    logger.warning(f"   → Review which cost columns differ significantly")
+```
+
+**Decision**: Keep `materialized_discounted_cost` (CloudZero standard discounted cost metric), drop other 5 variants.
+
+---
+
+### 1.5 Single-Pass Filtering & Reduction Tracking
+
+Apply four filters: (1) ID columns, (2) high nulls, (3) high zeros, (4) redundant costs.
 
 ```{code-cell} ipython3
 # Define primary cost metric
@@ -228,8 +276,7 @@ high_zero_cols = schema_df.filter(
     (pl.col('zero_ratio').is_not_null()) & (pl.col('zero_ratio') > 0.95)
 )['column'].to_list()
 
-# Filter 4: Redundant cost columns (keep PRIMARY_COST only)
-cost_columns = [c for c in df_collected.columns if 'cost' in c.lower()]
+# Filter 4: Redundant cost columns (justified by correlation analysis above)
 redundant_cost_cols = [c for c in cost_columns if c != PRIMARY_COST]
 
 # Combine all filters (deduplicate)
@@ -342,7 +389,7 @@ logger.info(f"   Products: {df_plot['product_family'].n_unique()}")
 
 ---
 
-### 1.5 Temporal Quality Check
+### 1.6 Temporal Quality Check
 
 Inspect daily patterns to detect pipeline anomalies.
 
