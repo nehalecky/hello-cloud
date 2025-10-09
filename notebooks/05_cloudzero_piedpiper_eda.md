@@ -156,21 +156,20 @@ schema_df.sort('cardinality_ratio', descending=True)
 ```
 
 ```{code-cell} ipython3
-# Color-code table by thresholds
-import seaborn as sns
+# Color-code table by thresholds with stronger colors
 import pandas as pd
 
 def color_threshold(val, col):
-    """Color cells exceeding thresholds."""
+    """Color cells exceeding thresholds with bold colors."""
     if pd.isna(val):
         return ''
 
     if col == 'cardinality_ratio' and val > 0.95:
-        return 'background-color: #ffcccc'  # Red: ID column
+        return 'background-color: #ff6666; color: white; font-weight: bold'  # Bright red: ID column
     elif col == 'null_ratio' and val > 0.8:
-        return 'background-color: #ffffcc'  # Yellow: High nulls
+        return 'background-color: #ffcc00; color: black; font-weight: bold'  # Bright yellow: High nulls
     elif col == 'zero_ratio' and val > 0.95:
-        return 'background-color: #ffddaa'  # Orange: High zeros
+        return 'background-color: #ff9933; color: white; font-weight: bold'  # Bright orange: High zeros
     return ''
 
 # Convert to pandas for styling, display
@@ -180,31 +179,11 @@ styled = schema_pd.style.apply(
     axis=0
 )
 
-logger.info("\n🎨 Color-coded schema (red=ID, yellow=high null, orange=high zero):")
+logger.info("\n🎨 Threshold Highlights:")
+logger.info("   🔴 Red (cardinality > 0.95): ID columns → drop")
+logger.info("   🟡 Yellow (null_ratio > 0.8): High nulls → drop")
+logger.info("   🟠 Orange (zero_ratio > 0.95): High zeros → drop")
 styled
-```
-
-```{code-cell} ipython3
-# Visualize: cardinality + zero density
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-
-# Cardinality
-ax1.barh(schema_df['column'], schema_df['cardinality_ratio'])
-ax1.axvline(x=0.95, color='red', linestyle='--', linewidth=2, label='ID threshold')
-ax1.set_xlabel('Cardinality Ratio')
-ax1.set_title('Column Cardinality (unique/total)')
-ax1.legend()
-
-# Zero ratio (numerical columns only)
-schema_numeric = schema_df.filter(pl.col('zero_ratio').is_not_null())
-ax2.barh(schema_numeric['column'], schema_numeric['zero_ratio'])
-ax2.axvline(x=0.5, color='orange', linestyle='--', linewidth=2, label='High zero threshold')
-ax2.set_xlabel('Zero Ratio (zeros/non-nulls)')
-ax2.set_title('Zero Density (Numerical Columns)')
-ax2.legend()
-
-plt.tight_layout()
-plt.show()
 ```
 
 ---
