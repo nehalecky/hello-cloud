@@ -603,13 +603,20 @@ Identify which entity (account, product, service, resource) is driving observed 
 For each entity type with medium cardinality, compute daily record contribution and identify entities with highest temporal variability (CV).
 
 ```{code-cell} ipython3
-# Candidate entity columns (medium cardinality - good for grouping)
+# Get entity columns from semantic analysis (cloud hierarchy columns good for grouping)
 entity_candidates = (
-    final_schema
-    .filter(pl.col('card_class') == 'Medium')
+    semantic_analysis
+    .filter(
+        (pl.col('semantic_category') == 'cloud_hierarchy') &
+        (pl.col('column').is_in(final_cols))
+    )
     .get_column('column')
     .to_list()
 )
+
+# Filter out very high cardinality if present
+high_card_identifiers = ['uuid', 'resource_id', 'usage_id']
+entity_candidates = [col for col in entity_candidates if col not in high_card_identifiers]
 
 print(f"Investigating {len(entity_candidates)} entity types for temporal anomalies:")
 print(f"  {', '.join(entity_candidates)}")
