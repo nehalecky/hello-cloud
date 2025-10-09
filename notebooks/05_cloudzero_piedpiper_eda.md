@@ -33,8 +33,8 @@ kernelspec:
 
 Cloud billing data represents resource consumption events aggregated by CloudZero's data pipeline. We can conceptualize the **event space** as:
 
-- **E₀** (full space): All cloud resource consumption across all providers, accounts, and time
-- **E** (observed): Subset captured by CloudZero's ingestion pipeline, where **E ⊆ E₀**
+- $\mathbf{E}_0$ (full space): All cloud resource consumption across all providers, accounts, and time
+- $\mathbf{E}$ (observed): Subset captured by CloudZero's ingestion pipeline, where $\mathbf{E} \subseteq \mathbf{E}_0$
 
 **Known sampling biases**:
 1. **Provider coverage**: Only resources with cost allocation tags are visible
@@ -44,14 +44,16 @@ Cloud billing data represents resource consumption events aggregated by CloudZer
 **Expected billing event schema**:
 
 A billing record fundamentally contains:
-- **t** (timestamp): When resource was consumed (daily grain)
-- **r** (resource): Identifier for the billable cloud resource
-- **c** (cost): Dollar amount for the consumption
-- **attributes**: Provider, account, region, product, usage type (dimensions that may define **r**)
+- $t$ (timestamp): When resource was consumed (daily grain)
+- $r$ (resource): Identifier for the billable cloud resource
+- $c$ (cost): Dollar amount for the consumption
+- **attributes**: Provider, account, region, product, usage type (dimensions that may define $r$)
 
-**Central question**: What compound key defines the resource identifier **r** such that we can track spending over time?
+**Central question**: What compound key defines the resource identifier $r$ such that we can track spending over time?
 
 This is the **grain discovery problem** - finding the most granular combination of attributes whose entities persist temporally, enabling forecasting.
+
+**Expected event dimensions**: $(t, r, c)$ where $r$ is a composite key to be discovered empirically.
 
 ---
 
@@ -347,16 +349,147 @@ logger.info(f"   - Providers: {clean_stats['providers'][0]}" + (f" (excluding {E
    - **Analysis dataset**: Determined empirically, not assumed
 
 **Key Variables Established**:
-- `PRIMARY_COST = 'materialized_cost'` (the measurement **c**)
+- `PRIMARY_COST = 'materialized_cost'` (the measurement $c$)
 - `COLLAPSE_DATE = date(2025, 10, 7)` (data quality boundary)
 - `df_clean` (analysis-ready dataset)
-- **Remaining question**: What compound key defines resource **r**?
+- **Remaining question**: What compound key defines resource $r$?
+
+---
+
+### 1.5 Tidy Denormalized Table Structure
+
+**Goal**: Inspect the final analysis-ready dataset structure and show sample records.
+
+```{code-cell} ipython3
+# Show dataset structure and head
+logger.info(f"\n{'='*80}")
+logger.info(f"TIDY DENORMALIZED TABLE - Final Analysis Dataset")
+logger.info(f"{'='*80}")
+logger.info(f"\nShape: {clean_stats['rows'][0]:,} rows × {len(df_clean.collect_schema())} columns")
+logger.info(f"Period: {clean_stats['days'][0]} days ({clean_stats['start_date'][0]} to {clean_stats['end_date'][0]})")
+
+# Show schema
+logger.info(f"\nSchema:")
+for col, dtype in df_clean.collect_schema().items():
+    logger.info(f"  {col:<40} {dtype}")
+
+# Show head (first 10 records)
+df_head = df_clean.head(10).collect()
+logger.info(f"\n{'='*80}")
+logger.info(f"Sample Records (first 10 rows)")
+logger.info(f"{'='*80}")
+logger.info(f"\n{df_head}")
+```
+
+**Structure**: Denormalized billing events where each row represents $(t, \text{attributes}, c)$ - a daily cost observation for a specific resource configuration.
+
+---
+
+### 1.6 Univariate Distributions
+
+**Goal**: Understand the distribution of spending and record counts across key dimensions.
+
+```{code-cell} ipython3
+# Distribution by cloud provider
+provider_stats = (
+    df_clean
+    .group_by('cloud_provider')
+    .agg([
+        pl.len().alias('records'),
+        pl.col(PRIMARY_COST).sum().alias('total_cost'),
+        pl.col(PRIMARY_COST).mean().alias('avg_cost_per_record')
+    ])
+    .sort('total_cost', descending=True)
+    .collect()
+)
+
+logger.info(f"\n{'='*80}")
+logger.info(f"DISTRIBUTION BY CLOUD PROVIDER")
+logger.info(f"{'='*80}")
+logger.info(f"\n{provider_stats}")
+
+# Distribution by region (top 15)
+region_stats = (
+    df_clean
+    .group_by('region')
+    .agg([
+        pl.len().alias('records'),
+        pl.col(PRIMARY_COST).sum().alias('total_cost')
+    ])
+    .sort('total_cost', descending=True)
+    .head(15)
+    .collect()
+)
+
+logger.info(f"\n{'='*80}")
+logger.info(f"DISTRIBUTION BY REGION (Top 15)")
+logger.info(f"{'='*80}")
+logger.info(f"\n{region_stats}")
+```
+
+```{code-cell} ipython3
+# Boxplots: Spend distribution by provider and region
+fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+
+# Collect data for boxplots
+df_for_plots = df_clean.select(['cloud_provider', 'region', PRIMARY_COST]).collect()
+
+# Plot 1: Daily cost distribution by provider
+ax1 = axes[0]
+providers = provider_stats['cloud_provider'].to_list()
+provider_data = [
+    df_for_plots.filter(pl.col('cloud_provider') == prov)[PRIMARY_COST].to_numpy()
+    for prov in providers
+]
+
+bp1 = ax1.boxplot(provider_data, labels=providers, vert=True, patch_artist=True)
+for patch in bp1['boxes']:
+    patch.set_facecolor('steelblue')
+    patch.set_alpha(0.7)
+
+ax1.set_ylabel('Cost per Record ($)', fontsize=11)
+ax1.set_title('Cost Distribution by Cloud Provider', fontsize=13, fontweight='bold')
+ax1.set_yscale('log')  # Log scale for better visibility
+ax1.grid(True, alpha=0.3, axis='y')
+ax1.tick_params(axis='x', rotation=45)
+
+# Plot 2: Daily cost distribution by region (top 10)
+ax2 = axes[1]
+top_regions = region_stats.head(10)['region'].to_list()
+region_data = [
+    df_for_plots.filter(pl.col('region') == reg)[PRIMARY_COST].to_numpy()
+    for reg in top_regions
+]
+
+bp2 = ax2.boxplot(region_data, labels=top_regions, vert=True, patch_artist=True)
+for patch in bp2['boxes']:
+    patch.set_facecolor('coral')
+    patch.set_alpha(0.7)
+
+ax2.set_ylabel('Cost per Record ($)', fontsize=11)
+ax2.set_title('Cost Distribution by Region (Top 10)', fontsize=13, fontweight='bold')
+ax2.set_yscale('log')
+ax2.grid(True, alpha=0.3, axis='y')
+ax2.tick_params(axis='x', rotation=45)
+
+plt.tight_layout()
+plt.show()
+
+logger.info(f"\n📊 Distribution analysis complete")
+logger.info(f"   - Cost per record varies widely across providers and regions")
+logger.info(f"   - Log scale used to show full range of values")
+```
+
+**Observations**:
+- **Provider distribution**: Identify dominant cloud providers by spend and record count
+- **Regional distribution**: Geographic concentration of infrastructure
+- **Cost heterogeneity**: Wide variance in per-record costs across dimensions (hence log scale)
 
 ---
 
 ## Part 2: Grain Discovery & Entity Persistence
 
-**Goal**: Identify the resource identifier **r** - the most granular compound key whose entities persist temporally.
+**Goal**: Identify the resource identifier $r$ - the most granular compound key whose entities persist temporally.
 
 **Approach**: Test candidate compound keys with increasing granularity, measuring:
 1. **Cardinality** (total unique entities)
@@ -366,6 +499,13 @@ logger.info(f"   - Providers: {clean_stats['providers'][0]}" + (f" (excluding {E
 **Selection criterion**: Maximize granularity while maintaining ≥70% stability (entities suitable for time series forecasting).
 
 This is a **hypothesis testing exercise** - we propose grain candidates, measure persistence, and select the optimal balance between granularity and stability.
+
+**Candidate composite keys**: Progressively add dimensions to test:
+- $(provider, account)$
+- $(provider, account, region)$
+- $(provider, account, product)$
+- $(provider, account, region, product)$
+- $(provider, account, region, product, usage\_type)$
 
 ```{code-cell} ipython3
 # Helper: Create short entity labels for plots
@@ -621,41 +761,46 @@ non_aws_weekly = (
 # Visualization
 fig, axes = plt.subplots(2, 2, figsize=(16, 10))
 
-# Plot 1: AWS daily time series with weekday highlights
+# Plot 1: AWS daily time series - line plot with weekend background shading
 ax1 = axes[0, 0]
 aws_dates = aws_daily['usage_date'].to_numpy()
 aws_costs = aws_daily['total_cost'].to_numpy()
 aws_weekdays = aws_daily['weekday'].to_numpy()
 
-# Color weekends differently
-weekend_mask = (aws_weekdays >= 5)  # Sat=5, Sun=6
-ax1.scatter(aws_dates[~weekend_mask], aws_costs[~weekend_mask],
-           c='steelblue', label='Weekday', alpha=0.7, s=50)
-ax1.scatter(aws_dates[weekend_mask], aws_costs[weekend_mask],
-           c='coral', label='Weekend', alpha=0.7, s=50)
-ax1.plot(aws_dates, aws_costs, alpha=0.3, color='gray')
-ax1.set_title('AWS - Daily Spend with Weekend Highlighting', fontweight='bold')
+# Plot line
+ax1.plot(aws_dates, aws_costs, color='steelblue', linewidth=2, marker='o', markersize=4)
+
+# Shade weekend periods
+for i, wd in enumerate(aws_weekdays):
+    if wd >= 5:  # Weekend
+        ax1.axvspan(aws_dates[i] - np.timedelta64(12, 'h'),
+                    aws_dates[i] + np.timedelta64(12, 'h'),
+                    alpha=0.2, color='coral', zorder=0)
+
+ax1.set_title('AWS - Daily Spend (Weekends Shaded)', fontweight='bold')
 ax1.set_xlabel('Date')
 ax1.set_ylabel('Total Daily Cost ($)')
-ax1.legend()
 ax1.grid(True, alpha=0.3)
 
-# Plot 2: Non-AWS daily time series with weekday highlights
+# Plot 2: Non-AWS daily time series with weekend shading
 ax2 = axes[0, 1]
 non_aws_dates = non_aws_daily['usage_date'].to_numpy()
 non_aws_costs = non_aws_daily['total_cost'].to_numpy()
 non_aws_weekdays = non_aws_daily['weekday'].to_numpy()
 
-weekend_mask_non_aws = (non_aws_weekdays >= 5)
-ax2.scatter(non_aws_dates[~weekend_mask_non_aws], non_aws_costs[~weekend_mask_non_aws],
-           c='steelblue', label='Weekday', alpha=0.7, s=50)
-ax2.scatter(non_aws_dates[weekend_mask_non_aws], non_aws_costs[weekend_mask_non_aws],
-           c='coral', label='Weekend', alpha=0.7, s=50)
-ax2.plot(non_aws_dates, non_aws_costs, alpha=0.3, color='gray')
-ax2.set_title('Non-AWS (GCP, Azure, etc.) - Daily Spend', fontweight='bold')
+# Plot line
+ax2.plot(non_aws_dates, non_aws_costs, color='steelblue', linewidth=2, marker='o', markersize=4)
+
+# Shade weekend periods
+for i, wd in enumerate(non_aws_weekdays):
+    if wd >= 5:  # Weekend
+        ax2.axvspan(non_aws_dates[i] - np.timedelta64(12, 'h'),
+                    non_aws_dates[i] + np.timedelta64(12, 'h'),
+                    alpha=0.2, color='coral', zorder=0)
+
+ax2.set_title('Non-AWS (GCP, Azure, MongoDB, etc.) - Daily Spend', fontweight='bold')
 ax2.set_xlabel('Date')
 ax2.set_ylabel('Total Daily Cost ($)')
-ax2.legend()
 ax2.grid(True, alpha=0.3)
 
 # Plot 3: AWS weekly pattern (average by day of week)
@@ -708,13 +853,38 @@ logger.info(f"   - Weekly seasonality detected (will inform forecasting models)"
 logger.info(f"   - Suitable for time series forecasting at {OPTIMAL_GRAIN} grain")
 ```
 
-**Findings**:
-- **Top 10 entities** drive majority of spend (Pareto principle), all showing stable 37-day time series
-- **Weekly seasonality detected**: Both AWS and non-AWS show clear weekly patterns
-  - High weekday spending (Mon-Fri), lower weekend spending (Sat-Sun)
-  - Pattern consistent across cloud providers (not AWS-specific)
-  - Informs forecasting models: include day-of-week features
-- **Grain validated**: Entities persist, costs trackable, weekly patterns suitable for time series forecasting
+**Time Series Characteristics - Detailed Observations**:
+
+1. **Top 10 Entity Patterns** (from 5×2 grid):
+   - **Entity #1**: Dominant cost driver ($2.6M total) - shows clear AWS collapse signature
+     - Strong weekly oscillations Sept 1-Oct 6 ($60-80k/day)
+     - Sharp drop to near-zero post-Oct 7 (data quality issue)
+   - **Entities #3, #4, #6, #7, #8**: Persistent oscillators ($200-500k each)
+     - Consistent weekly patterns throughout full 37 days (no collapse)
+     - Likely non-AWS providers with stable data quality
+   - **Entities #2, #5**: Flat baselines (~$400-1,200k total)
+     - Minimal daily variation, possibly always-on infrastructure costs
+   - **Entity #9**: Second AWS collapse signature ($236k total)
+     - High variability ($8-10k daily swings) until Oct 7 collapse
+   - **Entity #10**: Step function pattern ($212k total)
+     - Baseline ~$1.5k/day, mid-Sept ramp to $2-3k, brief spike to $6k, then collapse
+
+2. **Weekly Seasonality Analysis** (4-panel comparison):
+   - **AWS Pattern**:
+     - Weekend/weekday ratio: Logged above (typically 50-80% depending on clean period)
+     - Clear Mon-Fri peaks, Sat-Sun dips visible in shaded visualization
+     - Pattern exists but partially masked by Oct 7 collapse
+   - **Non-AWS Pattern**:
+     - Weekend/weekday ratio: Logged above (typically 92-95%, indicating 5-8% weekend drop)
+     - **Stronger, cleaner signal** than AWS throughout 37-day period
+     - Confirms weekly seasonality is **universal** (human work schedules), not AWS-specific
+     - Non-AWS dominates spend: ~10-12× AWS daily totals in this PiedPiper dataset
+
+3. **Implications for Forecasting**:
+   - **Day-of-week features essential**: 5-8% weekend drop is consistent and predictable
+   - **Provider-specific models**: AWS requires pre-collapse data only; non-AWS cleaner throughout
+   - **Entity-level heterogeneity**: Mix of oscillators (e.g., #3-4, 6-8), flat baselines (#2, #5), and step functions (#10)
+   - **Grain validated**: Optimal grain produces stable, forecastable time series across entity types
 
 ---
 
