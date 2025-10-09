@@ -296,32 +296,30 @@ Now, armed with our conceptual model and expectations, we proceed forward to tes
 
 ## Part 3: Intelligent Feature Selection
 
-We now apply information theory and correlation analysis to identify the most valuable columns and eliminate redundancy. This streamlines all subsequent analysis.
+### Objectives
 
-### Step 1: Information Scoring
+Reduce the 38-column dataset to a minimal, high-signal subset by:
+1. Quantifying information content via entropy-based scoring
+2. Eliminating redundant numeric features via correlation analysis
+3. Protecting essential temporal/identifier columns
 
-We score all attributes using harmonic mean of three metrics:
-- **Value density**: Non-null percentage
-- **Cardinality ratio**: Unique values / total records
-- **Shannon entropy**: Information content
+### Methodology
+
+**Information Scoring**: Harmonic mean of (value density, cardinality ratio, Shannon entropy)
+**Redundancy Removal**: For correlated pairs (|r| > 0.90), retain column with higher information score
+**Essential Protection**: Preserve temporal, identifier, and primary metric columns regardless of scores
 
 ```{code-cell} ipython3
 # Calculate attribute scores (samples 100K for entropy calculation)
-print("Computing attribute information scores...")
 attribute_scores = calculate_attribute_scores(df, sample_size=100_000)
 
-print(f"✓ Scored {len(attribute_scores)} attributes")
-print(f"  Score range: [{attribute_scores['information_score'].min():.6f}, {attribute_scores['information_score'].max():.6f}]")
-
 # Show top performers only
+print(f"Scored {len(attribute_scores)} attributes")
+print(f"Score range: [{attribute_scores['information_score'].min():.6f}, {attribute_scores['information_score'].max():.6f}]")
 print("\nTop 15 Most Informative Attributes:")
 with pl.Config(tbl_rows=15):
     display(attribute_scores.head(15))
 ```
-
-### Step 2: Correlation-Based Redundancy Removal
-
-For numeric columns, we identify highly correlated pairs and keep only the one with higher information score.
 
 ```{code-cell} ipython3
 # Functional approach: Get numeric columns with sufficient information
@@ -334,13 +332,9 @@ numeric_cols = (
     .to_list()
 )
 
-print(f"Analyzing {len(numeric_cols)} numeric columns for correlation...")
-
 # Compute correlation matrix (stratified sample for efficiency)
 sample_df = smart_sample(df, n=100_000, stratify_col='cloud_provider')
 corr_matrix = sample_df.select(numeric_cols).corr()
-
-print("✓ Correlation matrix computed")
 
 # Functional approach: Find correlated pairs and identify columns to drop
 CORR_THRESHOLD = 0.90
@@ -358,23 +352,19 @@ def find_correlated_pairs(corr_df, cols, threshold):
 
 def select_columns_to_keep(pairs, score_df):
     """Pure function: from correlated pairs, select which columns to keep based on info score."""
-    # Build score lookup dict (functional transform)
     score_map = {
         row['attribute']: row['information_score']
         for row in score_df.iter_rows(named=True)
     }
 
-    # For each pair, determine which to drop (functional map)
     drops = set()
     for col_i, col_j, corr_val in pairs:
         score_i = score_map.get(col_i, 0)
         score_j = score_map.get(col_j, 0)
-
         to_drop = col_j if score_i > score_j else col_i
         to_keep = col_i if score_i > score_j else col_j
-
         drops.add(to_drop)
-        print(f"  Dropping {to_drop} (r={corr_val:.3f} with {to_keep}, lower info score)")
+        print(f"  Dropping {to_drop} (r={corr_val:.3f} with {to_keep})")
 
     return drops
 
@@ -382,11 +372,9 @@ def select_columns_to_keep(pairs, score_df):
 corr_pairs = find_correlated_pairs(corr_matrix, numeric_cols, CORR_THRESHOLD)
 columns_to_drop = select_columns_to_keep(corr_pairs, attribute_scores) if corr_pairs else set()
 
-print(f"\n✓ Found {len(corr_pairs)} correlated pairs")
-print(f"✓ Identified {len(columns_to_drop)} redundant numeric columns to drop")
+print(f"Analyzed {len(numeric_cols)} numeric columns")
+print(f"Found {len(corr_pairs)} correlated pairs → dropping {len(columns_to_drop)} columns")
 ```
-
-### Step 3: Create Final Column Set
 
 ```{code-cell} ipython3
 # Functional approach: Build final column set with protected essentials
@@ -424,31 +412,22 @@ final_cols = [col for col in all_cols if col not in all_drops]
 # Create filtered dataframe
 df_filtered = df.select(final_cols)
 
-print("="*70)
-print("FEATURE SELECTION SUMMARY")
-print("="*70)
-print(f"  Original columns: {len(all_cols)}")
-print(f"  Dropped (low information): {len(low_info_cols)}")
-print(f"  Dropped (high nulls): {len(high_null_cols)}")
-print(f"  Dropped (correlation redundancy): {len(columns_to_drop)}")
-print(f"  FINAL COLUMN SET: {len(final_cols)}")
-print("="*70)
+# Summary statistics
+print(f"Feature Selection Summary:")
+print(f"  {len(all_cols)} → {len(final_cols)} columns")
+print(f"  Dropped: {len(low_info_cols)} (low info) + {len(high_null_cols)} (high nulls) + {len(columns_to_drop)} (redundant)")
+print(f"  Protected: {len(essential_cols)} essential columns")
 
-# Show kept columns by category
-print("\nRetained columns by semantic category:")
-for category in ['financial', 'cloud_hierarchy', 'identifier', 'temporal', 'consumption', 'kubernetes']:
+# Show retained columns by category
+for category in ['financial', 'cloud_hierarchy', 'identifier', 'temporal']:
     category_cols = [col for col in final_cols
                      if col in semantic_analysis.filter(pl.col('semantic_category') == category)['column'].to_list()]
     if category_cols:
-        print(f"\n  {category.upper()} ({len(category_cols)}):")
-        for col in sorted(category_cols):
-            score = attribute_scores.filter(pl.col('attribute') == col)['information_score']
-            if len(score) > 0:
-                print(f"    - {col} (info: {score[0]:.4f})")
+        print(f"  {category}: {', '.join(sorted(category_cols)[:3])}{'...' if len(category_cols) > 3 else ''}")
 ```
 
 ```{code-cell} ipython3
-# Quantify redundancy reduction (stats only - no wasteful plotting)
+# Quantify redundancy reduction
 final_numeric_cols = [col for col in final_cols if col in numeric_cols and col not in columns_to_drop]
 
 def max_off_diagonal_corr(corr_matrix):
@@ -457,51 +436,90 @@ def max_off_diagonal_corr(corr_matrix):
     np.fill_diagonal(corr_np, 0)
     return np.abs(corr_np).max()
 
-# Before/after stats
 max_corr_before = max_off_diagonal_corr(corr_matrix)
-print(f"Correlation Redundancy Reduction:")
-print(f"  Numeric columns: {len(numeric_cols)} → {len(final_numeric_cols)}")
-print(f"  Max |correlation| before: {max_corr_before:.3f}")
+print(f"Redundancy Elimination:")
+print(f"  Numeric features: {len(numeric_cols)} → {len(final_numeric_cols)}")
+print(f"  Max correlation: {max_corr_before:.3f} → ", end="")
 
 if len(final_numeric_cols) > 1:
     final_corr = sample_df.select(final_numeric_cols).corr()
     max_corr_after = max_off_diagonal_corr(final_corr)
-    print(f"  Max |correlation| after: {max_corr_after:.3f}")
-    print(f"  ✓ {'Success' if max_corr_after < CORR_THRESHOLD else 'Partial'} - redundancy {'eliminated' if max_corr_after < CORR_THRESHOLD else 'reduced'}")
+    print(f"{max_corr_after:.3f} ({'✓ success' if max_corr_after < CORR_THRESHOLD else '⚠ partial'})")
 else:
-    print(f"  → {len(final_numeric_cols)} numeric column(s) retained")
+    print(f"N/A ({len(final_numeric_cols)} column)")
 ```
+
+### Summary
+
+**Dimension Reduction**: 38 → ~20-25 columns via information scoring and correlation analysis
+
+**Redundancy Eliminated**: Highly correlated numeric features removed (|r| > 0.90), keeping highest information score
+
+**Protected Essentials**: Temporal (`usage_date`), identifiers (`uuid`, `resource_id`), and primary metrics preserved
+
+**Result**: `df_filtered` contains minimal, high-signal column set for downstream analysis
 
 ---
 
-## Part 4: Quick Cardinality Overview
+## Part 4: Cardinality Analysis
 
-Now working with our streamlined column set, we quickly examine cardinality patterns to understand grouping capabilities.
+### Objective
+
+Classify retained columns by cardinality to determine appropriate analytical operations (aggregation, grouping, tracking).
+
+### Methodology
+
+**Cardinality Classes**:
+- **Low** (ratio < 0.0001): Categorical variables, broad segmentation
+- **Medium** (0.0001 < ratio < 0.01): Grouping dimensions for aggregation
+- **High** (ratio > 0.01): Identifiers, granular tracking
 
 ```{code-cell} ipython3
 # Cardinality distribution of final columns
 final_schema = schema_analysis.filter(pl.col('column').is_in(final_cols))
 
-cardinality_summary = final_schema.group_by('card_class').agg([
-    pl.len().alias('count'),
-    pl.col('column').alias('columns')
-]).sort('count', descending=True)
+cardinality_summary = (
+    final_schema
+    .group_by('card_class')
+    .agg(pl.len().alias('count'))
+    .sort('count', descending=True)
+)
 
-print("Cardinality Distribution (Final Column Set):")
-print(cardinality_summary.select(['card_class', 'count']))
+print(f"Cardinality Distribution ({len(final_cols)} columns):")
+for row in cardinality_summary.iter_rows(named=True):
+    print(f"  {row['card_class']}: {row['count']} columns")
 
-# Show key columns by cardinality class
+# Examples by class
 for card_class in ['Low', 'Medium', 'High']:
-    examples = final_schema.filter(pl.col('card_class') == card_class).head(5)
-    print(f"\n{card_class} Cardinality Examples:")
-    print(examples.select(['column', 'cardinality_ratio', 'null_pct']))
+    examples = final_schema.filter(pl.col('card_class') == card_class).head(3)
+    if len(examples) > 0:
+        cols = examples.get_column('column').to_list()
+        print(f"  {card_class}: {', '.join(cols)}")
 ```
+
+### Summary
+
+**Low Cardinality**: Categorical variables for segmentation (providers, regions)
+
+**Medium Cardinality**: Aggregation dimensions (accounts, products, services)
+
+**High Cardinality**: Unique identifiers for granular tracking (UUIDs, resource IDs)
+
+**Implication**: Dataset supports hierarchical analysis from broad categorization to resource-level tracking
 
 ---
 
-## Part 5: Temporal Quality & Patterns
+## Part 5: Temporal Quality
 
-Quick temporal validation using our filtered dataset.
+### Objective
+
+Validate temporal coverage and measure time series stability for forecasting viability.
+
+### Methodology
+
+**Coverage Check**: Verify complete date range (Sept 1 - Dec 31, 2025 = 122 days)
+**Stability Metrics**: Coefficient of variation, lag-1 autocorrelation
+**Visualization Criteria**: Plot only if CV > 0.15 or autocorr < 0.7 (instability detected)
 
 ```{code-cell} ipython3
 # Date coverage check
@@ -511,140 +529,142 @@ date_range = df_filtered.select([
     pl.col('usage_date').n_unique().alias('unique_dates')
 ]).collect()
 
-min_date = date_range['min_date'][0]
-max_date = date_range['max_date'][0]
+min_date, max_date = date_range['min_date'][0], date_range['max_date'][0]
 expected_days = (max_date - min_date).days + 1
+actual_days = date_range['unique_dates'][0]
 
-print("Temporal Coverage:")
-print(f"  Range: {min_date} to {max_date}")
-print(f"  Expected days: {expected_days}")
-print(f"  Actual unique dates: {date_range['unique_dates'][0]}")
-print(f"  ✓ Complete" if date_range['unique_dates'][0] == expected_days else "  ⚠ Gaps detected")
+print(f"Temporal Coverage: {min_date} to {max_date}")
+print(f"  Completeness: {actual_days}/{expected_days} days ({'✓' if actual_days == expected_days else '⚠'})")
 ```
 
 ```{code-cell} ipython3
-# Daily record volume and cost stability
-daily_agg = df_filtered.group_by('usage_date').agg([
-    pl.len().alias('record_count'),
-    pl.col([col for col in final_cols if 'cost' in col.lower()][0]).sum().alias('daily_cost')
-]).sort('usage_date').collect()
+# Stability analysis
+primary_cost = [col for col in final_cols if 'cost' in col.lower()][0]
+daily_agg = (
+    df_filtered
+    .group_by('usage_date')
+    .agg([
+        pl.len().alias('records'),
+        pl.col(primary_cost).sum().alias('cost')
+    ])
+    .sort('usage_date')
+    .collect()
+)
 
-# Add day of week for pattern detection
-daily_with_dow = daily_agg.with_columns([
-    pl.col('usage_date').dt.strftime('%A').alias('day_name')
-])
+# Compute stability metrics
+record_cv = daily_agg['records'].std() / daily_agg['records'].mean()
+cost_series = daily_agg['cost'].to_numpy()
 
-# Statistics
-stats = daily_agg.select([
-    pl.col('record_count').mean().alias('avg_records'),
-    (pl.col('record_count').std() / pl.col('record_count').mean()).alias('record_cv'),
-])
-
-print("\nDaily Volume Statistics:")
-print(f"  Average records/day: {stats['avg_records'][0]:,.0f}")
-print(f"  Coefficient of variation: {stats['record_cv'][0]:.4f}")
-
-# Cost autocorrelation (lag-1)
 from scipy.stats import pearsonr
-cost_series = daily_agg['daily_cost'].to_numpy()
 lag1_corr, _ = pearsonr(cost_series[:-1], cost_series[1:])
-print(f"\nCost Autocorrelation (lag-1): {lag1_corr:.4f}")
-print("  ✓ High stability" if lag1_corr > 0.7 else "  ⚠ Moderate/low stability")
+
+print(f"\nStability Metrics:")
+print(f"  Record volume CV: {record_cv:.4f} ({'stable' if record_cv < 0.15 else 'variable'})")
+print(f"  Cost lag-1 autocorr: {lag1_corr:.4f} ({'sticky' if lag1_corr > 0.7 else 'volatile'})")
+
+# Conditional visualization
+if record_cv > 0.15 or lag1_corr < 0.7:
+    print("\n⚠ Instability detected - plotting temporal patterns")
+    fig, axes = plt.subplots(2, 1, figsize=(14, 6))
+    plot_data = daily_agg.to_pandas()
+
+    axes[0].plot(plot_data['usage_date'], plot_data['cost'], linewidth=2, color='steelblue')
+    axes[0].set_ylabel('Daily Cost', fontweight='bold')
+    axes[0].set_title('Cost Trend (Instability Detected)', fontweight='bold')
+
+    axes[1].plot(plot_data['usage_date'], plot_data['records'], linewidth=2, color='darkgreen')
+    axes[1].set_ylabel('Record Count', fontweight='bold')
+    axes[1].set_xlabel('Date', fontweight='bold')
+
+    plt.tight_layout()
+    plt.show()
+else:
+    print("✓ Stable temporal patterns - visualization unnecessary")
 ```
 
-```{code-cell} ipython3
-# Visualize temporal patterns
-fig, axes = plt.subplots(2, 1, figsize=(14, 8))
+### Summary
 
-# Daily cost trend
-plot_data = daily_agg.to_pandas()
-axes[0].plot(plot_data['usage_date'], plot_data['daily_cost'],
-             linewidth=2, color='steelblue', marker='o', markersize=3)
-axes[0].set_ylabel('Daily Cost ($)', fontweight='bold')
-axes[0].set_title('Daily Cost Trend', fontweight='bold')
-axes[0].grid(alpha=0.3)
+**Coverage**: Complete (122/122 days) or incomplete - verified above
 
-# Daily record count
-axes[1].plot(plot_data['usage_date'], plot_data['record_count'],
-             linewidth=2, color='darkgreen', marker='o', markersize=3)
-axes[1].set_xlabel('Date', fontweight='bold')
-axes[1].set_ylabel('Record Count', fontweight='bold')
-axes[1].set_title('Daily Record Volume', fontweight='bold')
-axes[1].grid(alpha=0.3)
-axes[1].yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
+**Stability**: High (CV < 0.15, autocorr > 0.7) enables reliable time series forecasting. Moderate/low stability requires robust modeling.
 
-plt.tight_layout()
-plt.show()
-```
+**Pattern**: High lag-1 autocorrelation indicates sticky infrastructure costs (resources persist day-to-day). Low autocorrelation suggests volatile spending.
 
 ---
 
-## Part 6: Cost Distribution Analysis
+## Part 6: Cost Distribution
 
-Examine the primary cost metric distribution (already filtered for redundancy in Part 3).
+### Objective
+
+Characterize primary cost metric distribution to inform modeling approach (log transformation, outlier handling).
+
+### Methodology
+
+**Distribution Metrics**: Percentiles, skewness (third moment)
+**Outlier Detection**: IQR method (k=1.5)
+**Visualization Criteria**: Plot only if skewness > 2 (extreme right-skew requiring visual inspection)
 
 ```{code-cell} ipython3
-# Identify primary cost column from final set
+# Primary cost metric analysis
 primary_cost_col = [col for col in final_cols if 'cost' in col.lower()][0]
-print(f"Primary cost metric: {primary_cost_col}")
-
-# Distribution statistics
 cost_series = df_filtered.select(pl.col(primary_cost_col)).collect().to_series()
 
-percentiles = [0, 1, 10, 25, 50, 75, 90, 99, 100]
+# Distribution statistics
 percentile_df = pl.DataFrame({
-    'percentile': [f'P{p}' for p in percentiles],
-    'value': [cost_series.quantile(p/100) for p in percentiles]
+    'percentile': [f'P{p}' for p in [0, 1, 10, 25, 50, 75, 90, 99, 100]],
+    'value': [cost_series.quantile(p/100) for p in [0, 1, 10, 25, 50, 75, 90, 99, 100]]
 })
 
-print("\nCost Distribution Percentiles:")
-display(percentile_df)
-
-# Skewness check
-mean = cost_series.mean()
-std = cost_series.std()
+# Skewness
+mean, std = cost_series.mean(), cost_series.std()
 skew = ((cost_series - mean) ** 3).mean() / (std ** 3)
 
-print(f"\nSkewness: {skew:.4f}")
-print("  → Highly right-skewed" if skew > 1 else "  → Moderate skew")
-print("  → Log transformation recommended for modeling" if skew > 1 else "")
+print(f"Primary cost metric: {primary_cost_col}")
+print(f"\nDistribution (n={len(cost_series):,}):")
+display(percentile_df)
+
+print(f"\nSkewness: {skew:.3f} ({'highly right-skewed' if skew > 1 else 'moderate'})")
+print(f"Modeling: {'Log transformation recommended' if skew > 1 else 'Linear scale viable'}")
 ```
 
 ```{code-cell} ipython3
-# Visualize distribution
-sample_costs = smart_sample(df_filtered, n=50_000).select(primary_cost_col).to_series().to_numpy()
-
-fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-# Linear scale
-sns.histplot(sample_costs, bins=50, kde=True, ax=axes[0], color='steelblue')
-axes[0].set_xlabel('Cost ($)', fontweight='bold')
-axes[0].set_ylabel('Frequency', fontweight='bold')
-axes[0].set_title(f'{primary_cost_col} Distribution', fontweight='bold')
-axes[0].grid(alpha=0.3)
-
-# Log scale (for skewed data)
-sns.histplot(sample_costs[sample_costs > 0], bins=50, kde=True, ax=axes[1],
-             color='darkgreen', log_scale=True)
-axes[1].set_xlabel('Cost ($, log scale)', fontweight='bold')
-axes[1].set_ylabel('Frequency', fontweight='bold')
-axes[1].set_title('Distribution (Log Scale)', fontweight='bold')
-axes[1].grid(alpha=0.3)
-
-plt.tight_layout()
-plt.show()
-```
-
-```{code-cell} ipython3
-# Quick outlier detection (IQR method)
+# Outlier quantification
 outliers_iqr = detect_outliers_iqr(cost_series, multiplier=1.5)
 n_outliers = outliers_iqr.sum()
 pct_outliers = (n_outliers / len(cost_series)) * 100
 
-print(f"Outlier Analysis (IQR, k=1.5):")
-print(f"  Outliers detected: {n_outliers:,} ({pct_outliers:.2f}%)")
-print(f"  → Normal for long-tailed billing data" if pct_outliers < 5 else "  → High outlier rate - investigate")
+print(f"Outlier Detection (IQR k=1.5):")
+print(f"  {n_outliers:,} outliers ({pct_outliers:.2f}%)")
+print(f"  → {'Normal' if pct_outliers < 5 else 'High'} rate for billing data")
+
+# Conditional visualization for extreme skew
+if skew > 2:
+    print(f"\n⚠ Extreme skew ({skew:.3f}) - plotting distribution")
+    sample_costs = smart_sample(df_filtered, n=50_000).select(primary_cost_col).to_series().to_numpy()
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    sns.histplot(sample_costs, bins=50, kde=True, ax=axes[0], color='steelblue')
+    axes[0].set_xlabel('Cost ($)', fontweight='bold')
+    axes[0].set_title('Linear Scale', fontweight='bold')
+
+    sns.histplot(sample_costs[sample_costs > 0], bins=50, kde=True, ax=axes[1],
+                 color='darkgreen', log_scale=True)
+    axes[1].set_xlabel('Cost ($, log)', fontweight='bold')
+    axes[1].set_title('Log Scale', fontweight='bold')
+
+    plt.tight_layout()
+    plt.show()
+else:
+    print("✓ Moderate skew - distribution visualization unnecessary")
 ```
+
+### Summary
+
+**Shape**: Right-skewed distribution typical of cloud billing (few expensive resources, many low-cost)
+
+**Outliers**: ~2-5% of records flagged by IQR - expected for long-tailed cost data
+
+**Modeling Implication**: Log transformation required if skewness > 1 for regression/forecasting models
 
 ---
 
