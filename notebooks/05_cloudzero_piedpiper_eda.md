@@ -87,12 +87,12 @@ logger.info("PiedPiper EDA - Notebook initialized")
 
 ```{code-cell} ipython3
 # thanks Bill for the share! 
-DATA_PATH = Path('/Users/nehalecky/Projects/cloudzero/cloud-resource-simulator/data/piedpiper_optimized_daily.parquet')
+DATA_PATH = Path('~/Projects/cloudzero/cloud-resource-simulator/data/piedpiper_optimized_daily.parquet')
 df = pl.scan_parquet(DATA_PATH)
 
 # Basic statistics
 total_rows = len(df.collect())
-total_cols = len(df.collect_schema())
+total_cols = len(df.collect_schema()) # Schema is lazy, no data pulled
 date_range = df.select([
     pl.col('usage_date').min().alias('min_date'),
     pl.col('usage_date').max().alias('max_date')
@@ -102,81 +102,71 @@ logger.info(f"Dataset: {total_rows:,} rows × {total_cols} columns")
 logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date'][0]}")
 ```
 
+Here we note that there are dates that span into the future. We'll inspect the temporal record density.
+
++++
+
 ---
 
 ### 1.3 Temporal Observation Density
 
 ```{code-cell} ipython3
-from datetime import date as dt_date, datetime
+# Daily counts with percent change
+daily = (
+    daily_observation_counts(df, 'usage_date')
+    .sort('usage_date')
+    .with_columns(pl.col('count').pct_change().alias('pct_change'))
+)
 
-# Daily counts
-daily = daily_observation_counts(df, 'usage_date')
+# Plot counts and percent change
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
 
-# Detect anomaly: look for significant drop in record count
-daily_sorted = daily.sort('usage_date')
-daily_sorted = daily_sorted.with_columns([
-    (pl.col('count').pct_change()).alias('pct_change')
-])
+ax1.bar(daily['usage_date'], daily['count'], width=0.8, alpha=0.7)
+ax1.set_ylabel('Daily Record Count')
+ax1.set_title('Temporal Observation Density')
+ax1.grid(axis='y', alpha=0.3)
 
-# Find first day with >80% drop (likely anomaly start)
-anomaly_candidates = daily_sorted.filter(pl.col('pct_change') < -0.8)
-if len(anomaly_candidates) > 0:
-    ANOMALY_DATE = anomaly_candidates['usage_date'][0]
-else:
-    # Fallback: use today if no drop detected
-    ANOMALY_DATE = dt_date.today()
+ax2.plot(daily['usage_date'], daily['pct_change'], marker='o', linewidth=1)
+ax2.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
+ax2.set_xlabel('Date')
+ax2.set_ylabel('Percent Change')
+ax2.set_title('Daily Count Change Rate')
+ax2.grid(axis='y', alpha=0.3)
 
-# Plot
-fig, ax = plt.subplots(figsize=(14, 5))
-ax.bar(daily['usage_date'], daily['count'], width=0.8, alpha=0.7, color='steelblue')
-
-# Mark anomaly date and today
-today = dt_date.today()
-today_dt = datetime.combine(today, datetime.min.time()) if daily['usage_date'].dtype != pl.Date else today
-anomaly_dt = datetime.combine(ANOMALY_DATE, datetime.min.time()) if isinstance(ANOMALY_DATE, dt_date) and daily['usage_date'].dtype != pl.Date else ANOMALY_DATE
-
-ax.axvline(x=anomaly_dt, color='orange', linestyle='--', linewidth=2, label=f'Anomaly: {ANOMALY_DATE}')
-ax.axvline(x=today_dt, color='red', linestyle='--', linewidth=2, label=f'Today: {today}')
-ax.set_xlabel('Date')
-ax.set_ylabel('Daily Record Count')
-ax.set_title('Temporal Observation Density')
-ax.legend()
-ax.grid(axis='y', alpha=0.3)
-plt.xticks(rotation=45)
 plt.tight_layout()
 plt.show()
-
-# Print summary
-print(f"Date range: {daily['usage_date'].min()} to {daily['usage_date'].max()}")
-print(f"Anomaly detected: {ANOMALY_DATE}")
-print(f"Days with data: {len(daily)}")
 ```
 
-**Observations:**
+```{code-cell} ipython3
+# Inspect largest drops
+daily.sort('pct_change').head(10)
+```
 
-The dataset shows a clear temporal anomaly starting **{ANOMALY_DATE}**, where record counts drop dramatically. Additionally, the data extends beyond today ({today}), indicating:
-
-1. **Future-dated records**: Data includes dates that haven't occurred yet
-2. **Synthetic/degraded data**: The sudden drop suggests a data generation or pipeline issue
-
-**Decision:** We will filter out all data from **{ANOMALY_DATE}** onward to focus on the clean historical period. This ensures our analysis reflects actual usage patterns rather than artifacts.
+The data shows a significant drop on a specific date, with future-dated records beyond today. We'll filter to the period before the anomaly for analysis.
 
 ```{code-cell} ipython3
-# Filter to clean period (before anomaly)
-if daily['usage_date'].dtype == pl.Date:
-    df_clean = df.filter(pl.col('usage_date') < ANOMALY_DATE)
-else:
-    df_clean = df.filter(pl.col('usage_date').dt.date() < ANOMALY_DATE)
+# Find date of largest drop
+anomaly_row = daily.sort('pct_change').head(1)
+CUTOFF_DATE = anomaly_row['usage_date'][0]
 
-clean_stats = df_clean.select([
+print(f"Filtering data before: {CUTOFF_DATE}")
+
+# Create analysis dataset
+if daily['usage_date'].dtype == pl.Date:
+    df_analysis = df.filter(pl.col('usage_date') < CUTOFF_DATE)
+else:
+    df_analysis = df.filter(pl.col('usage_date').dt.date() < CUTOFF_DATE)
+
+# Summary
+stats = df_analysis.select([
     pl.len().alias('rows'),
     pl.col('usage_date').n_unique().alias('days'),
     pl.col('usage_date').min().alias('start'),
     pl.col('usage_date').max().alias('end')
 ]).collect()
 
-print(f"Clean dataset: {clean_stats['rows'][0]:,} rows, {clean_stats['days'][0]} days")
-print(f"Period: {clean_stats['start'][0]} to {clean_stats['end'][0]}")
+print(f"Analysis dataset: {stats['rows'][0]:,} rows, {stats['days'][0]} days")
+print(f"Period: {stats['start'][0]} to {stats['end'][0]}")
 ```
 
 ---
@@ -187,7 +177,7 @@ Analyze all columns for cardinality and completeness to identify grain candidate
 
 ```{code-cell} ipython3
 # Attribute analysis (simplified schema analysis)
-attrs = attribute_analysis(df)
+attrs = attribute_analysis(df_analysis)
 
 logger.info(f"\n📊 Attribute Analysis ({total_cols} columns):")
 logger.info("\nCardinality Interpretation:")
@@ -241,7 +231,7 @@ logger.info(f"   {categorical_cols}")
 # Plot top 10 values for each categorical with log scale
 if categorical_cols:
     fig = plot_categorical_frequencies(
-        df,
+        df_analysis,
         columns=categorical_cols,
         top_n=10,
         log_scale=True,           # Logarithmic scale for wide frequency ranges
@@ -268,7 +258,7 @@ if categorical_cols:
 
 ```{code-cell} ipython3
 # Identify all cost columns
-cost_columns = [c for c in df_collected.columns if 'cost' in c.lower()]
+cost_columns = [c for c in df_analysis.collect_schema().names() if 'cost' in c.lower()]
 
 logger.info(f"\n💰 Cost Columns Found: {len(cost_columns)}")
 logger.info(f"   {cost_columns}")
@@ -276,7 +266,7 @@ logger.info(f"   {cost_columns}")
 
 ```{code-cell} ipython3
 # Compute correlation matrix for cost columns
-cost_corr = df.select(cost_columns).collect().corr()
+cost_corr = df_analysis.select(cost_columns).collect().corr()
 
 logger.info(f"\n📊 Cost Column Correlation Matrix:")
 cost_corr
