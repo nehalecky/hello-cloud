@@ -13,8 +13,6 @@ kernelspec:
 
 # CloudZero Data Exploration
 
-This notebook explores the synthetic cloud resource data generation capabilities and validates them against research findings.
-
 ```{code-cell} ipython3
 # Auto-reload: Picks up library changes without kernel restart
 %load_ext autoreload
