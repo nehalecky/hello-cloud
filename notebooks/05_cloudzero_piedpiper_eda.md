@@ -603,22 +603,19 @@ Identify which entity (account, product, service, resource) is driving observed 
 For each entity type with medium cardinality, compute daily record contribution and identify entities with highest temporal variability (CV).
 
 ```{code-cell} ipython3
-# Get entity columns from semantic analysis (cloud hierarchy columns good for grouping)
-entity_candidates = (
-    semantic_analysis
-    .filter(
-        (pl.col('semantic_category') == 'cloud_hierarchy') &
-        (pl.col('column').is_in(final_cols))
-    )
-    .get_column('column')
-    .to_list()
-)
+# Debug: Check what semantic categories exist in final_cols
+final_semantics = semantic_analysis.filter(pl.col('column').is_in(final_cols))
+print("Semantic categories in final_cols:")
+print(final_semantics.group_by('semantic_category').agg(pl.len().alias('count')))
 
-# Filter out very high cardinality if present
-high_card_identifiers = ['uuid', 'resource_id', 'usage_id']
-entity_candidates = [col for col in entity_candidates if col not in high_card_identifiers]
+# Get all non-identifier columns from final set
+exclude_patterns = ['uuid', 'resource_id', 'usage_id', 'usage_date', 'cost', 'amount']
+entity_candidates = [
+    col for col in final_cols
+    if not any(pattern in col.lower() for pattern in exclude_patterns)
+]
 
-print(f"Investigating {len(entity_candidates)} entity types for temporal anomalies:")
+print(f"\nInvestigating {len(entity_candidates)} entity types for temporal anomalies:")
 print(f"  {', '.join(entity_candidates)}")
 ```
 
