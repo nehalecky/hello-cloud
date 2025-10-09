@@ -299,7 +299,7 @@ logger.info(f"   Resource IDs: {sorted(keep_resource_ids)}")
 logger.info(f"   Composite candidates: {sorted(keep_composite_candidates)}")
 
 # Apply filter
-df = df.select([col for col in df.collect_schema().names() if col not in drop_cols])
+df_filtered = df.select([col for col in df.collect_schema().names() if col not in drop_cols])
 logger.info(f"\n📊 Schema reduced: {len(df.collect_schema())} → {len(df.collect_schema())} columns")
 ```
 
@@ -310,18 +310,12 @@ logger.info(f"\n📊 Schema reduced: {len(df.collect_schema())} → {len(df.coll
 Visualize value distributions for all categorical (grouping) columns to understand data composition.
 
 ```{code-cell} ipython3
-# Identify categorical columns (low cardinality, typically strings)
-categorical_cols = (
-    attrs
-    .filter(pl.col('cardinality_ratio') <= 0.1)
-    .filter(pl.col('dtype').str.contains('Utf8|String'))
-    ['column']
-    .to_list()
-)
-
-# Filter to columns that actually exist in current dataframe
-available_cols = df.collect_schema().names()
-categorical_cols = [col for col in categorical_cols if col in available_cols]
+# Identify categorical columns directly from current dataframe (string/categorical dtypes)
+schema = df_filtered.collect_schema()
+categorical_cols = [
+    col for col, dtype in schema.items()
+    if dtype in [pl.Utf8, pl.Categorical, pl.String]
+]
 
 logger.info(f"\n📊 Categorical Columns ({len(categorical_cols)}):")
 logger.info(f"   {categorical_cols}")
@@ -329,7 +323,7 @@ logger.info(f"   {categorical_cols}")
 # Plot top 10 values for each categorical with log scale
 if categorical_cols:
     fig = plot_categorical_frequencies(
-        df,
+        df_filtered,
         columns=categorical_cols,
         top_n=10,
         log_scale=True,           # Logarithmic scale for wide frequency ranges
