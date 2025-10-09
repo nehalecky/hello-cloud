@@ -679,42 +679,111 @@ if anomaly_results:
 ```
 
 ```{code-cell} ipython3
-# If anomaly found, visualize its temporal pattern
-if anomaly_results:
-    culprit_type = culprit['entity_type']
-    culprit_entity = culprit['variable_entity']
-
-    # Extract culprit's daily record count using with_columns
-    culprit_daily = (
+# Stacked area chart: Cloud provider contributions over time
+if anomaly_results and culprit['entity_type'] == 'cloud_provider':
+    # Get daily counts by provider using with_columns
+    provider_daily = (
         df_filtered
-        .filter(pl.col(culprit_type) == culprit_entity)
-        .group_by('usage_date')
+        .group_by(['usage_date', 'cloud_provider'])
         .agg(pl.len().alias('records'))
         .sort('usage_date')
         .collect()
-        .with_columns(
-            pl.col('records').pct_change().alias('pct_change')
-        )
     )
 
-    print(f"\nCulprit entity '{culprit_entity}' temporal pattern:")
-    print(culprit_daily.tail(10))
+    # Pivot to wide format for stacking
+    provider_pivot = provider_daily.pivot(
+        values='records',
+        index='usage_date',
+        columns='cloud_provider'
+    ).fill_null(0)
 
-    # Plot if significant variation
-    if culprit['max_cv'] > 0.5:
-        import matplotlib.pyplot as plt
-        plot_data = culprit_daily.to_pandas()
+    # Compute cumulative percentages for stacking using with_columns
+    providers = [col for col in provider_pivot.columns if col != 'usage_date']
+    total_col = sum(pl.col(p) for p in providers)
 
-        fig, ax = plt.subplots(figsize=(14, 5))
-        ax.plot(plot_data['usage_date'], plot_data['records'],
-                linewidth=2, color='red', marker='o', markersize=4)
-        ax.set_xlabel('Date', fontweight='bold')
-        ax.set_ylabel('Daily Record Count', fontweight='bold')
-        ax.set_title(f"Anomaly Source: {culprit_type}='{culprit_entity}' (CV={culprit['max_cv']:.3f})",
-                     fontweight='bold')
-        ax.grid(alpha=0.3)
-        plt.tight_layout()
-        plt.show()
+    provider_pct = provider_pivot.with_columns([
+        (pl.col(p) / total_col * 100).alias(f'{p}_pct') for p in providers
+    ])
+
+    print(f"Cloud Provider Daily Records (first 5 days):")
+    print(provider_pivot.head(5))
+
+    # Visualize stacked area
+    import matplotlib.pyplot as plt
+    plot_data = provider_pivot.to_pandas().set_index('usage_date')
+
+    fig, ax = plt.subplots(figsize=(16, 6))
+    ax.stackplot(plot_data.index, *[plot_data[col].values for col in providers],
+                 labels=providers, alpha=0.8)
+    ax.set_xlabel('Date', fontweight='bold')
+    ax.set_ylabel('Daily Record Count', fontweight='bold')
+    ax.set_title('Cloud Provider Record Contributions Over Time (Stacked Area)',
+                 fontweight='bold', fontsize=14)
+    ax.legend(loc='upper left', framealpha=0.9)
+    ax.grid(alpha=0.3, axis='y')
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
+
+    plt.tight_layout()
+    plt.show()
+
+    # Identify changepoint (if AWS drops)
+    aws_daily = provider_pivot.filter(pl.col('AWS').is_not_null()).with_columns([
+        pl.col('AWS').pct_change().alias('aws_pct_change')
+    ])
+
+    max_drop = aws_daily.select([
+        pl.col('usage_date'),
+        pl.col('aws_pct_change')
+    ]).filter(pl.col('aws_pct_change') < -0.5)  # >50% drop
+
+    if len(max_drop) > 0:
+        print(f"\n⚠ AWS Record Drop Events (>50% decrease):")
+        print(max_drop.head(3))
+```
+
+```{code-cell} ipython3
+# Observation frequency analysis
+daily_totals = (
+    df_filtered
+    .group_by('usage_date')
+    .agg(pl.len().alias('records'))
+    .sort('usage_date')
+    .collect()
+    .with_columns([
+        (pl.col('records') - pl.col('records').shift(1)).alias('day_to_day_change'),
+        (pl.col('records') / pl.col('records').shift(1) - 1).alias('pct_change')
+    ])
+)
+
+# Frequency statistics
+freq_stats = daily_totals.select([
+    pl.col('records').mean().alias('mean_daily'),
+    pl.col('records').median().alias('median_daily'),
+    pl.col('records').std().alias('std_daily'),
+    pl.col('records').min().alias('min_daily'),
+    pl.col('records').max().alias('max_daily'),
+]).with_columns([
+    (pl.col('std_daily') / pl.col('mean_daily')).alias('cv')
+])
+
+print("Observation Frequency Analysis:")
+print(f"  Mean daily records: {freq_stats['mean_daily'][0]:,.0f}")
+print(f"  Median daily records: {freq_stats['median_daily'][0]:,.0f}")
+print(f"  Std deviation: {freq_stats['std_daily'][0]:,.0f}")
+print(f"  Range: [{freq_stats['min_daily'][0]:,}, {freq_stats['max_daily'][0]:,}]")
+print(f"  Coefficient of variation: {freq_stats['cv'][0]:.3f}")
+
+# Identify step changes
+step_changes = daily_totals.filter(
+    pl.col('pct_change').abs() > 0.2  # >20% change
+).select(['usage_date', 'records', 'pct_change'])
+
+if len(step_changes) > 0:
+    print(f"\n⚠ Step Changes Detected (>20% day-over-day):")
+    print(step_changes.head(5))
+    print(f"\nInterpretation: {'Data collection issue' if freq_stats['cv'][0] > 0.15 else 'Normal variation'}")
+else:
+    print("\n✓ No significant step changes - consistent observation frequency")
 ```
 
 ### Summary
