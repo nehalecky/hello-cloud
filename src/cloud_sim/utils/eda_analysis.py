@@ -62,10 +62,11 @@ def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
         pl.when(pl.col('null_pct') < 1).then(pl.lit('✓'))
           .when(pl.col('null_pct') < 50).then(pl.lit('⚠'))
           .otherwise(pl.lit('✗')).alias('quality'),
-        # Cardinality class
-        pl.when(pl.col('cardinality_ratio') > 0.01).then(pl.lit('High'))
-          .when(pl.col('cardinality_ratio') > 0.0001).then(pl.lit('Medium'))
-          .otherwise(pl.lit('Low')).alias('card_class')
+        # Cardinality class (forecasting grain analysis)
+        pl.when(pl.col('cardinality_ratio') > 0.9).then(pl.lit('Primary Key (>90%)'))
+          .when(pl.col('cardinality_ratio') > 0.5).then(pl.lit('High (50-90%)'))
+          .when(pl.col('cardinality_ratio') > 0.1).then(pl.lit('Medium (10-50%)'))
+          .otherwise(pl.lit('Grouping (<10%)')).alias('card_class')
     ])
 
     return schema_df

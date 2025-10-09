@@ -72,6 +72,7 @@ from loguru import logger
 from cloud_sim.utils import (
     configure_notebook_logging,
     comprehensive_schema_analysis,
+    plot_categorical_frequencies,
     calculate_attribute_scores,
     find_correlated_pairs,
     select_from_pairs
@@ -115,43 +116,17 @@ logger.info(f"Date range: {date_range['min_date'][0]} to {date_range['max_date']
 3. **High zeros**: zero_ratio > 0.95 (>95% zeros among non-nulls → no signal)
 
 ```{code-cell} ipython3
-# Compute schema metrics
-df_collected = df.collect()
-schema_rows = []
-
-for col in df_collected.columns:
-    dtype = df_collected.schema[col]
-    series = df_collected[col]
-
-    # Null ratio: nulls / total
-    null_count = series.null_count()
-    null_ratio = null_count / len(series)
-
-    # Cardinality: unique / total
-    n_unique = series.n_unique()
-    cardinality_ratio = n_unique / len(series)
-
-    # Zero ratio: zeros / non-nulls (only for numerical columns)
-    if dtype in [pl.Float64, pl.Float32, pl.Int64, pl.Int32, pl.UInt64, pl.UInt32]:
-        non_null_count = len(series) - null_count
-        if non_null_count > 0:
-            zero_ratio = (series == 0).sum() / non_null_count
-        else:
-            zero_ratio = 0.0
-    else:
-        zero_ratio = None
-
-    schema_rows.append({
-        'column': col,
-        'dtype': str(dtype),
-        'null_ratio': round(null_ratio, 4),
-        'zero_ratio': round(zero_ratio, 4) if zero_ratio is not None else None,
-        'cardinality_ratio': round(cardinality_ratio, 4)
-    })
-
-schema_df = pl.DataFrame(schema_rows)
+# Use utility function for comprehensive schema analysis
+schema_df = comprehensive_schema_analysis(df)
 
 logger.info(f"\n📊 Schema Analysis ({total_cols} columns):")
+logger.info("\nCardinality Classifications:")
+logger.info("  • Primary Key (>90%): Nearly unique per row → not useful for grouping")
+logger.info("  • High (50-90%): Fine-grained entities → potential resource IDs")
+logger.info("  • Medium (10-50%): Composite key candidates → forecasting grain")
+logger.info("  • Grouping (<10%): Coarse dimensions → provider, account, region")
+
+# Sort by cardinality to identify grain candidates
 schema_df.sort('cardinality_ratio', descending=True)
 ```
 
@@ -188,7 +163,45 @@ styled
 
 ---
 
-### 1.4 Cost Column Correlation Analysis
+### 1.4 Categorical Distribution Analysis
+
+Visualize value distributions for all categorical (grouping) columns to understand data composition.
+
+```{code-cell} ipython3
+# Identify categorical columns (low cardinality, typically strings)
+categorical_cols = (
+    schema_df
+    .filter(pl.col('card_class') == 'Grouping (<10%)')
+    .filter(pl.col('dtype').str.contains('Utf8|String'))
+    ['column']
+    .to_list()
+)
+
+logger.info(f"\n📊 Categorical Columns ({len(categorical_cols)}):")
+logger.info(f"   {categorical_cols}")
+
+# Plot top 10 values for each categorical
+if categorical_cols:
+    fig = plot_categorical_frequencies(
+        df,
+        columns=categorical_cols,
+        top_n=10,
+        figsize=(16, max(4, len(categorical_cols) * 2)),
+        cols_per_row=2
+    )
+    plt.suptitle('Categorical Value Distributions (Top 10 per column)',
+                 fontsize=14, fontweight='bold', y=1.0)
+    plt.show()
+
+    logger.info("\n✅ Distribution plots show:")
+    logger.info("   • Data concentration (Pareto principle)")
+    logger.info("   • Grain candidates (which dimensions to composite)")
+    logger.info("   • Potential filtering targets (rare/dominant values)")
+```
+
+---
+
+### 1.5 Cost Column Correlation Analysis
 
 **Hypothesis**: Multiple cost columns represent different accounting treatments (amortized, discounted, etc.) of the same base cost → highly correlated.
 
@@ -236,7 +249,7 @@ else:
 
 ---
 
-### 1.5 Single-Pass Filtering & Reduction Tracking
+### 1.6 Single-Pass Filtering & Reduction Tracking
 
 Apply four filters: (1) ID columns, (2) high nulls, (3) high zeros, (4) redundant costs.
 
