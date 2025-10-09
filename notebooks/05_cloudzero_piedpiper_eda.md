@@ -152,7 +152,36 @@ for col in df_collected.columns:
 schema_df = pl.DataFrame(schema_rows)
 
 logger.info(f"\n📊 Schema Analysis ({total_cols} columns):")
-logger.info(f"\n{schema_df.sort('cardinality_ratio', descending=True)}")
+schema_df.sort('cardinality_ratio', descending=True)
+```
+
+```{code-cell} ipython3
+# Color-code table by thresholds
+import seaborn as sns
+import pandas as pd
+
+def color_threshold(val, col):
+    """Color cells exceeding thresholds."""
+    if pd.isna(val):
+        return ''
+
+    if col == 'cardinality_ratio' and val > 0.95:
+        return 'background-color: #ffcccc'  # Red: ID column
+    elif col == 'null_ratio' and val > 0.8:
+        return 'background-color: #ffffcc'  # Yellow: High nulls
+    elif col == 'zero_ratio' and val > 0.95:
+        return 'background-color: #ffddaa'  # Orange: High zeros
+    return ''
+
+# Convert to pandas for styling, display
+schema_pd = schema_df.to_pandas().set_index('column')
+styled = schema_pd.style.apply(
+    lambda col: [color_threshold(v, col.name) for v in col],
+    axis=0
+)
+
+logger.info("\n🎨 Color-coded schema (red=ID, yellow=high null, orange=high zero):")
+styled
 ```
 
 ```{code-cell} ipython3
@@ -222,6 +251,93 @@ reduction_ratio = (cols_before - cols_after) / cols_before
 
 logger.info(f"\n📉 Column Reduction: {cols_before} → {cols_after} ({reduction_ratio:.1%} reduction)")
 logger.info(f"✅ Tidy schema ready: {cols_after} informative columns")
+```
+
+```{code-cell} ipython3
+# Explain remaining data structure
+remaining_cols = df.collect_schema().names()
+
+logger.info(f"\n📦 Remaining Data Structure ({cols_after} columns):")
+logger.info(f"\n   Temporal: usage_date")
+logger.info(f"\n   Cloud Dimensions:")
+logger.info(f"      - cloud_provider, cloud_account_id, region")
+logger.info(f"      - availability_zone, product_family, usage_type")
+logger.info(f"\n   Resource Identifiers:")
+logger.info(f"      - resource_id, service_code, operation")
+logger.info(f"\n   Cost Metric:")
+logger.info(f"      - {PRIMARY_COST}")
+logger.info(f"\n   Other: {[c for c in remaining_cols if c not in ['usage_date', 'cloud_provider', 'cloud_account_id', 'region', 'availability_zone', 'product_family', 'usage_type', 'resource_id', 'service_code', 'operation', PRIMARY_COST]]}")
+```
+
+```{code-cell} ipython3
+# Dimensional analysis: boxplots by key attributes
+fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
+# Collect data for plotting
+df_plot = df.select([
+    'cloud_provider',
+    'cloud_account_id',
+    'region',
+    'product_family',
+    PRIMARY_COST
+]).collect()
+
+# Provider distribution
+ax1 = axes[0, 0]
+provider_summary = df_plot.group_by('cloud_provider').agg([
+    pl.len().alias('records'),
+    pl.col(PRIMARY_COST).sum().alias('total_cost')
+]).sort('total_cost', descending=True)
+
+ax1.barh(provider_summary['cloud_provider'], provider_summary['total_cost'])
+ax1.set_xlabel(f'Total {PRIMARY_COST}')
+ax1.set_title('Cost by Cloud Provider')
+ax1.grid(True, alpha=0.3)
+
+# Account distribution (top 10)
+ax2 = axes[0, 1]
+account_summary = df_plot.group_by('cloud_account_id').agg([
+    pl.len().alias('records'),
+    pl.col(PRIMARY_COST).sum().alias('total_cost')
+]).sort('total_cost', descending=True).head(10)
+
+ax2.barh(account_summary['cloud_account_id'], account_summary['total_cost'])
+ax2.set_xlabel(f'Total {PRIMARY_COST}')
+ax2.set_title('Top 10 Accounts by Cost')
+ax2.grid(True, alpha=0.3)
+
+# Region distribution (top 10)
+ax3 = axes[1, 0]
+region_summary = df_plot.group_by('region').agg([
+    pl.len().alias('records'),
+    pl.col(PRIMARY_COST).sum().alias('total_cost')
+]).sort('total_cost', descending=True).head(10)
+
+ax3.barh(region_summary['region'], region_summary['total_cost'])
+ax3.set_xlabel(f'Total {PRIMARY_COST}')
+ax3.set_title('Top 10 Regions by Cost')
+ax3.grid(True, alpha=0.3)
+
+# Product family distribution (top 10)
+ax4 = axes[1, 1]
+product_summary = df_plot.group_by('product_family').agg([
+    pl.len().alias('records'),
+    pl.col(PRIMARY_COST).sum().alias('total_cost')
+]).sort('total_cost', descending=True).head(10)
+
+ax4.barh(product_summary['product_family'], product_summary['total_cost'])
+ax4.set_xlabel(f'Total {PRIMARY_COST}')
+ax4.set_title('Top 10 Product Families by Cost')
+ax4.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+logger.info(f"\n📊 Dimensional Summary:")
+logger.info(f"   Providers: {df_plot['cloud_provider'].n_unique()}")
+logger.info(f"   Accounts: {df_plot['cloud_account_id'].n_unique()}")
+logger.info(f"   Regions: {df_plot['region'].n_unique()}")
+logger.info(f"   Products: {df_plot['product_family'].n_unique()}")
 ```
 
 ---
@@ -538,13 +654,28 @@ $\therefore$ Grain validated for time series modeling
 
 ## Part 4: Summary & Next Steps
 
-### Dataset
+### Dataset Transformations
 
-**Raw**: 122 days, 8.3M records, 38 columns
+**Raw Data**: 122 days, 8.3M records, 38 columns
 
-**Clean**: 37 days (Sept 1 - Oct 6, 2025), ~5.8M records
+**Temporal Filtering**:
+- Removed post-Oct 7 data (AWS pipeline collapse, costs frozen)
+- Clean period: Sept 1 - Oct 6, 2025 (37 days)
+- **Row reduction**: 8.3M → 5.8M records (30% reduction)
 
-**Filtered**: 38 → ~32 columns (dropped: ID, high null/zero, redundant costs)
+**Schema Filtering**:
+- Filter 1: ID columns (cardinality > 0.95) → uuid
+- Filter 2: High nulls (>80%) → [varies by dataset]
+- Filter 3: High zeros (>95% among non-nulls) → [varies by dataset]
+- Filter 4: Redundant costs → 5 cost variants (kept materialized_discounted_cost)
+- **Column reduction**: 38 → 32 columns (16% reduction)
+
+**Remaining 5.8M Records Contain**:
+- **Temporal**: Daily grain (37 days)
+- **Cloud hierarchy**: Provider → Account → Region → Availability Zone
+- **Resource dimensions**: Service, Product Family, Usage Type, Resource ID
+- **Cost metric**: materialized_discounted_cost (CloudZero standard)
+- **Cardinality**: X providers, Y accounts, Z regions, W products (see dimensional analysis)
 
 **Data Quality Issue**: AWS pipeline collapse post-Oct 7 (costs frozen, CV ≈ 0)
 
@@ -575,3 +706,7 @@ $\therefore$ Grain validated for time series modeling
 1. Build forecasting models at identified grain
 2. Investigate AWS pipeline issue (Oct 7+)
 3. Develop hierarchical models (provider → account → product)
+
+```{code-cell} ipython3
+
+```
