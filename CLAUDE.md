@@ -19,7 +19,7 @@ uv sync --group docs
 ### Testing
 ```bash
 # Run all tests with coverage
-uv run pytest tests/ -v --cov=src/cloudlens --cov-report=term-missing
+uv run pytest tests/ -v --cov=src/hellocloud --cov-report=term-missing
 
 # Run specific test file
 uv run pytest tests/test_data_generation.py -v
@@ -28,7 +28,7 @@ uv run pytest tests/test_data_generation.py -v
 uv run pytest tests/test_data_generation.py::TestWorkloadPatternGenerator::test_generate_time_series -v
 
 # Run tests with coverage threshold (CI requirement: 70%)
-uv run pytest tests/ -v --cov=src/cloudlens --cov-fail-under=70
+uv run pytest tests/ -v --cov=src/hellocloud --cov-fail-under=70
 ```
 
 ### Code Quality
@@ -111,7 +111,7 @@ All notebooks use **MyST format**:
 
 ### Module Structure
 ```
-src/cloudlens/
+src/hellocloud/
 ├── data_generation/       # Synthetic data generation based on empirical patterns
 │   ├── workload_patterns.py     # 20+ workload archetypes with realistic utilization
 │   ├── cloud_metrics_simulator.py # Multivariate metric correlation simulation
@@ -325,7 +325,7 @@ from pydantic import BaseModel, Field, field_validator
 
 ### Creating Synthetic Datasets
 ```python
-from cloudlens.data_generation import WorkloadPatternGenerator, WorkloadType
+from hellocloud.data_generation import WorkloadPatternGenerator, WorkloadType
 generator = WorkloadPatternGenerator()
 data = generator.generate_time_series(
     workload_type=WorkloadType.WEB_APP,
@@ -336,7 +336,7 @@ data = generator.generate_time_series(
 
 ### Running Hierarchical Models
 ```python
-from cloudlens.ml_models import CloudResourceHierarchicalModel
+from hellocloud.ml_models import CloudResourceHierarchicalModel
 model = CloudResourceHierarchicalModel()
 results = model.fit(data)
 ```

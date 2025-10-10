@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>timeseries-anomaly-datasets-review – Cloud Resource Simulator</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-945825cc0f524032fd1718107c82c223.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-e8c6b31e440ce77eb8ae47c08d41a42d.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-945825cc0f524032fd1718107c82c223.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-34bffc26184210c6c501279d09c42f62.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-796b9f73f6d285404f11eca7d579d846.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-34bffc26184210c6c501279d09c42f62.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../../_theme/styles.css">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Cloud Resource Simulator</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../tutorials/index.html"> 
+<span class="menu-text">Tutorials</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../how-to/index.html"> 
+<span class="menu-text">How-To</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../concepts/index.html"> 
+<span class="menu-text">Concepts</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../reference/index.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/nehalecky/cloud-resource-simulator"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#hugging-face-datasets-for-cloud-resource-anomaly-detection" id="toc-hugging-face-datasets-for-cloud-resource-anomaly-detection" class="nav-link active" data-scroll-target="#hugging-face-datasets-for-cloud-resource-anomaly-detection">Hugging Face Datasets for Cloud Resource Anomaly Detection</a>
+  <ul class="collapse">
+  <li><a href="#tldr" id="toc-tldr" class="nav-link" data-scroll-target="#tldr">TL;DR</a></li>
+  <li><a href="#executive-summary-with-dataset-comparison" id="toc-executive-summary-with-dataset-comparison" class="nav-link" data-scroll-target="#executive-summary-with-dataset-comparison">Executive Summary with Dataset Comparison</a>
+  <ul class="collapse">
+  <li><a href="#quick-selection-guide" id="toc-quick-selection-guide" class="nav-link" data-scroll-target="#quick-selection-guide">Quick Selection Guide</a></li>
+  </ul></li>
+  <li><a href="#detailed-dataset-analysis" id="toc-detailed-dataset-analysis" class="nav-link" data-scroll-target="#detailed-dataset-analysis">Detailed Dataset Analysis</a></li>
+  <li><a href="#most-relevant-datasets-for-cloud-resource-modeling" id="toc-most-relevant-datasets-for-cloud-resource-modeling" class="nav-link" data-scroll-target="#most-relevant-datasets-for-cloud-resource-modeling">Most relevant datasets for cloud resource modeling</a>
+  <ul class="collapse">
+  <li><a href="#autonlabtimeseries-pile-comprehensive-multi-domain-benchmark" id="toc-autonlabtimeseries-pile-comprehensive-multi-domain-benchmark" class="nav-link" data-scroll-target="#autonlabtimeseries-pile-comprehensive-multi-domain-benchmark">AutonLab/Timeseries-PILE: comprehensive multi-domain benchmark</a></li>
+  <li><a href="#lemma-rca-neccloud_computing_original-real-cloud-platform-data" id="toc-lemma-rca-neccloud_computing_original-real-cloud-platform-data" class="nav-link" data-scroll-target="#lemma-rca-neccloud_computing_original-real-cloud-platform-data">Lemma-RCA-NEC/Cloud_Computing_Original: real cloud platform data</a></li>
+  <li><a href="#pryshlyakseasonal_time_series_for_anomaly_detection-explicit-seasonality-focus" id="toc-pryshlyakseasonal_time_series_for_anomaly_detection-explicit-seasonality-focus" class="nav-link" data-scroll-target="#pryshlyakseasonal_time_series_for_anomaly_detection-explicit-seasonality-focus">pryshlyak/seasonal_time_series_for_anomaly_detection: explicit seasonality focus</a></li>
+  <li><a href="#patrickfleithcontrolled-anomalies-time-series-dataset-cats-multivariate-precision" id="toc-patrickfleithcontrolled-anomalies-time-series-dataset-cats-multivariate-precision" class="nav-link" data-scroll-target="#patrickfleithcontrolled-anomalies-time-series-dataset-cats-multivariate-precision">patrickfleith/controlled-anomalies-time-series-dataset (CATS): multivariate precision</a></li>
+  </ul></li>
+  <li><a href="#energy-and-resource-utilization-datasets" id="toc-energy-and-resource-utilization-datasets" class="nav-link" data-scroll-target="#energy-and-resource-utilization-datasets">Energy and resource utilization datasets</a>
+  <ul class="collapse">
+  <li><a href="#eds-labelectricity-demand-multivariate-smart-meter-data" id="toc-eds-labelectricity-demand-multivariate-smart-meter-data" class="nav-link" data-scroll-target="#eds-labelectricity-demand-multivariate-smart-meter-data">EDS-lab/electricity-demand: multivariate smart meter data</a></li>
+  <li><a href="#etdatasetett-electricity-transformer-temperature" id="toc-etdatasetett-electricity-transformer-temperature" class="nav-link" data-scroll-target="#etdatasetett-electricity-transformer-temperature">ETDataset/ett: electricity transformer temperature</a></li>
+  <li><a href="#openclimatefixuk_pv-large-scale-solar-generation" id="toc-openclimatefixuk_pv-large-scale-solar-generation" class="nav-link" data-scroll-target="#openclimatefixuk_pv-large-scale-solar-generation">openclimatefix/uk_pv: large-scale solar generation</a></li>
+  <li><a href="#electricity_load_diagrams-substation-monitoring" id="toc-electricity_load_diagrams-substation-monitoring" class="nav-link" data-scroll-target="#electricity_load_diagrams-substation-monitoring">electricity_load_diagrams: substation monitoring</a></li>
+  </ul></li>
+  <li><a href="#specialized-and-qa-format-datasets" id="toc-specialized-and-qa-format-datasets" class="nav-link" data-scroll-target="#specialized-and-qa-format-datasets">Specialized and QA-format datasets</a>
+  <ul class="collapse">
+  <li><a href="#time-mqatsqa-llm-based-anomaly-detection" id="toc-time-mqatsqa-llm-based-anomaly-detection" class="nav-link" data-scroll-target="#time-mqatsqa-llm-based-anomaly-detection">Time-MQA/TSQA: LLM-based anomaly detection</a></li>
+  </ul></li>
+  <li><a href="#dataset-selection-guidance" id="toc-dataset-selection-guidance" class="nav-link" data-scroll-target="#dataset-selection-guidance">Dataset selection guidance</a>
+  <ul class="collapse">
+  <li><a href="#for-researchers-prioritizing-real-cloud-infrastructure-data" id="toc-for-researchers-prioritizing-real-cloud-infrastructure-data" class="nav-link" data-scroll-target="#for-researchers-prioritizing-real-cloud-infrastructure-data">For researchers prioritizing real cloud infrastructure data</a></li>
+  <li><a href="#for-algorithm-development-emphasizing-seasonality" id="toc-for-algorithm-development-emphasizing-seasonality" class="nav-link" data-scroll-target="#for-algorithm-development-emphasizing-seasonality">For algorithm development emphasizing seasonality</a></li>
+  <li><a href="#for-comprehensive-benchmarking" id="toc-for-comprehensive-benchmarking" class="nav-link" data-scroll-target="#for-comprehensive-benchmarking">For comprehensive benchmarking</a></li>
+  <li><a href="#for-multivariate-anomaly-detection-research" id="toc-for-multivariate-anomaly-detection-research" class="nav-link" data-scroll-target="#for-multivariate-anomaly-detection-research">For multivariate anomaly detection research</a></li>
+  <li><a href="#for-large-scale-evaluation" id="toc-for-large-scale-evaluation" class="nav-link" data-scroll-target="#for-large-scale-evaluation">For large-scale evaluation</a></li>
+  </ul></li>
+  <li><a href="#key-preprocessing-considerations-across-datasets" id="toc-key-preprocessing-considerations-across-datasets" class="nav-link" data-scroll-target="#key-preprocessing-considerations-across-datasets">Key preprocessing considerations across datasets</a>
+  <ul class="collapse">
+  <li><a href="#normalization-approaches" id="toc-normalization-approaches" class="nav-link" data-scroll-target="#normalization-approaches">Normalization approaches</a></li>
+  <li><a href="#handling-seasonality" id="toc-handling-seasonality" class="nav-link" data-scroll-target="#handling-seasonality">Handling seasonality</a></li>
+  <li><a href="#traintest-splitting" id="toc-traintest-splitting" class="nav-link" data-scroll-target="#traintest-splitting">Train/test splitting</a></li>
+  <li><a href="#missing-data-strategies" id="toc-missing-data-strategies" class="nav-link" data-scroll-target="#missing-data-strategies">Missing data strategies</a></li>
+  <li><a href="#dealing-with-unlabeled-data" id="toc-dealing-with-unlabeled-data" class="nav-link" data-scroll-target="#dealing-with-unlabeled-data">Dealing with unlabeled data</a></li>
+  <li><a href="#window-size-selection" id="toc-window-size-selection" class="nav-link" data-scroll-target="#window-size-selection">Window size selection</a></li>
+  </ul></li>
+  <li><a href="#important-gaps-and-limitations" id="toc-important-gaps-and-limitations" class="nav-link" data-scroll-target="#important-gaps-and-limitations">Important gaps and limitations</a>
+  <ul class="collapse">
+  <li><a href="#limited-dedicated-cloud-resource-datasets" id="toc-limited-dedicated-cloud-resource-datasets" class="nav-link" data-scroll-target="#limited-dedicated-cloud-resource-datasets">Limited dedicated cloud resource datasets</a></li>
+  <li><a href="#seasonality-documentation-sparse" id="toc-seasonality-documentation-sparse" class="nav-link" data-scroll-target="#seasonality-documentation-sparse">Seasonality documentation sparse</a></li>
+  <li><a href="#classic-benchmarks-absent" id="toc-classic-benchmarks-absent" class="nav-link" data-scroll-target="#classic-benchmarks-absent">Classic benchmarks absent</a></li>
+  <li><a href="#synthetic-vs.-real-world-tradeoff" id="toc-synthetic-vs.-real-world-tradeoff" class="nav-link" data-scroll-target="#synthetic-vs.-real-world-tradeoff">Synthetic vs.&nbsp;real-world tradeoff</a></li>
+  <li><a href="#dataset-quality-concerns" id="toc-dataset-quality-concerns" class="nav-link" data-scroll-target="#dataset-quality-concerns">Dataset quality concerns</a></li>
+  </ul></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">Conclusion</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/nehalecky/cloud-resource-simulator/edit/main/concepts/research/timeseries-anomaly-datasets-review.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/nehalecky/cloud-resource-simulator/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+
+
+
+
+
+<section id="hugging-face-datasets-for-cloud-resource-anomaly-detection" class="level1">
+<h1>Hugging Face Datasets for Cloud Resource Anomaly Detection</h1>
+<section id="tldr" class="level2">
+<h2 class="anchored" data-anchor-id="tldr">TL;DR</h2>
+<p><strong>Bottom line:</strong> Hugging Face offers several strong datasets for cloud resource anomaly detection modeling, though direct cloud infrastructure datasets are limited. The best options combine benchmark collections with labeled anomalies, real cloud platform data, and energy/resource domain datasets that closely parallel cloud behavior.</p>
+<p><strong>Top recommendations:</strong> For comprehensive benchmarking, use <strong>AutonLab/Timeseries-PILE</strong> (1,980 labeled anomaly time series including web server data). For actual cloud infrastructure, use <strong>Lemma-RCA-NEC/Cloud_Computing_Original</strong> (real cloud platform with 6 fault types). For algorithm development with strong seasonality, use <strong>pryshlyak/seasonal_time_series_for_anomaly_detection</strong> (explicit weekly patterns). Energy domain datasets (electricity demand, solar generation, grid monitoring) provide excellent cloud analogs with resource consumption patterns, daily/weekly cycles, and efficiency concerns matching cloud workloads.</p>
+<p><strong>Key insight:</strong> While dedicated multi-metric cloud datasets (CPU+memory+network combined) are scarce, energy and infrastructure monitoring datasets exhibit remarkably similar characteristics—resource consumption over time, strong temporal patterns from user/load behavior, anomalies from inefficiency or external events, and operational monitoring requirements. These domains provide robust training and evaluation data for cloud-focused anomaly detection research.</p>
+</section>
+<section id="executive-summary-with-dataset-comparison" class="level2">
+<h2 class="anchored" data-anchor-id="executive-summary-with-dataset-comparison">Executive Summary with Dataset Comparison</h2>
+<p>The following table compares the most relevant datasets for cloud resource anomaly detection, ordered by direct applicability to cloud infrastructure monitoring:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 10%">
+<col style="width: 8%">
+<col style="width: 16%">
+<col style="width: 20%">
+<col style="width: 21%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Dataset</th>
+<th>Domain</th>
+<th>Scale</th>
+<th>Seasonality</th>
+<th>Anomaly Labels</th>
+<th>Cloud Relevance</th>
+<th>Best For</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Lemma-RCA-NEC/Cloud_Computing_Original</strong></td>
+<td>Real cloud platform</td>
+<td>Hundreds of entities</td>
+<td>Daily/weekly cycles</td>
+<td>✅ Yes (6 fault types)</td>
+<td>🟢 <strong>High</strong> - Actual cloud data</td>
+<td>Real cloud fault detection, RCA</td>
+</tr>
+<tr class="even">
+<td><strong>AutonLab/Timeseries-PILE</strong></td>
+<td>Multi-domain benchmark</td>
+<td>1,980 labeled series (20GB)</td>
+<td>Varies by domain</td>
+<td>✅ Yes (comprehensive)</td>
+<td>🟢 <strong>High</strong> - Web server subset</td>
+<td>Comprehensive benchmarking</td>
+</tr>
+<tr class="odd">
+<td><strong>pryshlyak/seasonal_time_series</strong></td>
+<td>Synthetic seasonal</td>
+<td>67,700 points (3 months)</td>
+<td>Strong weekly patterns</td>
+<td>✅ Yes (3 types)</td>
+<td>🟡 Medium - Generic patterns</td>
+<td>Seasonal algorithm development</td>
+</tr>
+<tr class="even">
+<td><strong>patrickfleith/CATS</strong></td>
+<td>Simulated system</td>
+<td>5M points, 17 variables</td>
+<td>Process-driven cycles</td>
+<td>✅ Yes (200 precise)</td>
+<td>🟡 Medium - Multivariate</td>
+<td>Multivariate method testing</td>
+</tr>
+<tr class="odd">
+<td><strong>EDS-lab/electricity-demand</strong></td>
+<td>Smart meters</td>
+<td>Multi-building, hourly</td>
+<td>Daily/weekly/seasonal + weather</td>
+<td>⚠️ No (find natural)</td>
+<td>🟡 Medium - Resource consumption</td>
+<td>Resource usage patterns</td>
+</tr>
+<tr class="even">
+<td><strong>ETDataset/ett</strong></td>
+<td>Electricity transformers</td>
+<td>2 years, 6 variables</td>
+<td>Daily/seasonal + trends</td>
+<td>⚠️ No (predict failures)</td>
+<td>🟡 Medium - Infrastructure</td>
+<td>Multi-timescale patterns</td>
+</tr>
+<tr class="odd">
+<td><strong>openclimatefix/uk_pv</strong></td>
+<td>Solar generation</td>
+<td>30,000+ systems (15 years)</td>
+<td>Daily/seasonal strong</td>
+<td>⚠️ Partial (bad_data.csv)</td>
+<td>🟡 Medium - External impacts</td>
+<td>Large-scale peer comparison</td>
+</tr>
+<tr class="even">
+<td><strong>electricity_load_diagrams</strong></td>
+<td>Grid substations</td>
+<td>320 substations (4 years)</td>
+<td>Daily/weekly/seasonal</td>
+<td>⚠️ No (find operational)</td>
+<td>🟡 Medium - Infrastructure</td>
+<td>Multi-entity monitoring</td>
+</tr>
+<tr class="odd">
+<td><strong>Time-MQA/TSQA</strong></td>
+<td>QA-formatted</td>
+<td>37K anomaly QA pairs</td>
+<td>Varies</td>
+<td>✅ Yes (QA format)</td>
+<td>🟡 Medium - AIOps included</td>
+<td>LLM-based approaches</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Legend:</strong> 🟢 High relevance (direct cloud data or web servers) | 🟡 Medium relevance (analogous resource behavior) | ✅ Labeled | ⚠️ Unlabeled or partial</p>
+<section id="quick-selection-guide" class="level3">
+<h3 class="anchored" data-anchor-id="quick-selection-guide">Quick Selection Guide</h3>
+<p><strong>Need actual cloud data?</strong> → Lemma-RCA-NEC/Cloud_Computing_Original + AutonLab/Timeseries-PILE (web server subset)</p>
+<p><strong>Need labeled anomalies for supervised learning?</strong> → AutonLab/Timeseries-PILE (1,980 series) or patrickfleith/CATS (200 precise labels)</p>
+<p><strong>Developing seasonal anomaly detection?</strong> → pryshlyak/seasonal_time_series (clean weekly patterns) → validate on EDS-lab/electricity-demand</p>
+<p><strong>Testing multivariate methods?</strong> → patrickfleith/CATS (controlled 17-var) → ETDataset/ett (real-world 6-var)</p>
+<p><strong>Need large-scale evaluation?</strong> → openclimatefix/uk_pv (30K+ systems) or electricity_load_diagrams (320 entities)</p>
+<p><strong>Exploring LLM-based detection?</strong> → Time-MQA/TSQA (37K QA pairs with AIOps domain)</p>
+<hr>
+</section>
+</section>
+<section id="detailed-dataset-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="detailed-dataset-analysis">Detailed Dataset Analysis</h2>
+<p><strong>Hugging Face hosts several high-quality datasets suitable for time series anomaly detection modeling analogous to cloud resource usage behavior, though dedicated cloud infrastructure datasets remain limited.</strong> The platform offers a mix of real-world operational data, energy consumption patterns, and purpose-built anomaly detection benchmarks—all exhibiting the seasonality, outliers, and temporal dynamics needed for robust anomaly detection research. The most promising datasets span industrial monitoring, energy systems, and large-scale benchmark collections with labeled anomalies.</p>
+</section>
+<section id="most-relevant-datasets-for-cloud-resource-modeling" class="level2">
+<h2 class="anchored" data-anchor-id="most-relevant-datasets-for-cloud-resource-modeling">Most relevant datasets for cloud resource modeling</h2>
+<p>The datasets below most closely match cloud resource usage patterns with seasonal behavior and labeled anomalies, ordered by relevance to your use case.</p>
+<section id="autonlabtimeseries-pile-comprehensive-multi-domain-benchmark" class="level3">
+<h3 class="anchored" data-anchor-id="autonlabtimeseries-pile-comprehensive-multi-domain-benchmark">AutonLab/Timeseries-PILE: comprehensive multi-domain benchmark</h3>
+<p>This massive collection aggregates 13 million unique time series across 13 domains, specifically designed for foundation model training and evaluation. <strong>The dataset’s TSB-UAD (Time-Series Benchmark for Univariate Anomaly Detection) component contains 1,980 labeled time series from 18 anomaly detection datasets</strong>, making it the most comprehensive anomaly detection resource on Hugging Face.</p>
+<p><strong>Dataset characteristics:</strong> The collection spans 20.085 GB with 1.23 billion timestamps total, including data from healthcare, engineering, finance, environment, and critically, <strong>web servers</strong>—the domain most analogous to cloud infrastructure. The TSB-UAD subset provides both synthetic and real-world anomalies with high variability in types, ratios, and sizes. The dataset also includes the Informer forecasting collection with electricity transformer temperature data, traffic patterns, and weather data—all exhibiting resource-like temporal dynamics.</p>
+<p><strong>Seasonality patterns:</strong> Temporal patterns vary by subdataset but comprehensively cover daily cycles, weekly patterns, and seasonal variations. Web server data within TSB-UAD exhibits usage patterns directly comparable to cloud resources. The electricity and traffic datasets demonstrate clear periodic behavior with load-dependent variations.</p>
+<p><strong>Anomaly types:</strong> The labeled anomalies span point anomalies (sudden spikes), collective anomalies (sustained unusual patterns), and contextual anomalies (unusual given temporal context). These mirror the anomaly types in cloud environments: point anomalies resemble sudden resource spikes, collective anomalies match degraded performance periods, and contextual anomalies reflect unusual usage given time-of-day expectations.</p>
+<p><strong>Why suitable for cloud resource modeling:</strong> Web server metrics inherently parallel cloud resource behavior—both exhibit request-driven load patterns, have clear daily/weekly seasonality from user activity, and experience anomalies from traffic surges, system failures, or external events. The diversity of 18 source datasets prevents overfitting to specific patterns while the large scale (1,980 labeled series) enables robust model training and evaluation.</p>
+<p><strong>Preprocessing considerations:</strong> The dataset comes standardized for the MOMENT foundation model framework but remains accessible via standard tools. Use the TSB-UAD subset specifically for anomaly detection tasks. The data varies in length and amplitude across sources, so normalization by time series is recommended. The collection provides ready-to-use train/test splits, eliminating common temporal leakage issues. <strong>Downloaded 28,200 times</strong>, indicating strong community validation.</p>
+</section>
+<section id="lemma-rca-neccloud_computing_original-real-cloud-platform-data" class="level3">
+<h3 class="anchored" data-anchor-id="lemma-rca-neccloud_computing_original-real-cloud-platform-data">Lemma-RCA-NEC/Cloud_Computing_Original: real cloud platform data</h3>
+<p>This dataset provides actual system metrics and logs from a cloud computing platform with <strong>six real fault types injected across hundreds of system entities</strong>—making it the most directly applicable to cloud resource anomaly detection on Hugging Face.</p>
+<p><strong>Dataset characteristics:</strong> The data comes in JSON format containing both system metrics (performance measurements) and logs (event data) from a production cloud computing environment. The dataset captures real operational conditions with hundreds of interconnected system entities, reflecting the complexity of actual cloud infrastructure. While the exact size isn’t specified, the multimodal nature (metrics + logs) provides rich context for anomaly detection.</p>
+<p><strong>Fault types labeled:</strong> The dataset includes six critical cloud failure modes: cryptojacking (unauthorized resource usage), silent pod degradation (gradual performance decay), malware attacks, GitOps mistakes (configuration errors), configuration change failures, and bug infections. <strong>These represent real-world cloud anomalies</strong> spanning security breaches, performance degradation, and operational errors—precisely the types of inefficiencies and external impacts relevant to your use case.</p>
+<p><strong>Seasonality patterns:</strong> Cloud computing platforms naturally exhibit strong temporal patterns from user activity. Workloads typically show pronounced daily cycles (business hours vs.&nbsp;night), weekly patterns (weekday vs.&nbsp;weekend usage), and potential seasonal variations from business cycles or world events. The time-series format with timestamps enables analysis of these periodic patterns.</p>
+<p><strong>Why suitable:</strong> This dataset directly addresses the cloud resource use case unlike other datasets that require analogy. The fault types mirror real cloud anomalies: cryptojacking represents inefficient resource usage, pod degradation shows performance issues, and the others reflect external impacts from attacks or human errors. The multi-entity structure parallels distributed cloud architectures with many interconnected services.</p>
+<p><strong>Preprocessing considerations:</strong> The JSON format requires parsing into time-series structure. Given hundreds of entities, feature selection or dimensionality reduction may be necessary. The dataset is designed for Root Cause Analysis (RCA), providing attribution for which entities are affected by each fault—valuable for understanding anomaly propagation in distributed systems. Note the CC-BY-ND-4.0 license restricts derivative works. The dataset viewer has errors, so programmatic access via the datasets library is recommended.</p>
+</section>
+<section id="pryshlyakseasonal_time_series_for_anomaly_detection-explicit-seasonality-focus" class="level3">
+<h3 class="anchored" data-anchor-id="pryshlyakseasonal_time_series_for_anomaly_detection-explicit-seasonality-focus">pryshlyak/seasonal_time_series_for_anomaly_detection: explicit seasonality focus</h3>
+<p><strong>This dataset was explicitly designed for seasonal anomaly detection</strong>, making it ideal for developing and testing algorithms that leverage periodic patterns. Based on the Numenta Anomaly Benchmark but restructured to emphasize weekly seasonality, it provides clean labeled data for methodical algorithm development.</p>
+<p><strong>Dataset characteristics:</strong> The dataset contains 67,700 rows with 5-minute sampling intervals spanning three months. <strong>Data is organized by day of week</strong> (seven separate CSVs for Monday-Sunday with 3,745 rows each) plus weekly aggregations (2,017 rows each). This structure directly supports periodicity-based anomaly detection approaches. The format is minimal—timestamp and value columns only—keeping focus on temporal patterns.</p>
+<p><strong>Seasonality patterns:</strong> The dataset exhibits <strong>strong weekly periodicity</strong> with distinct patterns for each weekday, directly analogous to cloud resources that experience different usage on weekdays versus weekends. The 5-minute granularity captures intra-day variations like morning startup, lunch dips, and evening shutdowns common in business applications. The three-month span covers sufficient cycles for learning robust seasonal patterns.</p>
+<p><strong>Anomaly characteristics:</strong> Training data includes seven weekday files and one normal week file with no anomalies—ideal for unsupervised learning. Testing data contains three types: <strong>collective anomaly downward</strong> (Monday file, like sustained performance degradation), <strong>collective anomaly upward</strong> (Wednesday file, like traffic surge), and <strong>point anomaly</strong> (Saturday file, like sudden spike). These anomaly types directly map to cloud resource scenarios: downward collective anomalies represent underutilization or failures, upward anomalies represent unusual demand, and point anomalies represent isolated incidents.</p>
+<p><strong>Why suitable:</strong> The explicit seasonal structure mirrors cloud workloads where different days exhibit different patterns—weekday business traffic differs from weekend consumer traffic. The clean separation of training (normal) and testing (anomalous) data supports supervised, semi-supervised, and unsupervised approaches. The dataset’s design for auto-encoder training generalizes to any anomaly detection technique exploiting periodicity.</p>
+<p><strong>Preprocessing considerations:</strong> Data is pre-cleaned with no missing values and positive-only values. The day-of-week split enables training separate models per period—the thesis approach—or pooling for general models. Timestamps are artificial (January-March 2024) so absolute dates don’t matter, only relative temporal positions. <strong>Best for developing seasonal algorithms</strong> before applying to messier real-world data. Consider this a controlled environment for algorithm validation.</p>
+</section>
+<section id="patrickfleithcontrolled-anomalies-time-series-dataset-cats-multivariate-precision" class="level3">
+<h3 class="anchored" data-anchor-id="patrickfleithcontrolled-anomalies-time-series-dataset-cats-multivariate-precision">patrickfleith/controlled-anomalies-time-series-dataset (CATS): multivariate precision</h3>
+<p>For researchers needing multivariate anomaly detection with precise ground truth, CATS provides <strong>200 exactly labeled anomalies across 17 variables in a 5-million-point simulated system</strong>—offering unprecedented control for rigorous algorithm evaluation.</p>
+<p><strong>Dataset characteristics:</strong> CATS simulates a complex dynamical system (analogous to industrial control systems or building management) with <strong>17 variables</strong> split into 4 control commands, 3 environmental stimuli, and 10 telemetry readings (temperature, pressure, voltage, current, position, velocity, acceleration, humidity). The 1Hz sampling rate provides second-by-second resolution over an extended operational period. The first 1 million points contain only nominal behavior (ideal for unsupervised training), while the next 4 million mix normal and anomalous segments.</p>
+<p><strong>Seasonality patterns:</strong> The simulated system exhibits operational cycles from the control logic and environmental interactions—periodic patterns from processes like heating/cooling cycles, position movements, or state machines. While not traditional daily/weekly seasonality, these represent the <strong>process-driven periodicity</strong> found in automated systems, directly relevant to auto-scaling cloud resources or scheduled batch jobs.</p>
+<p><strong>Anomaly characteristics:</strong> All 200 anomalies include precise metadata: exact start/end times, root cause channel, affected channels, and anomaly category. <strong>This eliminates the ground truth ambiguity</strong> plaguing many benchmark datasets. The anomalies have controlled injection, meaning researchers can isolate algorithm performance from data quality issues. Metadata supports root cause analysis—identifying not just that an anomaly occurred but which variable caused it and which variables were affected.</p>
+<p><strong>Why suitable for cloud modeling:</strong> Modern cloud environments are increasingly multivariate—CPU, memory, network, disk I/O, latency, and error rates all interact. CATS’s multivariate structure with known dependencies mirrors this. The control commands parallel API calls or configuration changes that affect system state. Environmental stimuli represent external load or conditions. Telemetry readings parallel observability metrics. The <strong>pure signal with no noise</strong> provides a baseline; researchers can add custom noise levels to test robustness—valuable for understanding algorithm behavior under varying data quality.</p>
+<p><strong>Preprocessing considerations:</strong> The dataset is pristine with no missing data—unrealistic for production but perfect for controlled experiments. Add synthetic noise or missing data windows to test real-world resilience. The root cause labels enable evaluation of not just detection but attribution algorithms. Use the first 1 million points for semi-supervised approaches (novelty detection) or include contamination for unsupervised scenarios. The multivariate nature requires techniques handling variable interactions—VAE, LSTM-VAE, or graph neural networks.</p>
+</section>
+</section>
+<section id="energy-and-resource-utilization-datasets" class="level2">
+<h2 class="anchored" data-anchor-id="energy-and-resource-utilization-datasets">Energy and resource utilization datasets</h2>
+<p>These datasets from energy domains provide excellent analogs to cloud resources given their strong seasonality, resource-like behavior, and operational monitoring nature.</p>
+<section id="eds-labelectricity-demand-multivariate-smart-meter-data" class="level3">
+<h3 class="anchored" data-anchor-id="eds-labelectricity-demand-multivariate-smart-meter-data">EDS-lab/electricity-demand: multivariate smart meter data</h3>
+<p>Smart meter electricity consumption closely parallels cloud resource consumption—both represent resource usage over time, exhibit strong temporal patterns, and experience demand variations from user behavior and external conditions.</p>
+<p><strong>Dataset characteristics:</strong> This harmonized collection aggregates multiple smart meter datasets with hourly sampling across residential and commercial buildings. The data comes in three components: demand.parquet (consumption time series with unique_id, timestamp, y in kWh), metadata.parquet (building_class, cluster_size, location), and weather.parquet (<strong>25+ weather variables</strong> including temperature, humidity, precipitation, solar radiation, wind speed). The multi-building structure provides numerous parallel time series for comparative analysis.</p>
+<p><strong>Seasonality patterns:</strong> Electricity demand shows pronounced patterns directly analogous to cloud resources. <strong>Daily cycles</strong> reflect business hours for commercial buildings or home activity for residential—matching cloud application usage. <strong>Weekly cycles</strong> distinguish weekdays from weekends—mirroring reduced weekend traffic for business applications. <strong>Seasonal variations</strong> from heating/cooling loads parallel seasonal e-commerce patterns (holiday shopping) or tax season spikes. The strong correlation with weather (temperature especially) demonstrates how external factors drive consumption—just as world events or viral content drive cloud traffic.</p>
+<p><strong>Anomaly opportunities:</strong> While unlabeled, natural anomalies abound: equipment malfunctions (sudden drops or spikes), unusual consumption (vacant building with high usage suggesting waste), meter reading errors (negative values or impossibly high readings), or <strong>weather-adjusted anomalies</strong> (high usage on mild day). The weather covariates enable sophisticated contextual anomaly detection—flagging consumption unusual for the conditions, analogous to detecting high cloud resource usage during low user activity periods.</p>
+<p><strong>Why suitable:</strong> The parallels are strong: both are resource consumption metrics with strong time-of-day/day-of-week patterns, both have a “correct” expected baseline with deviations indicating issues, both are influenced by external factors (weather vs.&nbsp;user behavior), and both seek to identify inefficient usage. The building metadata enables clustering similar usage profiles—like grouping similar microservices or customer workloads.</p>
+<p><strong>Preprocessing for anomaly detection:</strong> The rich weather covariates suggest multivariate anomaly detection incorporating context. Normalize consumption by building capacity or size for fair comparison. Use the multiple buildings for peer-comparison approaches—flagging buildings as anomalous if they deviate from similar buildings. The location data enables spatial analysis. <strong>Test algorithms for weather-adjusted anomaly detection</strong>—a valuable capability for cloud resources when expected load varies by time or external factors. Licensed under BSD 3-clause for flexible use.</p>
+</section>
+<section id="etdatasetett-electricity-transformer-temperature" class="level3">
+<h3 class="anchored" data-anchor-id="etdatasetett-electricity-transformer-temperature">ETDataset/ett: electricity transformer temperature</h3>
+<p>This dataset provides <strong>2 years of electricity transformer operational data</strong> from critical infrastructure—equipment failure here has severe consequences, making anomaly detection crucial.</p>
+<p><strong>Dataset characteristics:</strong> Four variants (ETT-h1, ETT-h2, ETT-m1, ETT-m2) from two transformers at two stations provide both hourly (17,520 points) and 15-minute (70,080 points) resolution data spanning 2016-2018. The target variable is Oil Temperature (OT), a critical safety indicator—overheating damages transformers. Six load features provide context: High/Middle/Low UseFul Load and High/Middle/Low UseLess Load, capturing the transformer’s operating conditions.</p>
+<p><strong>Seasonality patterns:</strong> The dataset explicitly exhibits <strong>short-term periodical patterns</strong> (daily load cycles from grid usage), <strong>long-term periodical patterns</strong> (seasonal variations from weather-dependent demand), <strong>long-term trends</strong> (equipment aging/degradation), and <strong>complex irregular patterns</strong>. This combination of pattern types makes it excellent for testing robust algorithms that must handle multiple timescales—exactly the challenge in cloud resources with daily patterns, weekly patterns, and long-term growth trends.</p>
+<p><strong>Anomaly detection value:</strong> Oil temperature anomalies indicate transformer malfunction risk—overheating from excess load, cooling system failure, or internal electrical issues. These parallel cloud resource anomalies: excess load, insufficient capacity, or component failures. <strong>False predictions can damage equipment</strong>—the same high-stakes environment as cloud anomaly detection where false alarms cause alert fatigue and missed detections cause outages.</p>
+<p><strong>Why suitable:</strong> The load features + temperature structure mirrors cloud metrics (CPU/memory/network load + response time/error rate). Both domains involve resource allocation, capacity planning, and failure prevention. The multi-transformer setup provides multiple parallel series for comparative analysis. The predictive maintenance application—detecting issues before failure—directly parallels cloud workload management.</p>
+<p><strong>Preprocessing considerations:</strong> Pre-split into train/val/test (12/4/4 months) for consistent evaluation. The multivariate structure (6 load features + temperature) enables testing correlation-based anomaly detection—flagging temperature unusual given load conditions. The 15-minute variants provide higher resolution for detecting rapid-onset anomalies. Use the long-term trends to test algorithms robust to non-stationarity. <strong>Well-documented and widely used</strong> in time series research (from the Informer paper), ensuring reproducibility. CC-BY-4.0 license.</p>
+</section>
+<section id="openclimatefixuk_pv-large-scale-solar-generation" class="level3">
+<h3 class="anchored" data-anchor-id="openclimatefixuk_pv-large-scale-solar-generation">openclimatefix/uk_pv: large-scale solar generation</h3>
+<p>With <strong>over 30,000 solar PV systems tracked from 2010-2025</strong>, this dataset provides exceptional scale for anomaly detection research, plus partial ground truth via labeled bad data periods.</p>
+<p><strong>Dataset characteristics:</strong> The dataset covers 15 years of domestic solar installations across Great Britain with two resolution levels: 30-minute intervals (30,000+ systems, high quality cumulative energy) and 5-minute intervals (1,309 systems, instantaneous but noisy). Systems range from 0.47 kW to 250 kW capacity. Metadata includes latitude/longitude, panel orientation, tilt angle, and capacity. Critically, <strong>bad_data.csv identifies known periods of data quality issues</strong>—providing partial ground truth for anomaly detection evaluation.</p>
+<p><strong>Seasonality patterns:</strong> Solar generation exhibits the strongest possible seasonal patterns: <strong>zero nighttime generation</strong>, <strong>predictable daily curves</strong> (sunrise ramp, midday peak, sunset decline), <strong>seasonal variation</strong> (long summer days, short winter days), and <strong>weather dependency</strong> (cloud cover causes rapid generation drops). Geographic spread across Britain provides diverse weather patterns. These characteristics parallel cloud resources with predictable baseline patterns disrupted by external events—like solar generation disrupted by clouds, cloud resources are disrupted by traffic events.</p>
+<p><strong>Anomaly characteristics:</strong> The bad_data.csv provides labeled anomalies including: equipment malfunctions, negative generation values (sensor errors), excessive values (&gt;750× capacity, clearly impossible), nighttime generation (indicates clock errors), and zero generation during sunny periods (equipment failure). Beyond these labeled cases, natural unlabeled anomalies exist from inverter failures, panel degradation, shading issues, and soiling (dirt reducing output).</p>
+<p><strong>Why suitable:</strong> The massive scale (30,000+ systems) enables testing at cloud-scale where thousands of services or instances require monitoring. The partial ground truth balances labeled data for validation with unlabeled realistic data for unsupervised approaches. The geospatial dimension enables peer-comparison anomaly detection—flagging systems underperforming compared to nearby systems with similar conditions. The <strong>real-world messiness</strong> (missing data, quality issues) mirrors production cloud data.</p>
+<p><strong>Preprocessing considerations:</strong> Extensive data cleaning guidance is provided. Use bad_data.csv as ground truth test set. Normalize generation by kWp capacity for fair comparison across system sizes. The location data enables clustering by geographic region or weather patterns. Handle missing midnight readings and gaps documented in the dataset. The 5-minute data is noisy—test algorithm robustness to noise. <strong>Gated dataset</strong> requiring access approval, but readily granted for research. DOI: 10.57967/hf/0878.</p>
+</section>
+<section id="electricity_load_diagrams-substation-monitoring" class="level3">
+<h3 class="anchored" data-anchor-id="electricity_load_diagrams-substation-monitoring">electricity_load_diagrams: substation monitoring</h3>
+<p>This dataset provides <strong>4 years of Portuguese electricity grid substation data</strong> with 370 substations sampled every 15 minutes—a scale and operational focus directly relevant to infrastructure monitoring.</p>
+<p><strong>Dataset characteristics:</strong> Originally 15-minute sampling resampled to hourly, spanning 2011-2014. The LSTNet benchmark configuration uses 320 substations active during 2012-2014, providing consistent time series for algorithm comparison. The data captures actual grid load in kW across a national electricity system—critical infrastructure where anomalies indicate equipment issues, unexpected demand, or grid instability.</p>
+<p><strong>Seasonality patterns:</strong> Electricity grid load exhibits textbook periodicity: <strong>24-hour daily cycles</strong> (morning ramp-up, evening peak, overnight minimum), <strong>weekly patterns</strong> (weekday business/industrial load vs.&nbsp;weekend residential-dominated load), and <strong>seasonal variations</strong> (summer air conditioning, winter heating). These patterns mirror cloud infrastructure serving business applications with clear usage rhythms.</p>
+<p><strong>Anomaly opportunities:</strong> Though unlabeled, natural anomalies include equipment failures (sudden drops), unexpected demand (unusual spikes), grid instability (rapid fluctuations), or seasonal anomalies (unusual load for the weather). The dataset documents known quirks: daylight saving time transitions create 23-hour days (March) and 25-hour days (October)—realistic complications that anomaly detectors must handle. <strong>No missing values</strong> simplifies initial development.</p>
+<p><strong>Why suitable:</strong> Multiple substations enable comparative anomaly detection—identifying substations behaving differently from peers. The hourly resolution matches common cloud metric collection intervals. The 4-year span covers sufficient seasonal cycles for learning robust patterns. The infrastructure monitoring domain parallels cloud monitoring—both involve critical systems requiring high availability where anomalies indicate serious issues.</p>
+<p><strong>Preprocessing considerations:</strong> Account for daylight saving transitions where March has zeros 1-2am (23 hours) and October aggregates 1-2am (25 hours). The resampling to hourly from 15-minute data smooths some noise but may miss rapid anomalies—consider accessing original 15-minute data if available. Use the LSTNet configuration (320 substations, 2012-2014) for benchmark comparison. The dataset is clean and well-documented, used in multiple research papers for validation. Source: UCI Machine Learning Repository.</p>
+</section>
+</section>
+<section id="specialized-and-qa-format-datasets" class="level2">
+<h2 class="anchored" data-anchor-id="specialized-and-qa-format-datasets">Specialized and QA-format datasets</h2>
+<section id="time-mqatsqa-llm-based-anomaly-detection" class="level3">
+<h3 class="anchored" data-anchor-id="time-mqatsqa-llm-based-anomaly-detection">Time-MQA/TSQA: LLM-based anomaly detection</h3>
+<p>This unique dataset reformulates time series tasks as question-answering pairs, enabling LLM-based approaches to anomaly detection—a frontier research direction.</p>
+<p><strong>Dataset characteristics:</strong> Approximately 200,000 QA pairs across 12 real-world domains with <strong>37,000 instances specifically for anomaly detection</strong>. The dataset includes healthcare (EEG, ECG), finance, energy, IoT, environment, transport, web traffic, and critically <strong>AIOps (cloud monitoring)</strong> domain. Multiple formats are provided: 6,919 true/false questions, 11,281 multiple-choice questions, and 12,510 open-ended questions. Pre-trained models are available (Mistral 7B, Qwen-2.5 7B, Llama-3 8B).</p>
+<p><strong>Why relevant:</strong> The AIOps domain explicitly includes cloud monitoring data formatted for question answering. This enables approaches where models reason about time series rather than just pattern-match—answering questions like “Is this usage pattern anomalous given it’s Monday morning?” or “What caused this traffic spike?” The multi-task format (forecasting, imputation, anomaly detection, classification, open-ended reasoning) enables transfer learning where representations learned from one task improve others.</p>
+<p><strong>Use case:</strong> For researchers exploring LLM-based anomaly detection or multi-task time series models, this provides ready-to-use training data. The context enhancement (auxiliary textual descriptions) helps models understand domain semantics—e.g., explaining that Monday mornings typically have high traffic helps contextual anomaly detection. <strong>Downloaded 262 times</strong> despite recent publication (ACL 2025), indicating strong interest.</p>
+<p><strong>Preprocessing considerations:</strong> The QA format requires different architectures than traditional time series models—use sequence-to-sequence models or LLMs fine-tuned on time series. The dataset is designed for continued pre-training of foundation models. Consider how to convert raw time series into this format if generating additional training data. The multiple-choice and true/false formats enable classification-based evaluation.</p>
+</section>
+</section>
+<section id="dataset-selection-guidance" class="level2">
+<h2 class="anchored" data-anchor-id="dataset-selection-guidance">Dataset selection guidance</h2>
+<section id="for-researchers-prioritizing-real-cloud-infrastructure-data" class="level3">
+<h3 class="anchored" data-anchor-id="for-researchers-prioritizing-real-cloud-infrastructure-data">For researchers prioritizing real cloud infrastructure data</h3>
+<p><strong>Primary choice:</strong> Lemma-RCA-NEC/Cloud_Computing_Original provides actual cloud platform metrics with real fault types, though limited documentation requires hands-on exploration. Supplement with AutonLab/Timeseries-PILE’s web server data for additional cloud-analogous patterns.</p>
+</section>
+<section id="for-algorithm-development-emphasizing-seasonality" class="level3">
+<h3 class="anchored" data-anchor-id="for-algorithm-development-emphasizing-seasonality">For algorithm development emphasizing seasonality</h3>
+<p><strong>Primary choice:</strong> pryshlyak/seasonal_time_series_for_anomaly_detection offers clean, explicitly seasonal data ideal for developing and validating periodicity-based algorithms. Once proven on this controlled dataset, test on messier real-world data like EDS-lab/electricity-demand or electricity_load_diagrams.</p>
+</section>
+<section id="for-comprehensive-benchmarking" class="level3">
+<h3 class="anchored" data-anchor-id="for-comprehensive-benchmarking">For comprehensive benchmarking</h3>
+<p><strong>Primary choice:</strong> AutonLab/Timeseries-PILE provides the most extensive benchmark with 1,980 labeled anomaly time series from 18 datasets. The TSB-UAD subset specifically addresses dataset quality issues plaguing older benchmarks. Use this for broad evaluation across diverse patterns and anomaly types.</p>
+</section>
+<section id="for-multivariate-anomaly-detection-research" class="level3">
+<h3 class="anchored" data-anchor-id="for-multivariate-anomaly-detection-research">For multivariate anomaly detection research</h3>
+<p><strong>Primary choice:</strong> patrickfleith/controlled-anomalies-time-series-dataset (CATS) offers 17 variables with precise root cause labels—ideal for developing and testing multivariate algorithms. Follow with ETDataset/ett for real-world multivariate data at scale.</p>
+</section>
+<section id="for-large-scale-evaluation" class="level3">
+<h3 class="anchored" data-anchor-id="for-large-scale-evaluation">For large-scale evaluation</h3>
+<p><strong>Primary choice:</strong> openclimatefix/uk_pv with 30,000+ systems tests algorithmic scalability and peer-comparison approaches. Alternatively, electricity_load_diagrams with 320 substations provides a smaller but still substantial multi-entity dataset.</p>
+</section>
+</section>
+<section id="key-preprocessing-considerations-across-datasets" class="level2">
+<h2 class="anchored" data-anchor-id="key-preprocessing-considerations-across-datasets">Key preprocessing considerations across datasets</h2>
+<section id="normalization-approaches" class="level3">
+<h3 class="anchored" data-anchor-id="normalization-approaches">Normalization approaches</h3>
+<p>Most datasets benefit from per-time-series normalization (z-score standardization) to account for different scales—one building’s 10 kW load differs from another’s 1000 kW load, but both may show similar relative patterns. For datasets with metadata (capacity, size), consider normalizing by these physical properties. For multivariate datasets like CATS or ETT, normalize each variable independently to prevent high-magnitude variables dominating.</p>
+</section>
+<section id="handling-seasonality" class="level3">
+<h3 class="anchored" data-anchor-id="handling-seasonality">Handling seasonality</h3>
+<p>Algorithms exploiting seasonality require sufficient cycles for learning—at least 2-3 complete periods. For daily patterns, 2-3 days suffices; for weekly patterns, 2-3 weeks; for seasonal patterns, 1-2 years. Use techniques like seasonal decomposition (STL) to explicitly model and remove seasonality, with residuals analyzed for anomalies. Alternatively, use day-of-week and hour-of-day encodings as features. The pryshlyak dataset’s pre-split by weekday demonstrates one approach.</p>
+</section>
+<section id="traintest-splitting" class="level3">
+<h3 class="anchored" data-anchor-id="traintest-splitting">Train/test splitting</h3>
+<p><strong>Always use temporal splits</strong>, not random splits—time series have temporal dependencies making random splits leak information. The typical split is chronological: first 60-70% training, remaining testing. Ensure training data precedes test data temporally. For semi-supervised approaches, training should contain only normal data (or &lt;5% contamination). For unsupervised approaches, training may include realistic anomaly rates.</p>
+</section>
+<section id="missing-data-strategies" class="level3">
+<h3 class="anchored" data-anchor-id="missing-data-strategies">Missing data strategies</h3>
+<p>Real-world datasets like openclimatefix/uk_pv have missing readings common in production. Strategies include: forward-fill for short gaps (carry last valid value), interpolation for medium gaps (linear or spline), masking and imputation modeling for long gaps, or excluding time series with excessive missingness. Test algorithm robustness to missing data patterns. CATS’s completeness provides a baseline; add synthetic gaps to test handling.</p>
+</section>
+<section id="dealing-with-unlabeled-data" class="level3">
+<h3 class="anchored" data-anchor-id="dealing-with-unlabeled-data">Dealing with unlabeled data</h3>
+<p>Most energy and resource datasets lack anomaly labels—use these for unsupervised approaches (isolation forest, LOF, autoencoders) or semi-supervised approaches (one-class SVM, VAE). Alternatively, use domain knowledge to label obvious anomalies (e.g., negative electricity generation, usage 10× typical) or leverage labeled datasets for training with transfer learning to unlabeled domains.</p>
+</section>
+<section id="window-size-selection" class="level3">
+<h3 class="anchored" data-anchor-id="window-size-selection">Window size selection</h3>
+<p>Sliding window approaches are common—window size should capture complete patterns. For detecting daily anomalies, use 24-hour windows (24 points for hourly data). For point anomalies, smaller windows (10-50 points) suffice. For collective anomalies spanning hours or days, larger windows (100-500 points) are needed. The ETT dataset’s dual 15-minute and hourly resolution enables testing different granularities.</p>
+</section>
+</section>
+<section id="important-gaps-and-limitations" class="level2">
+<h2 class="anchored" data-anchor-id="important-gaps-and-limitations">Important gaps and limitations</h2>
+<section id="limited-dedicated-cloud-resource-datasets" class="level3">
+<h3 class="anchored" data-anchor-id="limited-dedicated-cloud-resource-datasets">Limited dedicated cloud resource datasets</h3>
+<p>Despite the strong need, <strong>comprehensive multi-metric cloud resource datasets (CPU + memory + network + disk I/O combined) are scarce on Hugging Face</strong>. Researchers must rely on analogous domains (energy, industrial) or the single Lemma-RCA-NEC cloud dataset with limited documentation. Classic benchmarks like SMD (Server Machine Dataset) and PSM (Pooled Server Metrics) are not on Hugging Face, requiring GitHub or Kaggle sources.</p>
+</section>
+<section id="seasonality-documentation-sparse" class="level3">
+<h3 class="anchored" data-anchor-id="seasonality-documentation-sparse">Seasonality documentation sparse</h3>
+<p>Few datasets explicitly document seasonal patterns beyond pryshlyak’s dataset. Researchers must analyze other datasets to confirm periodicity presence and characteristics—EDS-lab and openclimatefix note seasonality in descriptions, but specific period strengths aren’t quantified. Consider exploratory analysis (autocorrelation, FFT) before selecting datasets for seasonal algorithm development.</p>
+</section>
+<section id="classic-benchmarks-absent" class="level3">
+<h3 class="anchored" data-anchor-id="classic-benchmarks-absent">Classic benchmarks absent</h3>
+<p>Widely-cited benchmarks like NAB, Yahoo S5, SMAP/MSL, SWaT, WADI are <strong>not directly available on Hugging Face</strong>—they exist on GitHub, via direct access requests, or through aggregations like Timeseries-PILE. Researchers wanting these specific datasets must obtain them separately, though Timeseries-PILE includes many in processed form.</p>
+</section>
+<section id="synthetic-vs.-real-world-tradeoff" class="level3">
+<h3 class="anchored" data-anchor-id="synthetic-vs.-real-world-tradeoff">Synthetic vs.&nbsp;real-world tradeoff</h3>
+<p>Datasets with cleanest labels and strongest seasonality (pryshlyak, CATS) are <strong>synthetic or simulated</strong>—they lack real-world messiness. Real-world datasets (electricity-demand, uk_pv, cloud_computing) have authentic complexity but limited or no labels and sparse documentation. Choose based on research stage: controlled synthetic for algorithm development, messy real-world for validation.</p>
+</section>
+<section id="dataset-quality-concerns" class="level3">
+<h3 class="anchored" data-anchor-id="dataset-quality-concerns">Dataset quality concerns</h3>
+<p>Recent research (Wu &amp; Keogh 2020, Liu &amp; Paparrizos 2024) identified serious quality issues in traditional anomaly detection benchmarks: anomalies too obvious, unrealistic anomaly densities, mislabeled ground truth, and run-to-failure bias. The TSB-UAD and CATS datasets specifically address these concerns with careful curation and precise injection, respectively—prioritize these for rigorous evaluation over less-validated datasets.</p>
+</section>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
+<p>Hugging Face hosts several strong options for time series anomaly detection research applicable to cloud resource monitoring, though direct cloud datasets remain limited. <strong>AutonLab/Timeseries-PILE provides the most comprehensive starting point</strong> with 1,980 labeled anomaly time series including web server data, while <strong>Lemma-RCA-NEC/Cloud_Computing_Original offers the most direct cloud infrastructure data</strong> despite documentation gaps. For algorithm development, <strong>pryshlyak/seasonal_time_series_for_anomaly_detection delivers explicit seasonality</strong> in a clean format, and <strong>patrickfleith/controlled-anomalies-time-series-dataset enables rigorous multivariate evaluation</strong> with precise ground truth.</p>
+<p>Energy domain datasets (EDS-lab/electricity-demand, ETDataset/ett, openclimatefix/uk_pv, electricity_load_diagrams) provide excellent analogs given their resource-like behavior, strong seasonality, and operational monitoring nature—the temporal patterns, external influences, and efficiency concerns directly parallel cloud resources. Combined with the benchmark collections, researchers have sufficient variety to develop, validate, and test anomaly detection algorithms for cloud-analogous time series before deploying to production cloud environments. The datasets span scales from controlled 67k-row experiments to massive 30,000-system deployments, enabling research at multiple stages from proof-of-concept to production readiness.</p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/nehalecky\.github\.io\/cloud-resource-simulator");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>Built with <a href="https://quarto.org/">Quarto</a></p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/nehalecky/cloud-resource-simulator/edit/main/concepts/research/timeseries-anomaly-datasets-review.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/nehalecky/cloud-resource-simulator/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>© 2025 Cloud Resource Simulator</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

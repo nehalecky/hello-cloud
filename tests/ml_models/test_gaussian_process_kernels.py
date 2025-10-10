@@ -11,7 +11,7 @@ Validates CompositePeriodicKernel behavior including:
 
 import pytest
 import torch
-from cloudlens.ml_models.gaussian_process.kernels import CompositePeriodicKernel
+from hellocloud.ml_models.gaussian_process.kernels import CompositePeriodicKernel
 
 
 class TestCompositePeriodicKernel:

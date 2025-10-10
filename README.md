@@ -1,10 +1,10 @@
-# CloudLens
+# Hello Cloud
 
-Analytics platform for cloud resource usage and cost optimization.
+Hands-on exploration of cloud resource usage and cost optimization.
 
-Covers workload characterization, cost analysis, time series modeling, forecasting, and anomaly detection.
+Workload characterization • Cost analysis • Time series forecasting • Anomaly detection
 
-Built on Ibis+DuckDB (local) with PySpark compatibility (scale).
+Ibis+DuckDB (local) • PySpark (scale)
 
 ## Installation
 
@@ -13,8 +13,8 @@ Built on Ibis+DuckDB (local) with PySpark compatibility (scale).
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone repository
-git clone https://github.com/nehalecky/cloudlens.git
-cd cloudlens
+git clone https://github.com/nehalecky/hello-cloud.git
+cd hello-cloud
 
 # Install dependencies
 uv sync --all-extras
@@ -27,7 +27,7 @@ uv sync --all-extras
 ```python
 import ibis
 from ibis import _
-from cloudlens.utils import attribute_analysis, grain_discovery
+from hellocloud.utils import attribute_analysis, grain_discovery
 
 # Connect to billing data
 con = ibis.duckdb.connect()
@@ -60,7 +60,7 @@ entity_ts = (
 )
 
 # Forecast with GP model (requires GPU extras)
-from cloudlens.ml_models.gaussian_process import SparseGPModel
+from hellocloud.ml_models.gaussian_process import SparseGPModel
 model = SparseGPModel()
 predictions = model.forecast(entity_ts, horizon=30)
 ```
@@ -83,8 +83,8 @@ See [`docs/`](docs/) for:
 ## Project Structure
 
 ```
-cloudlens/
-├── src/cloudlens/          # Source code
+hello-cloud/
+├── src/hellocloud/         # Source code
 │   ├── utils/              # EDA and analysis utilities
 │   ├── etl/                # Data loaders (CloudZero, Alibaba traces)
 │   └── ml_models/          # Time series models (GP, PyMC)
@@ -97,7 +97,7 @@ cloudlens/
 
 ```bash
 # Run tests
-uv run pytest tests/ -v --cov=src/cloudlens
+uv run pytest tests/ -v --cov=src/hellocloud
 
 # Format code
 uv run black src/ tests/

@@ -541,195 +541,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cloud-resource-simulator"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "altair" },
-    { name = "arviz" },
-    { name = "datasets" },
-    { name = "duckdb" },
-    { name = "faker" },
-    { name = "huggingface-hub" },
-    { name = "ibis-framework", extra = ["duckdb"] },
-    { name = "ipykernel" },
-    { name = "loguru" },
-    { name = "matplotlib" },
-    { name = "nbconvert" },
-    { name = "numpy" },
-    { name = "polars" },
-    { name = "pyarrow" },
-    { name = "pydantic" },
-    { name = "pymc" },
-    { name = "pytensor" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-    { name = "seaborn" },
-]
-
-[package.optional-dependencies]
-all = [
-    { name = "altair" },
-    { name = "black" },
-    { name = "gpytorch" },
-    { name = "griffe" },
-    { name = "ipykernel" },
-    { name = "ipython" },
-    { name = "ipywidgets" },
-    { name = "jupyter-cache" },
-    { name = "jupyterlab" },
-    { name = "jupytext" },
-    { name = "mypy" },
-    { name = "myst-nb" },
-    { name = "myst-parser" },
-    { name = "nbconvert" },
-    { name = "notebook" },
-    { name = "plotly" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-    { name = "quartodoc" },
-    { name = "ruff" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-    { name = "seaborn" },
-    { name = "statsmodels" },
-    { name = "torch" },
-]
-dev = [
-    { name = "black" },
-    { name = "ipykernel" },
-    { name = "jupytext" },
-    { name = "mypy" },
-    { name = "myst-nb" },
-    { name = "myst-parser" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-    { name = "ruff" },
-]
-docs = [
-    { name = "altair" },
-    { name = "griffe" },
-    { name = "jupyter-cache" },
-    { name = "myst-parser" },
-    { name = "plotly" },
-    { name = "quartodoc" },
-]
-gpu = [
-    { name = "gpytorch" },
-    { name = "torch" },
-]
-research = [
-    { name = "ipython" },
-    { name = "ipywidgets" },
-    { name = "jupyterlab" },
-    { name = "jupytext" },
-    { name = "nbconvert" },
-    { name = "notebook" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-    { name = "seaborn" },
-    { name = "statsmodels" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "black" },
-    { name = "jupytext" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "toml" },
-]
-docs = [
-    { name = "altair" },
-    { name = "griffe" },
-    { name = "jupyter-cache" },
-    { name = "myst-parser" },
-    { name = "plotly" },
-    { name = "quartodoc" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "altair", specifier = ">=5.0.0" },
-    { name = "altair", marker = "extra == 'docs'", specifier = ">=5.0.0" },
-    { name = "arviz", specifier = ">=0.17.0" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
-    { name = "cloud-resource-simulator", extras = ["dev", "docs", "research", "gpu", "foundation"], marker = "extra == 'all'" },
-    { name = "datasets", specifier = ">=2.14.0" },
-    { name = "duckdb", specifier = ">=1.1.0,<1.2.0" },
-    { name = "faker", specifier = ">=20.0.0" },
-    { name = "gpytorch", marker = "extra == 'gpu'", specifier = ">=1.11.0" },
-    { name = "griffe", marker = "extra == 'docs'", specifier = ">=0.48.0" },
-    { name = "huggingface-hub", specifier = ">=0.19.0" },
-    { name = "ibis-framework", extras = ["duckdb"], specifier = ">=10.8.0" },
-    { name = "ipykernel", specifier = ">=6.30.1" },
-    { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=6.25.0" },
-    { name = "ipython", marker = "extra == 'research'", specifier = ">=8.0.0" },
-    { name = "ipywidgets", marker = "extra == 'research'", specifier = ">=8.1.0" },
-    { name = "jupyter-cache", marker = "extra == 'docs'", specifier = ">=1.0.0" },
-    { name = "jupyterlab", marker = "extra == 'research'", specifier = ">=4.0.0" },
-    { name = "jupytext", marker = "extra == 'dev'", specifier = ">=1.16.0" },
-    { name = "jupytext", marker = "extra == 'research'", specifier = ">=1.16.0" },
-    { name = "loguru", specifier = ">=0.7.0" },
-    { name = "matplotlib", specifier = ">=3.7.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.7.0" },
-    { name = "myst-nb", marker = "extra == 'dev'", specifier = ">=1.0.0" },
-    { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=2.0.0" },
-    { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=2.0.0" },
-    { name = "nbconvert", specifier = ">=7.16.6" },
-    { name = "nbconvert", marker = "extra == 'research'", specifier = ">=7.11.0" },
-    { name = "notebook", marker = "extra == 'research'", specifier = ">=7.0.0" },
-    { name = "numpy", specifier = ">=1.24.0" },
-    { name = "plotly", marker = "extra == 'docs'", specifier = ">=5.14.0" },
-    { name = "polars", specifier = ">=0.20.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.5.0" },
-    { name = "pyarrow", specifier = ">=14.0.0" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pymc", specifier = ">=5.10.0" },
-    { name = "pytensor", specifier = ">=2.18.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.12.0" },
-    { name = "quartodoc", marker = "extra == 'docs'", specifier = ">=0.7.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-    { name = "scikit-learn", specifier = ">=1.7.2" },
-    { name = "scikit-learn", marker = "extra == 'research'", specifier = ">=1.3.0" },
-    { name = "scipy", specifier = ">=1.16.2" },
-    { name = "scipy", marker = "extra == 'research'", specifier = ">=1.11.0" },
-    { name = "seaborn", specifier = ">=0.13.2" },
-    { name = "seaborn", marker = "extra == 'research'", specifier = ">=0.12.0" },
-    { name = "statsmodels", marker = "extra == 'research'", specifier = ">=0.14.0" },
-    { name = "torch", marker = "extra == 'gpu'", specifier = ">=2.0.0" },
-]
-provides-extras = ["dev", "docs", "research", "gpu", "foundation", "all"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "black", specifier = ">=23.0.0" },
-    { name = "jupytext", specifier = ">=1.16.0" },
-    { name = "pytest", specifier = ">=7.4.0" },
-    { name = "pytest-cov", specifier = ">=4.1.0" },
-    { name = "ruff", specifier = ">=0.1.0" },
-    { name = "toml", specifier = ">=0.10.2" },
-]
-docs = [
-    { name = "altair", specifier = ">=5.0.0" },
-    { name = "griffe", specifier = ">=0.48.0" },
-    { name = "jupyter-cache", specifier = ">=1.0.0" },
-    { name = "myst-parser", specifier = ">=2.0.0" },
-    { name = "plotly", specifier = ">=5.14.0" },
-    { name = "quartodoc", specifier = ">=0.7.0" },
-]
-
-[[package]]
 name = "cloudpickle"
 version = "3.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1423,6 +1234,195 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/0d/ce/3a21d87896bc7e3e9255e0ad5583ae31ae9e6b4b00e0bcb2a67e2b6acdbc/h5py-3.14.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e8cbaf6910fa3983c46172666b0b8da7b7bd90d764399ca983236f2400436eeb", size = 4700675, upload-time = "2025-06-06T14:05:37.38Z" },
     { url = "https://files.pythonhosted.org/packages/e7/ec/86f59025306dcc6deee5fda54d980d077075b8d9889aac80f158bd585f1b/h5py-3.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d90e6445ab7c146d7f7981b11895d70bc1dd91278a4f9f9028bc0c95e4a53f13", size = 4921632, upload-time = "2025-06-06T14:05:43.464Z" },
     { url = "https://files.pythonhosted.org/packages/3f/6d/0084ed0b78d4fd3e7530c32491f2884140d9b06365dac8a08de726421d4a/h5py-3.14.0-cp313-cp313-win_amd64.whl", hash = "sha256:ae18e3de237a7a830adb76aaa68ad438d85fe6e19e0d99944a3ce46b772c69b3", size = 2852929, upload-time = "2025-06-06T14:05:47.659Z" },
+]
+
+[[package]]
+name = "hellocloud"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "altair" },
+    { name = "arviz" },
+    { name = "datasets" },
+    { name = "duckdb" },
+    { name = "faker" },
+    { name = "huggingface-hub" },
+    { name = "ibis-framework", extra = ["duckdb"] },
+    { name = "ipykernel" },
+    { name = "loguru" },
+    { name = "matplotlib" },
+    { name = "nbconvert" },
+    { name = "numpy" },
+    { name = "polars" },
+    { name = "pyarrow" },
+    { name = "pydantic" },
+    { name = "pymc" },
+    { name = "pytensor" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "seaborn" },
+]
+
+[package.optional-dependencies]
+all = [
+    { name = "altair" },
+    { name = "black" },
+    { name = "gpytorch" },
+    { name = "griffe" },
+    { name = "ipykernel" },
+    { name = "ipython" },
+    { name = "ipywidgets" },
+    { name = "jupyter-cache" },
+    { name = "jupyterlab" },
+    { name = "jupytext" },
+    { name = "mypy" },
+    { name = "myst-nb" },
+    { name = "myst-parser" },
+    { name = "nbconvert" },
+    { name = "notebook" },
+    { name = "plotly" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "quartodoc" },
+    { name = "ruff" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "seaborn" },
+    { name = "statsmodels" },
+    { name = "torch" },
+]
+dev = [
+    { name = "black" },
+    { name = "ipykernel" },
+    { name = "jupytext" },
+    { name = "mypy" },
+    { name = "myst-nb" },
+    { name = "myst-parser" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
+]
+docs = [
+    { name = "altair" },
+    { name = "griffe" },
+    { name = "jupyter-cache" },
+    { name = "myst-parser" },
+    { name = "plotly" },
+    { name = "quartodoc" },
+]
+gpu = [
+    { name = "gpytorch" },
+    { name = "torch" },
+]
+research = [
+    { name = "ipython" },
+    { name = "ipywidgets" },
+    { name = "jupyterlab" },
+    { name = "jupytext" },
+    { name = "nbconvert" },
+    { name = "notebook" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "seaborn" },
+    { name = "statsmodels" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "black" },
+    { name = "jupytext" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "toml" },
+]
+docs = [
+    { name = "altair" },
+    { name = "griffe" },
+    { name = "jupyter-cache" },
+    { name = "myst-parser" },
+    { name = "plotly" },
+    { name = "quartodoc" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "altair", specifier = ">=5.0.0" },
+    { name = "altair", marker = "extra == 'docs'", specifier = ">=5.0.0" },
+    { name = "arviz", specifier = ">=0.17.0" },
+    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
+    { name = "datasets", specifier = ">=2.14.0" },
+    { name = "duckdb", specifier = ">=1.1.0,<1.2.0" },
+    { name = "faker", specifier = ">=20.0.0" },
+    { name = "gpytorch", marker = "extra == 'gpu'", specifier = ">=1.11.0" },
+    { name = "griffe", marker = "extra == 'docs'", specifier = ">=0.48.0" },
+    { name = "hellocloud", extras = ["dev", "docs", "research", "gpu", "foundation"], marker = "extra == 'all'" },
+    { name = "huggingface-hub", specifier = ">=0.19.0" },
+    { name = "ibis-framework", extras = ["duckdb"], specifier = ">=10.8.0" },
+    { name = "ipykernel", specifier = ">=6.30.1" },
+    { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=6.25.0" },
+    { name = "ipython", marker = "extra == 'research'", specifier = ">=8.0.0" },
+    { name = "ipywidgets", marker = "extra == 'research'", specifier = ">=8.1.0" },
+    { name = "jupyter-cache", marker = "extra == 'docs'", specifier = ">=1.0.0" },
+    { name = "jupyterlab", marker = "extra == 'research'", specifier = ">=4.0.0" },
+    { name = "jupytext", marker = "extra == 'dev'", specifier = ">=1.16.0" },
+    { name = "jupytext", marker = "extra == 'research'", specifier = ">=1.16.0" },
+    { name = "loguru", specifier = ">=0.7.0" },
+    { name = "matplotlib", specifier = ">=3.7.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.7.0" },
+    { name = "myst-nb", marker = "extra == 'dev'", specifier = ">=1.0.0" },
+    { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=2.0.0" },
+    { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=2.0.0" },
+    { name = "nbconvert", specifier = ">=7.16.6" },
+    { name = "nbconvert", marker = "extra == 'research'", specifier = ">=7.11.0" },
+    { name = "notebook", marker = "extra == 'research'", specifier = ">=7.0.0" },
+    { name = "numpy", specifier = ">=1.24.0" },
+    { name = "plotly", marker = "extra == 'docs'", specifier = ">=5.14.0" },
+    { name = "polars", specifier = ">=0.20.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.5.0" },
+    { name = "pyarrow", specifier = ">=14.0.0" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pymc", specifier = ">=5.10.0" },
+    { name = "pytensor", specifier = ">=2.18.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
+    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.12.0" },
+    { name = "quartodoc", marker = "extra == 'docs'", specifier = ">=0.7.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+    { name = "scikit-learn", specifier = ">=1.7.2" },
+    { name = "scikit-learn", marker = "extra == 'research'", specifier = ">=1.3.0" },
+    { name = "scipy", specifier = ">=1.16.2" },
+    { name = "scipy", marker = "extra == 'research'", specifier = ">=1.11.0" },
+    { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "seaborn", marker = "extra == 'research'", specifier = ">=0.12.0" },
+    { name = "statsmodels", marker = "extra == 'research'", specifier = ">=0.14.0" },
+    { name = "torch", marker = "extra == 'gpu'", specifier = ">=2.0.0" },
+]
+provides-extras = ["dev", "docs", "research", "gpu", "foundation", "all"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "black", specifier = ">=23.0.0" },
+    { name = "jupytext", specifier = ">=1.16.0" },
+    { name = "pytest", specifier = ">=7.4.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "ruff", specifier = ">=0.1.0" },
+    { name = "toml", specifier = ">=0.10.2" },
+]
+docs = [
+    { name = "altair", specifier = ">=5.0.0" },
+    { name = "griffe", specifier = ">=0.48.0" },
+    { name = "jupyter-cache", specifier = ">=1.0.0" },
+    { name = "myst-parser", specifier = ">=2.0.0" },
+    { name = "plotly", specifier = ">=5.14.0" },
+    { name = "quartodoc", specifier = ">=0.7.0" },
 ]
 
 [[package]]

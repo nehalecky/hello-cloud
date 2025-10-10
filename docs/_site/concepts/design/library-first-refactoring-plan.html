@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Nicholaus Halecky">
+
+<title>Library-First Refactoring Plan – Cloud Resource Simulator</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-945825cc0f524032fd1718107c82c223.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-e8c6b31e440ce77eb8ae47c08d41a42d.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-945825cc0f524032fd1718107c82c223.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-34bffc26184210c6c501279d09c42f62.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-796b9f73f6d285404f11eca7d579d846.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-34bffc26184210c6c501279d09c42f62.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../../_theme/styles.css">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Cloud Resource Simulator</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../tutorials/index.html"> 
+<span class="menu-text">Tutorials</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../how-to/index.html"> 
+<span class="menu-text">How-To</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../concepts/index.html"> 
+<span class="menu-text">Concepts</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../reference/index.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/nehalecky/cloud-resource-simulator"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#comprehensive-plan-library-first-refactoring-history-cleanup" id="toc-comprehensive-plan-library-first-refactoring-history-cleanup" class="nav-link active" data-scroll-target="#comprehensive-plan-library-first-refactoring-history-cleanup">Comprehensive Plan: Library-First Refactoring + History Cleanup</a>
+  <ul class="collapse">
+  <li><a href="#context-analysis" id="toc-context-analysis" class="nav-link" data-scroll-target="#context-analysis">Context Analysis</a></li>
+  <li><a href="#phase-1-extract-implementation-from-notebooks-to-library" id="toc-phase-1-extract-implementation-from-notebooks-to-library" class="nav-link" data-scroll-target="#phase-1-extract-implementation-from-notebooks-to-library">Phase 1: Extract Implementation from Notebooks to Library</a>
+  <ul class="collapse">
+  <li><a href="#create-gp-module-structure" id="toc-create-gp-module-structure" class="nav-link" data-scroll-target="#create-gp-module-structure">1.1 Create GP Module Structure</a></li>
+  <li><a href="#add-foundation-model-module" id="toc-add-foundation-model-module" class="nav-link" data-scroll-target="#add-foundation-model-module">1.2 Add Foundation Model Module</a></li>
+  <li><a href="#add-cloudzero-etl-module" id="toc-add-cloudzero-etl-module" class="nav-link" data-scroll-target="#add-cloudzero-etl-module">1.3 Add CloudZero ETL Module</a></li>
+  <li><a href="#update-pyproject.toml-dependencies" id="toc-update-pyproject.toml-dependencies" class="nav-link" data-scroll-target="#update-pyproject.toml-dependencies">1.4 Update pyproject.toml Dependencies</a></li>
+  </ul></li>
+  <li><a href="#phase-2-convert-notebooks-to-runbooks" id="toc-phase-2-convert-notebooks-to-runbooks" class="nav-link" data-scroll-target="#phase-2-convert-notebooks-to-runbooks">Phase 2: Convert Notebooks to Runbooks</a>
+  <ul class="collapse">
+  <li><a href="#restructure-notebooks-directory" id="toc-restructure-notebooks-directory" class="nav-link" data-scroll-target="#restructure-notebooks-directory">2.1 Restructure Notebooks Directory</a></li>
+  <li><a href="#refactor-existing-notebooks" id="toc-refactor-existing-notebooks" class="nav-link" data-scroll-target="#refactor-existing-notebooks">2.2 Refactor Existing Notebooks</a></li>
+  <li><a href="#create-new-runbooks" id="toc-create-new-runbooks" class="nav-link" data-scroll-target="#create-new-runbooks">2.3 Create New Runbooks</a></li>
+  </ul></li>
+  <li><a href="#phase-3-interactive-rebase-to-clean-history" id="toc-phase-3-interactive-rebase-to-clean-history" class="nav-link" data-scroll-target="#phase-3-interactive-rebase-to-clean-history">Phase 3: Interactive Rebase to Clean History</a>
+  <ul class="collapse">
+  <li><a href="#rebase-strategy" id="toc-rebase-strategy" class="nav-link" data-scroll-target="#rebase-strategy">3.1 Rebase Strategy</a></li>
+  <li><a href="#rebase-commands" id="toc-rebase-commands" class="nav-link" data-scroll-target="#rebase-commands">3.2 Rebase Commands</a></li>
+  </ul></li>
+  <li><a href="#phase-4-execution-environment-support" id="toc-phase-4-execution-environment-support" class="nav-link" data-scroll-target="#phase-4-execution-environment-support">Phase 4: Execution Environment Support</a>
+  <ul class="collapse">
+  <li><a href="#local-development-m4-mac" id="toc-local-development-m4-mac" class="nav-link" data-scroll-target="#local-development-m4-mac">4.1 Local Development (M4 Mac)</a></li>
+  <li><a href="#google-colab-recommended-for-training" id="toc-google-colab-recommended-for-training" class="nav-link" data-scroll-target="#google-colab-recommended-for-training">4.2 Google Colab (Recommended for Training)</a></li>
+  <li><a href="#huggingface-inference-api-production" id="toc-huggingface-inference-api-production" class="nav-link" data-scroll-target="#huggingface-inference-api-production">4.3 HuggingFace Inference API (Production)</a></li>
+  </ul></li>
+  <li><a href="#phase-5-testing-validation" id="toc-phase-5-testing-validation" class="nav-link" data-scroll-target="#phase-5-testing-validation">Phase 5: Testing &amp; Validation</a>
+  <ul class="collapse">
+  <li><a href="#update-test-suite" id="toc-update-test-suite" class="nav-link" data-scroll-target="#update-test-suite">5.1 Update Test Suite</a></li>
+  <li><a href="#cicd-updates" id="toc-cicd-updates" class="nav-link" data-scroll-target="#cicd-updates">5.2 CI/CD Updates</a></li>
+  </ul></li>
+  <li><a href="#decision-points-recommendations" id="toc-decision-points-recommendations" class="nav-link" data-scroll-target="#decision-points-recommendations">Decision Points &amp; Recommendations</a>
+  <ul class="collapse">
+  <li><a href="#q1-where-should-gp-models-be-trained" id="toc-q1-where-should-gp-models-be-trained" class="nav-link" data-scroll-target="#q1-where-should-gp-models-be-trained">Q1: Where should GP models be trained?</a></li>
+  <li><a href="#q2-how-to-handle-model-persistence" id="toc-q2-how-to-handle-model-persistence" class="nav-link" data-scroll-target="#q2-how-to-handle-model-persistence">Q2: How to handle model persistence?</a></li>
+  <li><a href="#q3-should-etl-run-locally-or-in-cloud" id="toc-q3-should-etl-run-locally-or-in-cloud" class="nav-link" data-scroll-target="#q3-should-etl-run-locally-or-in-cloud">Q3: Should ETL run locally or in cloud?</a></li>
+  <li><a href="#q4-timesfm-vs-chronos-vs-gp" id="toc-q4-timesfm-vs-chronos-vs-gp" class="nav-link" data-scroll-target="#q4-timesfm-vs-chronos-vs-gp">Q4: TimesFM vs Chronos vs GP?</a></li>
+  <li><a href="#q5-rebase-timing" id="toc-q5-rebase-timing" class="nav-link" data-scroll-target="#q5-rebase-timing">Q5: Rebase timing?</a></li>
+  </ul></li>
+  <li><a href="#implementation-order" id="toc-implementation-order" class="nav-link" data-scroll-target="#implementation-order">Implementation Order</a>
+  <ul class="collapse">
+  <li><a href="#week-1-library-extraction" id="toc-week-1-library-extraction" class="nav-link" data-scroll-target="#week-1-library-extraction">Week 1: Library Extraction</a></li>
+  <li><a href="#week-2-foundation-models-etl" id="toc-week-2-foundation-models-etl" class="nav-link" data-scroll-target="#week-2-foundation-models-etl">Week 2: Foundation Models &amp; ETL</a></li>
+  <li><a href="#week-3-runbook-conversion" id="toc-week-3-runbook-conversion" class="nav-link" data-scroll-target="#week-3-runbook-conversion">Week 3: Runbook Conversion</a></li>
+  <li><a href="#week-4-history-cleanup-polish" id="toc-week-4-history-cleanup-polish" class="nav-link" data-scroll-target="#week-4-history-cleanup-polish">Week 4: History Cleanup &amp; Polish</a></li>
+  </ul></li>
+  <li><a href="#risk-mitigation" id="toc-risk-mitigation" class="nav-link" data-scroll-target="#risk-mitigation">Risk Mitigation</a></li>
+  <li><a href="#success-metrics" id="toc-success-metrics" class="nav-link" data-scroll-target="#success-metrics">Success Metrics</a></li>
+  <li><a href="#next-steps-after-approval" id="toc-next-steps-after-approval" class="nav-link" data-scroll-target="#next-steps-after-approval">Next Steps After Approval</a></li>
+  <li><a href="#agent-coordination-strategy" id="toc-agent-coordination-strategy" class="nav-link" data-scroll-target="#agent-coordination-strategy">Agent Coordination Strategy</a>
+  <ul class="collapse">
+  <li><a href="#available-specialized-agents" id="toc-available-specialized-agents" class="nav-link" data-scroll-target="#available-specialized-agents">Available Specialized Agents</a></li>
+  <li><a href="#agent-execution-plan-by-phase" id="toc-agent-execution-plan-by-phase" class="nav-link" data-scroll-target="#agent-execution-plan-by-phase">Agent Execution Plan by Phase</a></li>
+  <li><a href="#parallel-execution-opportunities" id="toc-parallel-execution-opportunities" class="nav-link" data-scroll-target="#parallel-execution-opportunities">Parallel Execution Opportunities</a></li>
+  <li><a href="#agent-invocation-pattern" id="toc-agent-invocation-pattern" class="nav-link" data-scroll-target="#agent-invocation-pattern">Agent Invocation Pattern</a></li>
+  <li><a href="#success-criteria-per-agent" id="toc-success-criteria-per-agent" class="nav-link" data-scroll-target="#success-criteria-per-agent">Success Criteria per Agent</a></li>
+  <li><a href="#error-recovery-plan" id="toc-error-recovery-plan" class="nav-link" data-scroll-target="#error-recovery-plan">Error Recovery Plan</a></li>
+  </ul></li>
+  <li><a href="#related-documentation-to-update" id="toc-related-documentation-to-update" class="nav-link" data-scroll-target="#related-documentation-to-update">Related Documentation to Update</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/nehalecky/cloud-resource-simulator/edit/main/concepts/design/library-first-refactoring-plan.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/nehalecky/cloud-resource-simulator/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Library-First Refactoring Plan</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Nicholaus Halecky </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="comprehensive-plan-library-first-refactoring-history-cleanup" class="level1">
+<h1>Comprehensive Plan: Library-First Refactoring + History Cleanup</h1>
+<section id="context-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="context-analysis">Context Analysis</h2>
+<p><strong>Current State:</strong> - 75 commits with messy iteration history - Library code exists: <code>src/cloud_sim/{data_generation,ml_models}</code> - Notebooks mix implementation AND educational content - GP model code lives IN notebook (04_gaussian_process_modeling.md) - No TimesFM/Chronos integration yet - ETL module empty after Alibaba/Google cleanup</p>
+<p><strong>Execution Environments:</strong> 1. <strong>Local</strong>: Development, light inference, visualization (M4 CPU, no GPU) 2. <strong>Google Colab</strong>: GP training, TimesFM, large ETL (Free GPU, Pro $10/mo) 3. <strong>HuggingFace Inference API</strong>: Production inference (pay-per-use)</p>
+<hr>
+</section>
+<section id="phase-1-extract-implementation-from-notebooks-to-library" class="level2">
+<h2 class="anchored" data-anchor-id="phase-1-extract-implementation-from-notebooks-to-library">Phase 1: Extract Implementation from Notebooks to Library</h2>
+<section id="create-gp-module-structure" class="level3">
+<h3 class="anchored" data-anchor-id="create-gp-module-structure">1.1 Create GP Module Structure</h3>
+<p><strong>New files to create:</strong></p>
+<pre><code>src/cloud_sim/ml_models/gaussian_process/
+├── __init__.py
+├── kernels.py        # CompositePeriodicKernel, custom kernels
+├── models.py         # SparseGPModel, base classes
+├── training.py       # train_gp, save_model, load_model utilities
+└── evaluation.py     # compute_metrics, compute_anomaly_metrics</code></pre>
+<p><strong>Extract from:</strong> <code>notebooks/04_gaussian_process_modeling.md</code> lines 259-937 - CompositePeriodicKernel class → kernels.py - SparseGPModel class → models.py - Training logic → training.py (with batched prediction fixes) - compute_metrics, compute_anomaly_metrics → evaluation.py</p>
+</section>
+<section id="add-foundation-model-module" class="level3">
+<h3 class="anchored" data-anchor-id="add-foundation-model-module">1.2 Add Foundation Model Module</h3>
+<p><strong>New files to create:</strong></p>
+<pre><code>src/cloud_sim/ml_models/foundation/
+├── __init__.py
+├── timesfm.py        # TimesFM wrapper (Google)
+├── chronos.py        # Chronos wrapper (Amazon)
+└── base.py           # Abstract base class for foundation models</code></pre>
+<p><strong>Capabilities:</strong> - Load pre-trained models from HF - Inference API support - Fine-tuning hooks (Colab-only)</p>
+</section>
+<section id="add-cloudzero-etl-module" class="level3">
+<h3 class="anchored" data-anchor-id="add-cloudzero-etl-module">1.3 Add CloudZero ETL Module</h3>
+<p><strong>New files to create:</strong></p>
+<pre><code>src/cloud_sim/etl/
+├── __init__.py
+└── cloudzero_loader.py   # Production data loader</code></pre>
+<p><strong>Design:</strong> - Load CloudZero production data samples - Convert to standardized format (Polars DataFrames) - Integrate with HuggingFace dataset publishing</p>
+</section>
+<section id="update-pyproject.toml-dependencies" class="level3">
+<h3 class="anchored" data-anchor-id="update-pyproject.toml-dependencies">1.4 Update pyproject.toml Dependencies</h3>
+<p><strong>Add optional dependency groups:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[project.optional-dependencies]</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="dt">gpu</span> <span class="op">=</span> <span class="op">[</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"torch&gt;=2.0.0"</span><span class="op">,</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"gpytorch&gt;=1.11.0"</span><span class="op">,</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="dt">foundation</span> <span class="op">=</span> <span class="op">[</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"timesfm @ git+https://github.com/google-research/timesfm"</span><span class="op">,</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"chronos-forecasting&gt;=1.0.0"</span><span class="op">,</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"transformers&gt;=4.35.0"</span><span class="op">,</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="dt">all</span> <span class="op">=</span> <span class="op">[</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cloud-resource-simulator[gpu,foundation]"</span><span class="op">,</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+</section>
+<section id="phase-2-convert-notebooks-to-runbooks" class="level2">
+<h2 class="anchored" data-anchor-id="phase-2-convert-notebooks-to-runbooks">Phase 2: Convert Notebooks to Runbooks</h2>
+<section id="restructure-notebooks-directory" class="level3">
+<h3 class="anchored" data-anchor-id="restructure-notebooks-directory">2.1 Restructure Notebooks Directory</h3>
+<pre><code>notebooks/
+├── README.md                        # Update with new structure
+├── quickstart/
+│   ├── 01_installation.md          # Setup instructions
+│   ├── 02_basic_usage.md           # Simple library usage
+│   └── 03_data_generation.md       # WorkloadPatternGenerator demo
+├── guides/
+│   ├── workload_patterns.md        # Educational (keep current 02)
+│   ├── gp_inference.md             # Use pre-trained GP models
+│   └── foundation_models.md        # TimesFM/Chronos inference
+├── eda/
+│   ├── iops_web_server_analysis.md # Keep current 03 (research)
+│   └── cloudzero_data_exploration.md # NEW: CloudZero data
+└── training/ (Colab-specific)
+    ├── README.md                    # Colab setup instructions
+    ├── train_gp_colab.ipynb        # GPU training workflow
+    ├── train_timesfm_colab.ipynb   # Foundation model fine-tuning
+    └── etl_pipeline_colab.ipynb    # Large-scale data processing</code></pre>
+</section>
+<section id="refactor-existing-notebooks" class="level3">
+<h3 class="anchored" data-anchor-id="refactor-existing-notebooks">2.2 Refactor Existing Notebooks</h3>
+<p><strong>01_data_exploration.md → quickstart/03_data_generation.md</strong> - Remove implementation details - Focus on library usage: <code>from cloud_sim.data_generation import WorkloadPatternGenerator</code> - Show basic examples</p>
+<p><strong>02_workload_signatures_guide.md → guides/workload_patterns.md</strong> - Keep as-is (already educational) - No implementation code to extract</p>
+<p><strong>03_iops_web_server_eda.md → eda/iops_web_server_analysis.md</strong> - Keep as-is (research notebook) - Uses HuggingFace dataset (good runbook example)</p>
+<p><strong>04_gaussian_process_modeling.md → Refactor:</strong> 1. Extract implementation → <code>src/cloud_sim/ml_models/gaussian_process/</code> 2. Create <code>guides/gp_inference.md</code> - Load pre-trained models, run inference 3. Create <code>training/train_gp_colab.ipynb</code> - Full training workflow for Colab</p>
+</section>
+<section id="create-new-runbooks" class="level3">
+<h3 class="anchored" data-anchor-id="create-new-runbooks">2.3 Create New Runbooks</h3>
+<p><strong>quickstart/01_installation.md:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Installation</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Local Development</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="in">`uv pip install -e ".[dev]"`</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">## GPU/ML Work (Colab)</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="in">`!pip install cloud-resource-simulator[gpu,foundation]`</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="fu">## CloudZero Integration</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>Requires production data access...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>guides/gp_inference.md:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> cloud_sim.ml_models.gaussian_process <span class="im">import</span> SparseGPModel, load_model</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Load pre-trained model</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> load_model(<span class="st">"models/gp_robust_model.pth"</span>)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Run inference</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>predictions <span class="op">=</span> model.predict(X_test)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>training/train_gp_colab.ipynb:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># GPU-enabled training in Colab</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Mount Drive</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Install with GPU support</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Train on full dataset</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Save to Drive/HF Hub</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+</section>
+<section id="phase-3-interactive-rebase-to-clean-history" class="level2">
+<h2 class="anchored" data-anchor-id="phase-3-interactive-rebase-to-clean-history">Phase 3: Interactive Rebase to Clean History</h2>
+<section id="rebase-strategy" class="level3">
+<h3 class="anchored" data-anchor-id="rebase-strategy">3.1 Rebase Strategy</h3>
+<p><strong>Goal:</strong> Squash 75 commits into ~15 clean commits</p>
+<p><strong>Target structure:</strong></p>
+<pre><code>1. feat: establish project foundation (d0d1e1f - keep as-is)
+2. docs: establish research foundation (fe20c8e - keep as-is)
+3. feat: define simulation architecture (f5709bb - keep as-is)
+4. feat: implement core library (91cf3e3 + squash 10 related commits)
+5. feat: add PyMC Bayesian models (f59f45d + squash related)
+6. feat: add workload taxonomy (squash commits)
+7. docs: add research notebooks (squash all notebook commits)
+8. feat: add GP modeling support (squash GP commits)
+9. test: add comprehensive test suite (squash test commits)
+10. ci: configure GitHub Actions (squash CI commits)
+11. refactor: remove Alibaba/Google datasets (04c055f - keep as-is)
+12. refactor: extract GP implementation to library (NEW)
+13. refactor: convert notebooks to runbooks (NEW)
+14. feat: add foundation model support (NEW)
+15. feat: add CloudZero ETL (NEW)</code></pre>
+</section>
+<section id="rebase-commands" class="level3">
+<h3 class="anchored" data-anchor-id="rebase-commands">3.2 Rebase Commands</h3>
+<p><strong>Option A: Interactive rebase from foundation</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> rebase <span class="at">-i</span> d0d1e1f~1  <span class="co"># Interactive from project start</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Mark commits as 'squash' or 'fixup' to consolidate</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Option B: Reset and recommit (nuclear option)</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout <span class="at">-b</span> clean-history d0d1e1f  <span class="co"># Branch from foundation</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> cherry-pick fe20c8e f5709bb 91cf3e3  <span class="co"># Keep foundation commits</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Then create new clean commits for Phase 1 &amp; 2 work</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Recommendation:</strong> Option A (interactive rebase) - Less destructive, preserves authorship</p>
+<hr>
+</section>
+</section>
+<section id="phase-4-execution-environment-support" class="level2">
+<h2 class="anchored" data-anchor-id="phase-4-execution-environment-support">Phase 4: Execution Environment Support</h2>
+<section id="local-development-m4-mac" class="level3">
+<h3 class="anchored" data-anchor-id="local-development-m4-mac">4.1 Local Development (M4 Mac)</h3>
+<p><strong>Supported:</strong> - Library development - Runbook execution (inference only) - Small-scale testing - Visualization</p>
+<p><strong>Not Supported:</strong> - GP training (CPU too slow, MPS incompatibility) - Large ETL pipelines (memory limits) - TimesFM experiments (requires GPU)</p>
+</section>
+<section id="google-colab-recommended-for-training" class="level3">
+<h3 class="anchored" data-anchor-id="google-colab-recommended-for-training">4.2 Google Colab (Recommended for Training)</h3>
+<p><strong>Setup:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># In Colab notebook</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>pip install cloud<span class="op">-</span>resource<span class="op">-</span>simulator[gpu,foundation]</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Mount Drive for model persistence</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> google.colab <span class="im">import</span> drive</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>drive.mount(<span class="st">'/content/drive'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Workflow:</strong> 1. Train GP models in <code>training/train_gp_colab.ipynb</code> 2. Save trained models to Google Drive 3. Download to <code>models/</code> directory for local inference 4. OR upload to HuggingFace Model Hub</p>
+<p><strong>Cost:</strong> Free tier (12hr session, T4 GPU) or Pro ($10/mo, better GPUs)</p>
+</section>
+<section id="huggingface-inference-api-production" class="level3">
+<h3 class="anchored" data-anchor-id="huggingface-inference-api-production">4.3 HuggingFace Inference API (Production)</h3>
+<p><strong>For:</strong> - Published trained models - Public inference endpoints - Sharing with community</p>
+<p><strong>Workflow:</strong> 1. Train in Colab 2. Push to HF Model Hub: <code>model.push_to_hub("username/cloud-gp-model")</code> 3. Enable Inference API 4. Use in runbooks: <code>from huggingface_hub import InferenceClient</code></p>
+<hr>
+</section>
+</section>
+<section id="phase-5-testing-validation" class="level2">
+<h2 class="anchored" data-anchor-id="phase-5-testing-validation">Phase 5: Testing &amp; Validation</h2>
+<section id="update-test-suite" class="level3">
+<h3 class="anchored" data-anchor-id="update-test-suite">5.1 Update Test Suite</h3>
+<ul>
+<li>Test extracted GP modules: <code>tests/test_gp_models.py</code></li>
+<li>Test foundation model wrappers: <code>tests/test_foundation_models.py</code></li>
+<li>Test CloudZero loader: <code>tests/test_cloudzero_etl.py</code></li>
+<li>Runbook execution tests: Update <code>test_notebooks.py</code> for new structure</li>
+</ul>
+</section>
+<section id="cicd-updates" class="level3">
+<h3 class="anchored" data-anchor-id="cicd-updates">5.2 CI/CD Updates</h3>
+<ul>
+<li>Run tests on GPU runner for GP tests (GitHub Actions with GPU)</li>
+<li>OR skip GPU tests in CI, document manual testing in Colab</li>
+<li>Add notebook linting for runbooks</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="decision-points-recommendations" class="level2">
+<h2 class="anchored" data-anchor-id="decision-points-recommendations">Decision Points &amp; Recommendations</h2>
+<section id="q1-where-should-gp-models-be-trained" class="level3">
+<h3 class="anchored" data-anchor-id="q1-where-should-gp-models-be-trained">Q1: Where should GP models be trained?</h3>
+<p><strong>A:</strong> Google Colab Pro ($10/mo) for GPU access - Local M4 too slow + MPS compatibility issues - Colab provides T4/V100 GPUs, persistent storage via Drive - Can save models to HF Hub for sharing</p>
+</section>
+<section id="q2-how-to-handle-model-persistence" class="level3">
+<h3 class="anchored" data-anchor-id="q2-how-to-handle-model-persistence">Q2: How to handle model persistence?</h3>
+<p><strong>A:</strong> Three-tier approach: 1. <strong>Development</strong>: Save to <code>models/</code> directory (gitignored, local only) 2. <strong>Sharing</strong>: Push to HuggingFace Model Hub (public/private) 3. <strong>Production</strong>: HF Inference API or Colab-hosted</p>
+</section>
+<section id="q3-should-etl-run-locally-or-in-cloud" class="level3">
+<h3 class="anchored" data-anchor-id="q3-should-etl-run-locally-or-in-cloud">Q3: Should ETL run locally or in cloud?</h3>
+<p><strong>A:</strong> Hybrid approach: - <strong>Sample data</strong>: Local testing with CloudZero production samples - <strong>Full pipelines</strong>: Colab for large-scale processing - Document both workflows in runbooks</p>
+</section>
+<section id="q4-timesfm-vs-chronos-vs-gp" class="level3">
+<h3 class="anchored" data-anchor-id="q4-timesfm-vs-chronos-vs-gp">Q4: TimesFM vs Chronos vs GP?</h3>
+<p><strong>A:</strong> Use cases differ: - <strong>GP</strong>: Anomaly detection, uncertainty quantification, small-scale - <strong>TimesFM</strong>: Zero-shot forecasting, Google’s latest, requires GPU - <strong>Chronos</strong>: Probabilistic forecasting, Amazon’s model, lighter weight</p>
+<p>Support all three, let runbooks demonstrate each</p>
+</section>
+<section id="q5-rebase-timing" class="level3">
+<h3 class="anchored" data-anchor-id="q5-rebase-timing">Q5: Rebase timing?</h3>
+<p><strong>A:</strong> Do Phase 1-2 first, THEN rebase: 1. Extract implementation to library (Phase 1) 2. Convert notebooks to runbooks (Phase 2) 3. Test everything works 4. Interactive rebase to clean history (Phase 3) 5. Force push to clean remote history</p>
+<p><strong>Why:</strong> Easier to debug if rebase goes wrong, can always revert</p>
+<hr>
+</section>
+</section>
+<section id="implementation-order" class="level2">
+<h2 class="anchored" data-anchor-id="implementation-order">Implementation Order</h2>
+<section id="week-1-library-extraction" class="level3">
+<h3 class="anchored" data-anchor-id="week-1-library-extraction">Week 1: Library Extraction</h3>
+<ol type="1">
+<li>Create GP module structure</li>
+<li>Extract code from notebook 04</li>
+<li>Add training utilities</li>
+<li>Update tests</li>
+<li>Verify notebook still works with imports</li>
+</ol>
+</section>
+<section id="week-2-foundation-models-etl" class="level3">
+<h3 class="anchored" data-anchor-id="week-2-foundation-models-etl">Week 2: Foundation Models &amp; ETL</h3>
+<ol type="1">
+<li>Add foundation model wrappers (stub implementations first)</li>
+<li>Add CloudZero ETL module</li>
+<li>Update pyproject.toml dependencies</li>
+<li>Create Colab training notebooks</li>
+</ol>
+</section>
+<section id="week-3-runbook-conversion" class="level3">
+<h3 class="anchored" data-anchor-id="week-3-runbook-conversion">Week 3: Runbook Conversion</h3>
+<ol type="1">
+<li>Restructure notebooks/ directory</li>
+<li>Refactor existing notebooks</li>
+<li>Create quickstart guides</li>
+<li>Create Colab-specific training notebooks</li>
+<li>Update documentation</li>
+</ol>
+</section>
+<section id="week-4-history-cleanup-polish" class="level3">
+<h3 class="anchored" data-anchor-id="week-4-history-cleanup-polish">Week 4: History Cleanup &amp; Polish</h3>
+<ol type="1">
+<li>Interactive rebase to squash commits</li>
+<li>Force push clean history</li>
+<li>Update README/docs to reflect new structure</li>
+<li>Verify CI still passes</li>
+<li>Create release tag</li>
+</ol>
+<hr>
+</section>
+</section>
+<section id="risk-mitigation" class="level2">
+<h2 class="anchored" data-anchor-id="risk-mitigation">Risk Mitigation</h2>
+<p><strong>Risk 1: Rebase breaks something</strong> - Mitigation: Create backup branch before rebase - Recovery: <code>git reflog</code> to restore pre-rebase state</p>
+<p><strong>Risk 2: Model training costs escalate</strong> - Mitigation: Start with Colab free tier, monitor usage - Recovery: Can train locally (slow but works)</p>
+<p><strong>Risk 3: HF Inference API limits</strong> - Mitigation: Document rate limits, provide local inference fallback - Recovery: Self-host models on Colab</p>
+<p><strong>Risk 4: CloudZero data structure changes</strong> - Mitigation: Abstract ETL interface, version loaders - Recovery: Create adapters for different schemas</p>
+<hr>
+</section>
+<section id="success-metrics" class="level2">
+<h2 class="anchored" data-anchor-id="success-metrics">Success Metrics</h2>
+<p>✅ <strong>Library Quality:</strong> - All implementation code in <code>src/cloud_sim/</code> - No implementation in runbooks (only imports) - &gt;70% test coverage maintained</p>
+<p>✅ <strong>Runbook Quality:</strong> - Can execute all runbooks locally (inference only) - Colab notebooks have clear GPU setup - Educational content preserved</p>
+<p>✅ <strong>History Quality:</strong> - Clean commit history (&lt;20 commits) - Each commit buildable and testable - Clear commit messages</p>
+<p>✅ <strong>Documentation Quality:</strong> - README reflects new structure - Installation instructions for local vs Colab - Clear separation of concerns</p>
+<hr>
+</section>
+<section id="next-steps-after-approval" class="level2">
+<h2 class="anchored" data-anchor-id="next-steps-after-approval">Next Steps After Approval</h2>
+<ol type="1">
+<li>Create feature branch: <code>git checkout -b refactor/library-first</code></li>
+<li>Start Phase 1: Extract GP module</li>
+<li>Commit incrementally with tests</li>
+<li>When stable, proceed to Phase 2-4</li>
+<li>Final interactive rebase on feature branch</li>
+<li>Review before force-pushing to main</li>
+</ol>
+<p><strong>Estimated Effort:</strong> 15-20 hours over 2-4 weeks</p>
+<hr>
+</section>
+<section id="agent-coordination-strategy" class="level2">
+<h2 class="anchored" data-anchor-id="agent-coordination-strategy">Agent Coordination Strategy</h2>
+<section id="available-specialized-agents" class="level3">
+<h3 class="anchored" data-anchor-id="available-specialized-agents">Available Specialized Agents</h3>
+<p><strong>Primary Agents for This Work:</strong> 1. <strong>ai-modeling-developer</strong>: 🎯 <strong>LEAD IMPLEMENTATION AGENT</strong> - Test-strategy-first, enforces 70% coverage, research-grounded code 2. <strong>workflow-orchestrator</strong>: Coordinates all phases, manages agent handoffs 3. <strong>repository-manager</strong>: Git operations, commits, branch management, interactive rebase 4. <strong>workflow-designer</strong>: Creates implementation workflows, process documentation 5. <strong>huggingface-hub</strong>: HuggingFace integration, model/dataset operations (when ready)</p>
+<p><strong>Supporting Agents:</strong> 6. <strong>professional-document-architect</strong>: Update READMEs, documentation 7. <strong>llm-ai-agents-and-eng-research</strong>: Research latest AI/ML techniques 8. <strong>work-completion-summary</strong>: Audio summaries after each phase completion</p>
+</section>
+<section id="agent-execution-plan-by-phase" class="level3">
+<h3 class="anchored" data-anchor-id="agent-execution-plan-by-phase">Agent Execution Plan by Phase</h3>
+<section id="phase-1-library-extraction-week-1" class="level4">
+<h4 class="anchored" data-anchor-id="phase-1-library-extraction-week-1">Phase 1: Library Extraction (Week 1)</h4>
+<p><strong>Lead Agent:</strong> <code>ai-modeling-developer</code> - Proposes test strategy BEFORE extraction - Extracts code with parallel test development - Validates 70% coverage before any commits - Coordinates with repository-manager for commits</p>
+<p><strong>Execution:</strong></p>
+<pre><code>ai-modeling-developer:
+  # For each module extraction:
+  1. Analyze code to be extracted (GP models, foundation stubs, ETL)
+  2. Propose test strategy:
+     - Unit tests for kernels, models, training utilities
+     - Integration tests for end-to-end GP workflow
+     - Coverage target: &gt;70% for new modules
+  3. Get user approval on test strategy
+  4. Extract code + write comprehensive tests in parallel
+  5. Run coverage validation: uv run pytest --cov=src/cloud_sim
+  6. If coverage ≥70%: Delegate to repository-manager for commit
+  7. If coverage &lt;70%: Add tests until threshold met
+
+workflow-orchestrator:
+  - Coordinates sequential extraction (GP → Foundation → ETL)
+  - Manages handoffs between ai-modeling-developer and repository-manager
+
+repository-manager:
+  - Commit after coverage validation
+  - Format: "refactor(ml_models): extract GP implementation from notebook (72% coverage)"</code></pre>
+</section>
+<section id="phase-2-runbook-conversion-week-2-3" class="level4">
+<h4 class="anchored" data-anchor-id="phase-2-runbook-conversion-week-2-3">Phase 2: Runbook Conversion (Week 2-3)</h4>
+<p><strong>Lead Agent:</strong> <code>workflow-designer</code> - Designs new notebook structure - Creates quickstart guides - Documents Colab workflows</p>
+<p><strong>Execution:</strong></p>
+<pre><code>workflow-designer:
+  - Create notebook restructuring plan
+  - Design Colab training workflow documentation
+  - Create installation guides
+
+workflow-orchestrator:
+  - Coordinate notebook file moves
+  - Update notebook references
+  - Create new runbook templates
+
+repository-manager:
+  - Commit notebook restructuring: "refactor(notebooks): convert to runbook architecture"
+  - Commit new guides: "docs(notebooks): add quickstart and training guides"</code></pre>
+</section>
+<section id="phase-3-history-cleanup-week-4" class="level4">
+<h4 class="anchored" data-anchor-id="phase-3-history-cleanup-week-4">Phase 3: History Cleanup (Week 4)</h4>
+<p><strong>Lead Agent:</strong> <code>repository-manager</code> - Execute interactive rebase - Handle merge conflicts - Verify commit integrity</p>
+<p><strong>Execution:</strong></p>
+<pre><code>repository-manager:
+  - Create backup branch: backup/pre-rebase
+  - Interactive rebase: git rebase -i d0d1e1f~1
+  - Squash 75 commits → ~15 clean commits
+  - Verify each commit builds: git rebase --exec "uv run pytest tests/"
+  - Force push after verification</code></pre>
+</section>
+<section id="phase-4-documentation-updates" class="level4">
+<h4 class="anchored" data-anchor-id="phase-4-documentation-updates">Phase 4: Documentation Updates</h4>
+<p><strong>Lead Agent:</strong> <code>professional-document-architect</code> - Rewrite project history - Update README files - Create migration guide</p>
+<p><strong>Execution:</strong></p>
+<pre><code>professional-document-architect:
+  - Update .claude-project-memory.md with new architecture
+  - Rewrite main README.md with new structure
+  - Create MIGRATION.md for existing users
+  - Update CLAUDE.md with new module structure
+
+repository-manager:
+  - Commit: "docs: update documentation for library-first architecture"</code></pre>
+</section>
+<section id="phase-5-completion" class="level4">
+<h4 class="anchored" data-anchor-id="phase-5-completion">Phase 5: Completion</h4>
+<p><strong>Lead Agent:</strong> <code>work-completion-summary</code> - Generate audio summary of changes - Highlight key decisions and next steps</p>
+</section>
+</section>
+<section id="parallel-execution-opportunities" class="level3">
+<h3 class="anchored" data-anchor-id="parallel-execution-opportunities">Parallel Execution Opportunities</h3>
+<p><strong>Week 1: Can run in parallel:</strong> - GP extraction + Foundation model stubs + CloudZero ETL - Use single workflow-orchestrator invocation with multiple subtasks</p>
+<p><strong>Week 2-3: Sequential required:</strong> - Notebook restructuring must follow library extraction (imports need to work) - But can parallelize: quickstart guides + Colab notebooks + EDA moves</p>
+<p><strong>Week 4: Must be sequential:</strong> - Interactive rebase is atomic operation - Documentation updates must follow rebase (commit SHAs change)</p>
+</section>
+<section id="agent-invocation-pattern" class="level3">
+<h3 class="anchored" data-anchor-id="agent-invocation-pattern">Agent Invocation Pattern</h3>
+<p><strong>For each phase:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Phase 1 Example</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>workflow_orchestrator.execute({</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"phase"</span>: <span class="st">"Library Extraction"</span>,</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"tasks"</span>: [</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>            <span class="st">"name"</span>: <span class="st">"Extract GP module"</span>,</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">"files"</span>: [<span class="st">"notebooks/04_gaussian_process_modeling.md"</span>],</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>            <span class="st">"output"</span>: [<span class="st">"src/cloud_sim/ml_models/gaussian_process/"</span>],</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">"agent"</span>: <span class="st">"general-purpose"</span>  <span class="co"># For code extraction</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>            <span class="st">"name"</span>: <span class="st">"Commit extraction"</span>,</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>            <span class="st">"agent"</span>: <span class="st">"repository-manager"</span>,</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>            <span class="st">"commit_message"</span>: <span class="st">"refactor(ml_models): extract GP implementation from notebook"</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="success-criteria-per-agent" class="level3">
+<h3 class="anchored" data-anchor-id="success-criteria-per-agent">Success Criteria per Agent</h3>
+<p><strong>ai-modeling-developer (CRITICAL):</strong> - ✅ Test strategy proposed and approved BEFORE implementation - ✅ All new code has ≥70% test coverage - ✅ Tests include research-validated parameters - ✅ No commits without coverage validation - ✅ All tests passing before handoff to repository-manager - ✅ Polars-only (no pandas) enforced - ✅ No print statements in notebooks</p>
+<p><strong>workflow-orchestrator:</strong> - ✅ All subtasks completed - ✅ Context properly passed between agents - ✅ TodoWrite tracking maintained</p>
+<p><strong>repository-manager:</strong> - ✅ All commits follow conventional format - ✅ Each commit builds and passes tests - ✅ SSH signing verified on all commits - ✅ Interactive rebase completes without conflicts - ✅ Commit messages include coverage percentage</p>
+<p><strong>workflow-designer:</strong> - ✅ Clear workflow documentation created - ✅ Colab setup instructions are executable - ✅ Runbook structure is intuitive</p>
+<p><strong>professional-document-architect:</strong> - ✅ Documentation reflects new architecture - ✅ Migration path clearly explained - ✅ No broken links or outdated references</p>
+</section>
+<section id="error-recovery-plan" class="level3">
+<h3 class="anchored" data-anchor-id="error-recovery-plan">Error Recovery Plan</h3>
+<p><strong>If workflow-orchestrator fails:</strong> - Review TodoWrite progress - Complete failed subtask manually - Resume from next incomplete task</p>
+<p><strong>If repository-manager rebase fails:</strong> - <code>git rebase --abort</code> - Restore from backup: <code>git reset --hard backup/pre-rebase</code> - Review conflict manually - Retry with adjusted strategy</p>
+<p><strong>If documentation updates incomplete:</strong> - Use professional-document-architect for final pass - Verify all cross-references - Run link checker</p>
+<hr>
+</section>
+</section>
+<section id="related-documentation-to-update" class="level2">
+<h2 class="anchored" data-anchor-id="related-documentation-to-update">Related Documentation to Update</h2>
+<p>After implementation: - [ ] Update <code>.claude-project-memory.md</code> with new architecture - [ ] Rewrite project history in documentation - [ ] Update main README.md with new structure - [ ] Create migration guide for existing users - [ ] Update agent coordination documentation with lessons learned</p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/nehalecky\.github\.io\/cloud-resource-simulator");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>Built with <a href="https://quarto.org/">Quarto</a></p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/nehalecky/cloud-resource-simulator/edit/main/concepts/design/library-first-refactoring-plan.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/nehalecky/cloud-resource-simulator/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>© 2025 Cloud Resource Simulator</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

@@ -60,7 +60,7 @@ from pathlib import Path
 from scipy import stats
 
 # Import utilities
-from cloudlens.utils import (
+from hellocloud.utils import (
     temporal_quality_metrics,
     cost_distribution_metrics,
     detect_entity_anomalies,
@@ -123,7 +123,7 @@ def attribute_score(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFrame
     Returns DataFrame with columns: attribute, value_density, card_ratio,
     entropy, information_score (sorted descending).
     """
-    from cloudlens.utils import calculate_attribute_scores
+    from hellocloud.utils import calculate_attribute_scores
 
     print(f"Computing attribute scores on {sample_size:,} row sample...")
     return calculate_attribute_scores(df, sample_size=sample_size)
@@ -140,7 +140,7 @@ display(scores.head(15))
 
 ```{code-cell} ipython3
 # Visualize information scores (log scale)
-from cloudlens.utils import create_info_score_chart
+from hellocloud.utils import create_info_score_chart
 
 fig = create_info_score_chart(scores)
 plt.show()

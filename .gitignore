@@ -70,10 +70,7 @@ visualizations/
 .DS_Store
 
 # Data
-data/*.parquet
-data/*.csv
-data/*.json
-data/hf_cache/
+data/
 
 # Model artifacts
 *.pkl

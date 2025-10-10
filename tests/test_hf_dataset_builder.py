@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
-from cloudlens.data_generation.hf_dataset_builder import (
+from hellocloud.data_generation.hf_dataset_builder import (
     CloudMetricsDatasetBuilder,
 )
 

@@ -158,9 +158,9 @@ class TestProjectImports:
     def test_main_package_importable(self):
         """Test that the main package can be imported."""
         try:
-            import cloudlens
+            import hellocloud
         except ImportError as e:
-            pytest.fail(f"Cannot import cloudlens package: {e}")
+            pytest.fail(f"Cannot import hellocloud package: {e}")
 
     def test_submodules_importable(self):
         """Test that submodules can be imported."""
@@ -177,7 +177,7 @@ class TestProjectImports:
 
     def test_pydantic_models_valid(self):
         """Test that our Pydantic models are valid."""
-        from cloudlens.data_generation.workload_patterns import WorkloadCharacteristics
+        from hellocloud.data_generation.workload_patterns import WorkloadCharacteristics
 
         # This would have caught any Pydantic validation issues
         try:

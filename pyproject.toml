@@ -1,12 +1,12 @@
 [project]
-name = "cloudlens"
+name = "hellocloud"
 version = "0.1.0"
-description = "Analytics platform for cloud resource usage and cost optimization. Covers workload characterization, cost analysis, time series modeling, forecasting, and anomaly detection."
+description = "Hands-on exploration of cloud resource usage and cost optimization"
 authors = [{name = "Nicholaus Halecky", email = "your.email@example.com"}]
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
-keywords = ["cloud", "cost-optimization", "workload-characterization", "time-series", "forecasting", "anomaly-detection", "billing-analytics"]
+keywords = ["cloud", "cost-optimization", "workload-analysis", "time-series", "forecasting"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -103,21 +103,20 @@ foundation = [
 ]
 
 all = [
-    "cloudlens[dev,docs,research,gpu,foundation]",
+    "hellocloud[dev,docs,research,gpu,foundation]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/nehalecky/cloudlens"
-Documentation = "https://cloudlens.readthedocs.io"
-Repository = "https://github.com/nehalecky/cloudlens"
-Issues = "https://github.com/nehalecky/cloudlens/issues"
+Homepage = "https://github.com/nehalecky/hello-cloud"
+Repository = "https://github.com/nehalecky/hello-cloud"
+Issues = "https://github.com/nehalecky/hello-cloud/issues"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cloudlens"]
+packages = ["src/hellocloud"]
 
 [dependency-groups]
 dev = [
@@ -186,7 +185,7 @@ minversion = "7.0"
 testpaths = ["tests"]
 addopts = [
     "--verbose",
-    "--cov=src/cloudlens",
+    "--cov=src/hellocloud",
     "--cov-report=term-missing",
     "--cov-report=html",
 ]
@@ -200,7 +199,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src/cloudlens"]
+source = ["src/hellocloud"]
 omit = ["*/tests/*", "*/test_*.py"]
 
 [tool.coverage.report]

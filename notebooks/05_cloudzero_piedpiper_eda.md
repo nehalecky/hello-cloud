@@ -71,7 +71,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from loguru import logger
 
-from cloudlens.utils import (
+from hellocloud.utils import (
     configure_notebook_logging,
     attribute_analysis,
     daily_observation_counts,

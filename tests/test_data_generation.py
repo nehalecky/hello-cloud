@@ -5,7 +5,7 @@ import polars as pl
 import numpy as np
 from datetime import datetime, timedelta
 
-from cloudlens.data_generation import (
+from hellocloud.data_generation import (
     CloudMetricsSimulator,
     WorkloadPatternGenerator,
     WorkloadType,
@@ -162,7 +162,7 @@ class TestIntegration:
 
     def test_full_pipeline(self):
         """Test the complete data generation pipeline."""
-        from cloudlens.data_generation.workload_patterns import create_multi_workload_dataset
+        from hellocloud.data_generation.workload_patterns import create_multi_workload_dataset
 
         # Generate multi-workload dataset
         df = create_multi_workload_dataset(

@@ -10,7 +10,7 @@ Validates metric computation including:
 
 import pytest
 import numpy as np
-from cloudlens.ml_models.gaussian_process.evaluation import (
+from hellocloud.ml_models.gaussian_process.evaluation import (
     compute_metrics,
     compute_anomaly_metrics,
     compute_prediction_intervals,

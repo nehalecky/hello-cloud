@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from pydantic import ValidationError
 
-from cloudlens.ml_models.application_taxonomy import (
+from hellocloud.ml_models.application_taxonomy import (
     ApplicationDomain,
     ScalingBehavior,
     OptimizationPotential,

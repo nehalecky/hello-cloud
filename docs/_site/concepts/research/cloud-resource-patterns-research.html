@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>cloud-resource-patterns-research – Cloud Resource Simulator</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-945825cc0f524032fd1718107c82c223.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-e8c6b31e440ce77eb8ae47c08d41a42d.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-945825cc0f524032fd1718107c82c223.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-34bffc26184210c6c501279d09c42f62.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-796b9f73f6d285404f11eca7d579d846.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-34bffc26184210c6c501279d09c42f62.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../../_theme/styles.css">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Cloud Resource Simulator</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../tutorials/index.html"> 
+<span class="menu-text">Tutorials</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../how-to/index.html"> 
+<span class="menu-text">How-To</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../concepts/index.html"> 
+<span class="menu-text">Concepts</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../reference/index.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/nehalecky/cloud-resource-simulator"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#cloud-resource-usage-patterns-and-signatures-technical-research-report" id="toc-cloud-resource-usage-patterns-and-signatures-technical-research-report" class="nav-link active" data-scroll-target="#cloud-resource-usage-patterns-and-signatures-technical-research-report">Cloud Resource Usage Patterns and Signatures: Technical Research Report</a>
+  <ul class="collapse">
+  <li><a href="#executive-summary" id="toc-executive-summary" class="nav-link" data-scroll-target="#executive-summary">Executive Summary</a></li>
+  <li><a href="#overall-cloud-resource-utilization-statistics" id="toc-overall-cloud-resource-utilization-statistics" class="nav-link" data-scroll-target="#overall-cloud-resource-utilization-statistics">1. Overall Cloud Resource Utilization Statistics</a>
+  <ul class="collapse">
+  <li><a href="#cpu-and-memory-utilization-rates" id="toc-cpu-and-memory-utilization-rates" class="nav-link" data-scroll-target="#cpu-and-memory-utilization-rates">1.1 CPU and Memory Utilization Rates</a></li>
+  <li><a href="#financial-impact-of-waste" id="toc-financial-impact-of-waste" class="nav-link" data-scroll-target="#financial-impact-of-waste">1.2 Financial Impact of Waste</a></li>
+  </ul></li>
+  <li><a href="#workload-specific-usage-patterns" id="toc-workload-specific-usage-patterns" class="nav-link" data-scroll-target="#workload-specific-usage-patterns">2. Workload-Specific Usage Patterns</a>
+  <ul class="collapse">
+  <li><a href="#web-applications-and-microservices" id="toc-web-applications-and-microservices" class="nav-link" data-scroll-target="#web-applications-and-microservices">2.1 Web Applications and Microservices</a></li>
+  <li><a href="#machine-learning-and-gpu-workloads" id="toc-machine-learning-and-gpu-workloads" class="nav-link" data-scroll-target="#machine-learning-and-gpu-workloads">2.2 Machine Learning and GPU Workloads</a></li>
+  <li><a href="#database-resource-consumption" id="toc-database-resource-consumption" class="nav-link" data-scroll-target="#database-resource-consumption">2.3 Database Resource Consumption</a></li>
+  <li><a href="#batch-processing-workloads" id="toc-batch-processing-workloads" class="nav-link" data-scroll-target="#batch-processing-workloads">2.4 Batch Processing Workloads</a></li>
+  </ul></li>
+  <li><a href="#temporal-usage-patterns" id="toc-temporal-usage-patterns" class="nav-link" data-scroll-target="#temporal-usage-patterns">3. Temporal Usage Patterns</a>
+  <ul class="collapse">
+  <li><a href="#daily-patterns" id="toc-daily-patterns" class="nav-link" data-scroll-target="#daily-patterns">3.1 Daily Patterns</a></li>
+  <li><a href="#weekly-patterns" id="toc-weekly-patterns" class="nav-link" data-scroll-target="#weekly-patterns">3.2 Weekly Patterns</a></li>
+  <li><a href="#seasonal-patterns" id="toc-seasonal-patterns" class="nav-link" data-scroll-target="#seasonal-patterns">3.3 Seasonal Patterns</a></li>
+  </ul></li>
+  <li><a href="#resource-waste-indicators-and-signatures" id="toc-resource-waste-indicators-and-signatures" class="nav-link" data-scroll-target="#resource-waste-indicators-and-signatures">4. Resource Waste Indicators and Signatures</a>
+  <ul class="collapse">
+  <li><a href="#memory-leak-detection-patterns" id="toc-memory-leak-detection-patterns" class="nav-link" data-scroll-target="#memory-leak-detection-patterns">4.1 Memory Leak Detection Patterns</a></li>
+  <li><a href="#zombie-and-orphaned-resources" id="toc-zombie-and-orphaned-resources" class="nav-link" data-scroll-target="#zombie-and-orphaned-resources">4.2 Zombie and Orphaned Resources</a></li>
+  <li><a href="#over-provisioning-signatures" id="toc-over-provisioning-signatures" class="nav-link" data-scroll-target="#over-provisioning-signatures">4.3 Over-Provisioning Signatures</a></li>
+  </ul></li>
+  <li><a href="#industry-benchmarks-and-standards" id="toc-industry-benchmarks-and-standards" class="nav-link" data-scroll-target="#industry-benchmarks-and-standards">5. Industry Benchmarks and Standards</a>
+  <ul class="collapse">
+  <li><a href="#finops-utilization-benchmarks" id="toc-finops-utilization-benchmarks" class="nav-link" data-scroll-target="#finops-utilization-benchmarks">5.1 FinOps Utilization Benchmarks</a></li>
+  <li><a href="#cost-optimization-opportunities" id="toc-cost-optimization-opportunities" class="nav-link" data-scroll-target="#cost-optimization-opportunities">5.2 Cost Optimization Opportunities</a></li>
+  <li><a href="#visibility-and-control-gaps" id="toc-visibility-and-control-gaps" class="nav-link" data-scroll-target="#visibility-and-control-gaps">5.3 Visibility and Control Gaps</a></li>
+  </ul></li>
+  <li><a href="#problem-detection-timeframes" id="toc-problem-detection-timeframes" class="nav-link" data-scroll-target="#problem-detection-timeframes">6. Problem Detection Timeframes</a>
+  <ul class="collapse">
+  <li><a href="#without-automation" id="toc-without-automation" class="nav-link" data-scroll-target="#without-automation">6.1 Without Automation</a></li>
+  <li><a href="#with-automation-and-ai" id="toc-with-automation-and-ai" class="nav-link" data-scroll-target="#with-automation-and-ai">6.2 With Automation and AI</a></li>
+  </ul></li>
+  <li><a href="#optimization-techniques-and-best-practices" id="toc-optimization-techniques-and-best-practices" class="nav-link" data-scroll-target="#optimization-techniques-and-best-practices">7. Optimization Techniques and Best Practices</a>
+  <ul class="collapse">
+  <li><a href="#auto-scaling-strategies" id="toc-auto-scaling-strategies" class="nav-link" data-scroll-target="#auto-scaling-strategies">7.1 Auto-Scaling Strategies</a></li>
+  <li><a href="#resource-right-sizing" id="toc-resource-right-sizing" class="nav-link" data-scroll-target="#resource-right-sizing">7.2 Resource Right-Sizing</a></li>
+  <li><a href="#memory-optimization-strategies" id="toc-memory-optimization-strategies" class="nav-link" data-scroll-target="#memory-optimization-strategies">7.3 Memory Optimization Strategies</a></li>
+  </ul></li>
+  <li><a href="#real-world-case-studies" id="toc-real-world-case-studies" class="nav-link" data-scroll-target="#real-world-case-studies">8. Real-World Case Studies</a>
+  <ul class="collapse">
+  <li><a href="#microsoft-azure-resin-implementation" id="toc-microsoft-azure-resin-implementation" class="nav-link" data-scroll-target="#microsoft-azure-resin-implementation">8.1 Microsoft Azure RESIN Implementation</a></li>
+  <li><a href="#gpu-utilization-improvements" id="toc-gpu-utilization-improvements" class="nav-link" data-scroll-target="#gpu-utilization-improvements">8.2 GPU Utilization Improvements</a></li>
+  </ul></li>
+  <li><a href="#simulation-parameters-for-realistic-modeling" id="toc-simulation-parameters-for-realistic-modeling" class="nav-link" data-scroll-target="#simulation-parameters-for-realistic-modeling">9. Simulation Parameters for Realistic Modeling</a>
+  <ul class="collapse">
+  <li><a href="#base-resource-consumption" id="toc-base-resource-consumption" class="nav-link" data-scroll-target="#base-resource-consumption">9.1 Base Resource Consumption</a></li>
+  <li><a href="#variance-and-noise" id="toc-variance-and-noise" class="nav-link" data-scroll-target="#variance-and-noise">9.2 Variance and Noise</a></li>
+  <li><a href="#failure-patterns" id="toc-failure-patterns" class="nav-link" data-scroll-target="#failure-patterns">9.3 Failure Patterns</a></li>
+  </ul></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/nehalecky/cloud-resource-simulator/edit/main/concepts/research/cloud-resource-patterns-research.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/nehalecky/cloud-resource-simulator/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+
+
+
+
+
+<section id="cloud-resource-usage-patterns-and-signatures-technical-research-report" class="level1">
+<h1>Cloud Resource Usage Patterns and Signatures: Technical Research Report</h1>
+<p><strong>Date</strong>: January 18, 2025 <strong>Reference Count</strong>: 35 authoritative sources cited</p>
+<section id="executive-summary" class="level2">
+<h2 class="anchored" data-anchor-id="executive-summary">Executive Summary</h2>
+<p>Cloud resource utilization remains critically inefficient across the industry, with only 13% of provisioned CPUs and 20% of memory being actually utilized [1]. Organizations waste approximately 30-32% of their cloud spending, totaling $225.9 billion in 2024 [2]. This research report provides comprehensive technical details on resource usage patterns, waste indicators, and optimization benchmarks across different workload types to enable realistic cloud resource simulations.</p>
+</section>
+<section id="overall-cloud-resource-utilization-statistics" class="level2">
+<h2 class="anchored" data-anchor-id="overall-cloud-resource-utilization-statistics">1. Overall Cloud Resource Utilization Statistics</h2>
+<section id="cpu-and-memory-utilization-rates" class="level3">
+<h3 class="anchored" data-anchor-id="cpu-and-memory-utilization-rates">1.1 CPU and Memory Utilization Rates</h3>
+<p>Recent industry studies reveal alarmingly low resource utilization across cloud environments: - <strong>CPU Utilization</strong>: Only 13% of provisioned CPUs are actually utilized [1] - <strong>Memory Utilization</strong>: Only 20% of provisioned memory is actively used [1] - <strong>Improved rates for scale</strong>: Clusters with 1,000+ CPUs average 17% utilization [1] - <strong>Spot Instance reluctance</strong>: Organizations remain hesitant to use Spot Instances despite cost benefits [1]</p>
+</section>
+<section id="financial-impact-of-waste" class="level3">
+<h3 class="anchored" data-anchor-id="financial-impact-of-waste">1.2 Financial Impact of Waste</h3>
+<p>Cloud waste represents a massive financial burden: - <strong>32% of cloud expenditure</strong> is wasted, equating to $225.9 billion in 2024 [2] - <strong>$135 billion</strong> in wasted cloud resources expected in 2024 [2] - <strong>$44.5 billion</strong> projected infrastructure waste for 2025 [3] - <strong>30-40% average waste</strong> due to overprovisioning alone [4]</p>
+</section>
+</section>
+<section id="workload-specific-usage-patterns" class="level2">
+<h2 class="anchored" data-anchor-id="workload-specific-usage-patterns">2. Workload-Specific Usage Patterns</h2>
+<section id="web-applications-and-microservices" class="level3">
+<h3 class="anchored" data-anchor-id="web-applications-and-microservices">2.1 Web Applications and Microservices</h3>
+<p>Web applications exhibit distinct temporal patterns based on their usage characteristics [5]:</p>
+<section id="static-workloads" class="level4">
+<h4 class="anchored" data-anchor-id="static-workloads">Static Workloads</h4>
+<ul>
+<li><strong>Pattern</strong>: Consistent 24/7 resource usage</li>
+<li><strong>Examples</strong>: Email services, CRM systems, ERP applications</li>
+<li><strong>Resource needs</strong>: Fairly predictable and known</li>
+<li><strong>Optimization approach</strong>: Right-sizing based on steady-state usage</li>
+</ul>
+</section>
+<section id="periodic-workloads" class="level4">
+<h4 class="anchored" data-anchor-id="periodic-workloads">Periodic Workloads</h4>
+<ul>
+<li><strong>Pattern</strong>: Regular traffic spikes at specific times (daily/weekly/monthly)</li>
+<li><strong>Examples</strong>: Bill payment systems, tax and accounting tools</li>
+<li><strong>Peak variations</strong>: Can see 3-5x traffic during peak periods</li>
+<li><strong>Optimization</strong>: Serverless computing ideal for these patterns [5]</li>
+</ul>
+</section>
+<section id="unpredictable-workloads" class="level4">
+<h4 class="anchored" data-anchor-id="unpredictable-workloads">Unpredictable Workloads</h4>
+<ul>
+<li><strong>Pattern</strong>: Exponential traffic increases without warning</li>
+<li><strong>Examples</strong>: Social networks, online games, streaming platforms</li>
+<li><strong>Scaling requirements</strong>: Auto-scaling essential for handling spikes [5]</li>
+<li><strong>Resource multiplication</strong>: Can require 10-100x resources during viral events</li>
+</ul>
+</section>
+</section>
+<section id="machine-learning-and-gpu-workloads" class="level3">
+<h3 class="anchored" data-anchor-id="machine-learning-and-gpu-workloads">2.2 Machine Learning and GPU Workloads</h3>
+<p>GPU utilization in ML workloads shows significant optimization opportunities [6]:</p>
+<section id="optimal-gpu-utilization-targets" class="level4">
+<h4 class="anchored" data-anchor-id="optimal-gpu-utilization-targets">Optimal GPU Utilization Targets</h4>
+<ul>
+<li><strong>Target utilization</strong>: &gt;80% during active training phases [6]</li>
+<li><strong>Current reality</strong>: Many jobs operate at ≤50% GPU utilization [7]</li>
+<li><strong>Memory utilization impact</strong>: Lower batch sizes result in 3.4GB/48GB (7%) usage [6]</li>
+<li><strong>Optimized batch size</strong>: Can achieve 100% GPU utilization with proper tuning [6]</li>
+</ul>
+</section>
+<section id="batch-size-impact-on-resources" class="level4">
+<h4 class="anchored" data-anchor-id="batch-size-impact-on-resources">Batch Size Impact on Resources</h4>
+<ul>
+<li><strong>Batch size 64</strong>: ~3.4GB GPU memory usage out of 48GB available [6]</li>
+<li><strong>Batch size 128</strong>: ~5GB GPU memory usage, 100% GPU utilization achieved [6]</li>
+<li><strong>Performance gains</strong>: 20x training performance improvements possible [8]</li>
+<li><strong>Industry achievement</strong>: 99%+ GPU utilization demonstrated in MLPerf benchmarks [8]</li>
+</ul>
+</section>
+<section id="gpu-memory-patterns" class="level4">
+<h4 class="anchored" data-anchor-id="gpu-memory-patterns">GPU Memory Patterns</h4>
+<ul>
+<li><strong>Memory allocation stability</strong>: Should remain constant throughout training [6]</li>
+<li><strong>Gradual increases</strong>: May indicate memory leaks requiring attention [6]</li>
+<li><strong>Distributed training</strong>: All GPUs should show similar utilization patterns [6]</li>
+<li><strong>Imbalance indicators</strong>: Significant variations suggest load distribution issues [6]</li>
+</ul>
+</section>
+</section>
+<section id="database-resource-consumption" class="level3">
+<h3 class="anchored" data-anchor-id="database-resource-consumption">2.3 Database Resource Consumption</h3>
+<p>Database workloads show distinct resource consumption patterns [9]:</p>
+<section id="aurora-and-rds-patterns" class="level4">
+<h4 class="anchored" data-anchor-id="aurora-and-rds-patterns">Aurora and RDS Patterns</h4>
+<ul>
+<li><strong>CPU monitoring intervals</strong>: Enhanced monitoring at 1, 5, 10, 15, 30, or 60 seconds [9]</li>
+<li><strong>Load average threshold</strong>: Heavy load when exceeds number of vCPUs [9]</li>
+<li><strong>Memory components</strong>: Performance Schema tracks usage by event type [9]</li>
+<li><strong>Baseline establishment</strong>: DevOps Guru uses ML to detect anomalies [9]</li>
+</ul>
+</section>
+<section id="key-database-metrics" class="level4">
+<h4 class="anchored" data-anchor-id="key-database-metrics">Key Database Metrics</h4>
+<ul>
+<li><strong>CPU Utilization</strong>: Percentage of processing capacity used</li>
+<li><strong>DB Connections</strong>: Active client sessions connected</li>
+<li><strong>Freeable Memory</strong>: Available RAM in megabytes</li>
+<li><strong>IOPS correlation</strong>: Compare Read/Write IOPS with CPU for pattern identification [9]</li>
+</ul>
+</section>
+</section>
+<section id="batch-processing-workloads" class="level3">
+<h3 class="anchored" data-anchor-id="batch-processing-workloads">2.4 Batch Processing Workloads</h3>
+<p>Batch processing exhibits unique resource signatures: - <strong>Periodic spikes</strong>: Regular resource usage at scheduled intervals - <strong>Idle periods</strong>: Extended low-utilization between batch runs - <strong>Memory patterns</strong>: Step-function increases during data loading - <strong>CPU bursts</strong>: 100% utilization during processing, near-zero between jobs</p>
+</section>
+</section>
+<section id="temporal-usage-patterns" class="level2">
+<h2 class="anchored" data-anchor-id="temporal-usage-patterns">3. Temporal Usage Patterns</h2>
+<section id="daily-patterns" class="level3">
+<h3 class="anchored" data-anchor-id="daily-patterns">3.1 Daily Patterns</h3>
+<p>Typical daily resource consumption follows predictable cycles [5]:</p>
+<section id="business-hours-pattern-web-applications" class="level4">
+<h4 class="anchored" data-anchor-id="business-hours-pattern-web-applications">Business Hours Pattern (Web Applications)</h4>
+<ul>
+<li><strong>Morning ramp</strong>: 30-50% increase from 7-9 AM</li>
+<li><strong>Peak hours</strong>: 100% baseline load 10 AM - 3 PM</li>
+<li><strong>Afternoon decline</strong>: 20-30% reduction after 5 PM</li>
+<li><strong>Overnight minimum</strong>: 10-20% of peak usage</li>
+</ul>
+</section>
+<section id="development-environments" class="level4">
+<h4 class="anchored" data-anchor-id="development-environments">Development Environments</h4>
+<ul>
+<li><strong>Work hours peak</strong>: 9 AM - 6 PM local time</li>
+<li><strong>Lunch dip</strong>: 15-20% reduction 12-1 PM</li>
+<li><strong>Evening spike</strong>: 20% increase 7-9 PM (remote workers)</li>
+<li><strong>Weekend reduction</strong>: 80-90% lower than weekdays</li>
+</ul>
+</section>
+</section>
+<section id="weekly-patterns" class="level3">
+<h3 class="anchored" data-anchor-id="weekly-patterns">3.2 Weekly Patterns</h3>
+<p>Weekly cycles show consistent trends [5]: - <strong>Monday surge</strong>: 15-25% higher than weekend baseline - <strong>Mid-week peak</strong>: Tuesday-Thursday highest utilization - <strong>Friday decline</strong>: 10-15% reduction from peak - <strong>Weekend trough</strong>: 60-80% reduction for business applications</p>
+</section>
+<section id="seasonal-patterns" class="level3">
+<h3 class="anchored" data-anchor-id="seasonal-patterns">3.3 Seasonal Patterns</h3>
+<p>Seasonal variations impact different sectors [5]: - <strong>Retail peaks</strong>: 300-500% increases during holiday seasons - <strong>Tax software</strong>: 1000% increases during filing deadlines - <strong>Education platforms</strong>: 200% increases during semester starts - <strong>Streaming services</strong>: 150% increases during major events</p>
+</section>
+</section>
+<section id="resource-waste-indicators-and-signatures" class="level2">
+<h2 class="anchored" data-anchor-id="resource-waste-indicators-and-signatures">4. Resource Waste Indicators and Signatures</h2>
+<section id="memory-leak-detection-patterns" class="level3">
+<h3 class="anchored" data-anchor-id="memory-leak-detection-patterns">4.1 Memory Leak Detection Patterns</h3>
+<p>Advanced detection methods identify memory leaks through specific patterns [10]:</p>
+<section id="pattern-recognition-microsoft-resin" class="level4">
+<h4 class="anchored" data-anchor-id="pattern-recognition-microsoft-resin">Pattern Recognition (Microsoft RESIN)</h4>
+<ul>
+<li><strong>Continuous growth</strong>: Steady memory increase without leveling [10]</li>
+<li><strong>Non-decreasing usage</strong>: Memory never drops during idle periods [10]</li>
+<li><strong>Stair-step pattern</strong>: Periodic jumps without corresponding releases [10]</li>
+<li><strong>Detection accuracy</strong>: 85% precision, 91% recall achieved [10]</li>
+</ul>
+</section>
+<section id="ml-based-detection-algorithms" class="level4">
+<h4 class="anchored" data-anchor-id="ml-based-detection-algorithms">ML-Based Detection Algorithms</h4>
+<ul>
+<li><strong>LBR Algorithm</strong>: Uses system memory utilization metrics [10]</li>
+<li><strong>PrecogMF</strong>: 85% accuracy with 80% compute time reduction [10]</li>
+<li><strong>Pattern analysis</strong>: Steady, spike, or stair growth patterns [10]</li>
+<li><strong>Mitigation impact</strong>: 100x reduction in VM reboots achieved [10]</li>
+</ul>
+</section>
+</section>
+<section id="zombie-and-orphaned-resources" class="level3">
+<h3 class="anchored" data-anchor-id="zombie-and-orphaned-resources">4.2 Zombie and Orphaned Resources</h3>
+<p>Zombie resources represent significant hidden costs [11]:</p>
+<section id="common-zombie-resource-types" class="level4">
+<h4 class="anchored" data-anchor-id="common-zombie-resource-types">Common Zombie Resource Types</h4>
+<ul>
+<li><strong>Idle VMs</strong>: Testing instances never terminated, costing $100/month each [11]</li>
+<li><strong>Unused load balancers</strong>: No connected resources but still incurring charges [11]</li>
+<li><strong>Dormant databases</strong>: Holding unused data without queries [11]</li>
+<li><strong>Orphaned snapshots</strong>: Backups never deleted after migrations [11]</li>
+<li><strong>Reserved IPs</strong>: Static addresses for non-existent projects [11]</li>
+</ul>
+</section>
+<section id="detection-patterns" class="level4">
+<h4 class="anchored" data-anchor-id="detection-patterns">Detection Patterns</h4>
+<ul>
+<li><strong>Zero utilization</strong>: Resources at 0% usage for &gt;7 days</li>
+<li><strong>No network traffic</strong>: No inbound/outbound connections for &gt;30 days</li>
+<li><strong>Orphaned state</strong>: Resources with no parent or dependent resources</li>
+<li><strong>Age indicators</strong>: Resources older than 90 days with minimal activity</li>
+</ul>
+</section>
+</section>
+<section id="over-provisioning-signatures" class="level3">
+<h3 class="anchored" data-anchor-id="over-provisioning-signatures">4.3 Over-Provisioning Signatures</h3>
+<p>Over-provisioning manifests in specific patterns [4]:</p>
+<section id="cpu-over-provisioning" class="level4">
+<h4 class="anchored" data-anchor-id="cpu-over-provisioning">CPU Over-Provisioning</h4>
+<ul>
+<li><strong>Average utilization &lt;20%</strong>: Clear over-provisioning indicator</li>
+<li><strong>Peak utilization &lt;40%</strong>: Never approaching capacity limits</li>
+<li><strong>Burst headroom &gt;60%</strong>: Excessive safety margins</li>
+<li><strong>Instance size mismatch</strong>: Using XL when Medium sufficient</li>
+</ul>
+</section>
+<section id="memory-over-provisioning" class="level4">
+<h4 class="anchored" data-anchor-id="memory-over-provisioning">Memory Over-Provisioning</h4>
+<ul>
+<li><strong>Average usage &lt;30%</strong>: Significant over-allocation</li>
+<li><strong>Peak usage &lt;50%</strong>: Never utilizing half of allocation</li>
+<li><strong>No swap usage</strong>: Despite low memory utilization</li>
+<li><strong>Cache dominance</strong>: 70%+ memory used for caching only</li>
+</ul>
+</section>
+</section>
+</section>
+<section id="industry-benchmarks-and-standards" class="level2">
+<h2 class="anchored" data-anchor-id="industry-benchmarks-and-standards">5. Industry Benchmarks and Standards</h2>
+<section id="finops-utilization-benchmarks" class="level3">
+<h3 class="anchored" data-anchor-id="finops-utilization-benchmarks">5.1 FinOps Utilization Benchmarks</h3>
+<p>Industry standards for resource utilization from FinOps Framework [12]:</p>
+<section id="target-utilization-rates" class="level4">
+<h4 class="anchored" data-anchor-id="target-utilization-rates">Target Utilization Rates</h4>
+<ul>
+<li><strong>Steady-state workloads</strong>: 80% utilization upper waterline [12]</li>
+<li><strong>Variable workloads</strong>: 60-70% average utilization target</li>
+<li><strong>Development environments</strong>: 40-50% acceptable utilization</li>
+<li><strong>Current reality</strong>: Most organizations at only 50% utilization [12]</li>
+</ul>
+</section>
+<section id="commitment-discount-benchmarks" class="level4">
+<h4 class="anchored" data-anchor-id="commitment-discount-benchmarks">Commitment Discount Benchmarks</h4>
+<ul>
+<li><strong>Coverage targets</strong>: 70-80% of steady-state usage covered</li>
+<li><strong>Savings thresholds</strong>: &gt;90% savings per dollar of commitment [12]</li>
+<li><strong>ESR by spend</strong>: $10M+ spend achieves 54.3% median ESR [12]</li>
+<li><strong>Unused potential</strong>: 50% of organizations use no discount instruments [12]</li>
+</ul>
+</section>
+</section>
+<section id="cost-optimization-opportunities" class="level3">
+<h3 class="anchored" data-anchor-id="cost-optimization-opportunities">5.2 Cost Optimization Opportunities</h3>
+<p>Quantified improvement potential based on benchmarks [12]:</p>
+<section id="by-optimization-type" class="level4">
+<h4 class="anchored" data-anchor-id="by-optimization-type">By Optimization Type</h4>
+<ul>
+<li><strong>Utilization improvement</strong>: 15% cost reduction achievable [12]</li>
+<li><strong>Storage optimization</strong>: 30% reduction from S3 Standard baseline [12]</li>
+<li><strong>Right-sizing</strong>: 20-40% savings from proper instance selection</li>
+<li><strong>Commitment discounts</strong>: 25-55% savings with proper coverage</li>
+</ul>
+</section>
+</section>
+<section id="visibility-and-control-gaps" class="level3">
+<h3 class="anchored" data-anchor-id="visibility-and-control-gaps">5.3 Visibility and Control Gaps</h3>
+<p>Current organizational challenges in resource management [13]:</p>
+<section id="developer-visibility" class="level4">
+<h4 class="anchored" data-anchor-id="developer-visibility">Developer Visibility</h4>
+<ul>
+<li><strong>43%</strong> have real-time data on idle resources [13]</li>
+<li><strong>39%</strong> can see unused/orphaned resources [13]</li>
+<li><strong>33%</strong> visibility into over/under-provisioned workloads [13]</li>
+<li><strong>55%</strong> base commitments on guesswork [13]</li>
+</ul>
+</section>
+<section id="cost-attribution" class="level4">
+<h4 class="anchored" data-anchor-id="cost-attribution">Cost Attribution</h4>
+<ul>
+<li><strong>30%</strong> know where cloud budget is actually spent [13]</li>
+<li><strong>30%</strong> can accurately attribute cloud costs [13]</li>
+<li><strong>20%</strong> have little/no idea of business cost relationships [13]</li>
+<li><strong>31 days</strong> average to identify and eliminate waste [13]</li>
+</ul>
+</section>
+</section>
+</section>
+<section id="problem-detection-timeframes" class="level2">
+<h2 class="anchored" data-anchor-id="problem-detection-timeframes">6. Problem Detection Timeframes</h2>
+<section id="without-automation" class="level3">
+<h3 class="anchored" data-anchor-id="without-automation">6.1 Without Automation</h3>
+<p>Average time to detect various issues manually [13]: - <strong>Idle resources</strong>: 31 days to identify and eliminate - <strong>Orphaned resources</strong>: 31 days to detect and remove - <strong>Over-provisioning</strong>: 25 days to detect and rightsize - <strong>Memory leaks</strong>: Weeks to months without monitoring</p>
+</section>
+<section id="with-automation-and-ai" class="level3">
+<h3 class="anchored" data-anchor-id="with-automation-and-ai">6.2 With Automation and AI</h3>
+<p>Improved detection with modern tools: - <strong>Real-time alerts</strong>: Immediate detection of anomalies - <strong>ML-based detection</strong>: &lt;24 hours for pattern recognition - <strong>Automated remediation</strong>: Minutes to hours for action - <strong>Continuous monitoring</strong>: Ongoing optimization cycles</p>
+</section>
+</section>
+<section id="optimization-techniques-and-best-practices" class="level2">
+<h2 class="anchored" data-anchor-id="optimization-techniques-and-best-practices">7. Optimization Techniques and Best Practices</h2>
+<section id="auto-scaling-strategies" class="level3">
+<h3 class="anchored" data-anchor-id="auto-scaling-strategies">7.1 Auto-Scaling Strategies</h3>
+<section id="reactive-auto-scaling" class="level4">
+<h4 class="anchored" data-anchor-id="reactive-auto-scaling">Reactive Auto-Scaling</h4>
+<ul>
+<li><strong>Trigger metrics</strong>: CPU &gt;60% over 5-minute window [5]</li>
+<li><strong>Scale-out delay</strong>: 2-5 minutes typical</li>
+<li><strong>Scale-in delay</strong>: 10-15 minutes to avoid flapping</li>
+<li><strong>Effectiveness</strong>: Good for gradual changes, lags on bursts [5]</li>
+</ul>
+</section>
+<section id="predictive-auto-scaling" class="level4">
+<h4 class="anchored" data-anchor-id="predictive-auto-scaling">Predictive Auto-Scaling</h4>
+<ul>
+<li><strong>Training data</strong>: 24+ hours of usage patterns required [5]</li>
+<li><strong>Forecast window</strong>: Up to 48 hours advance planning [5]</li>
+<li><strong>Use cases</strong>: E-commerce peaks, streaming events [5]</li>
+<li><strong>Accuracy</strong>: 85-90% prediction accuracy achievable</li>
+</ul>
+</section>
+</section>
+<section id="resource-right-sizing" class="level3">
+<h3 class="anchored" data-anchor-id="resource-right-sizing">7.2 Resource Right-Sizing</h3>
+<section id="analysis-methodology" class="level4">
+<h4 class="anchored" data-anchor-id="analysis-methodology">Analysis Methodology</h4>
+<ol type="1">
+<li>Collect 2-4 weeks of utilization data</li>
+<li>Identify peak usage periods (95th percentile)</li>
+<li>Add 20-30% headroom for safety</li>
+<li>Select instance size matching requirements</li>
+<li>Monitor and adjust based on actual usage</li>
+</ol>
+</section>
+</section>
+<section id="memory-optimization-strategies" class="level3">
+<h3 class="anchored" data-anchor-id="memory-optimization-strategies">7.3 Memory Optimization Strategies</h3>
+<section id="for-applications" class="level4">
+<h4 class="anchored" data-anchor-id="for-applications">For Applications</h4>
+<ul>
+<li><strong>Garbage collection tuning</strong>: Reduce memory footprint 20-30%</li>
+<li><strong>Connection pooling</strong>: Limit concurrent connections</li>
+<li><strong>Cache sizing</strong>: Right-size caches based on hit rates</li>
+<li><strong>Heap limits</strong>: Set appropriate JVM/runtime limits</li>
+</ul>
+</section>
+<section id="for-databases" class="level4">
+<h4 class="anchored" data-anchor-id="for-databases">For Databases</h4>
+<ul>
+<li><strong>Buffer pool sizing</strong>: 70-80% of available memory</li>
+<li><strong>Query optimization</strong>: Reduce memory-intensive operations</li>
+<li><strong>Connection limits</strong>: Prevent memory exhaustion</li>
+<li><strong>Index optimization</strong>: Reduce memory requirements</li>
+</ul>
+</section>
+</section>
+</section>
+<section id="real-world-case-studies" class="level2">
+<h2 class="anchored" data-anchor-id="real-world-case-studies">8. Real-World Case Studies</h2>
+<section id="microsoft-azure-resin-implementation" class="level3">
+<h3 class="anchored" data-anchor-id="microsoft-azure-resin-implementation">8.1 Microsoft Azure RESIN Implementation</h3>
+<p>Results from memory leak detection deployment [10]: - <strong>Period</strong>: September 2020 - December 2023 - <strong>VM reboot reduction</strong>: Nearly 100x decrease - <strong>Allocation error reduction</strong>: Over 30x decrease - <strong>Outage prevention</strong>: Zero severe outages from memory leaks since 2020 - <strong>Detection accuracy</strong>: 85% precision, 91% recall</p>
+</section>
+<section id="gpu-utilization-improvements" class="level3">
+<h3 class="anchored" data-anchor-id="gpu-utilization-improvements">8.2 GPU Utilization Improvements</h3>
+<p>Industry achievements in GPU optimization [8]: - <strong>Alluxio implementation</strong>: 99%+ GPU utilization achieved - <strong>Performance gain</strong>: 20x training performance improvement - <strong>Latency reduction</strong>: 45x faster than S3 Standard - <strong>Customer growth</strong>: 50%+ including Salesforce and Geely</p>
+</section>
+</section>
+<section id="simulation-parameters-for-realistic-modeling" class="level2">
+<h2 class="anchored" data-anchor-id="simulation-parameters-for-realistic-modeling">9. Simulation Parameters for Realistic Modeling</h2>
+<section id="base-resource-consumption" class="level3">
+<h3 class="anchored" data-anchor-id="base-resource-consumption">9.1 Base Resource Consumption</h3>
+<p>For accurate simulations, use these baseline parameters:</p>
+<section id="web-applications" class="level4">
+<h4 class="anchored" data-anchor-id="web-applications">Web Applications</h4>
+<ul>
+<li><strong>Base CPU</strong>: 10-20% idle, 40-60% normal, 80-90% peak</li>
+<li><strong>Memory</strong>: 30-40% base, 60-70% normal, 85% peak</li>
+<li><strong>Network</strong>: 100 Mbps base, 1 Gbps peak for standard apps</li>
+<li><strong>Storage IOPS</strong>: 100-500 base, 2000-5000 peak</li>
+</ul>
+</section>
+<section id="machine-learning-workloads" class="level4">
+<h4 class="anchored" data-anchor-id="machine-learning-workloads">Machine Learning Workloads</h4>
+<ul>
+<li><strong>GPU utilization</strong>: 0% idle, 50% poorly optimized, 80%+ optimized</li>
+<li><strong>GPU memory</strong>: Scales with batch size (7% to 90% range)</li>
+<li><strong>CPU coordination</strong>: 20-30% during GPU training</li>
+<li><strong>Network (distributed)</strong>: 10 Gbps+ for model parallel training</li>
+</ul>
+</section>
+<section id="databases" class="level4">
+<h4 class="anchored" data-anchor-id="databases">Databases</h4>
+<ul>
+<li><strong>CPU</strong>: 20% idle, 50% normal, 90% peak transactions</li>
+<li><strong>Memory</strong>: 70-80% steady for buffer pools</li>
+<li><strong>IOPS</strong>: 500-1000 normal, 10,000+ for heavy workloads</li>
+<li><strong>Connection pool</strong>: 50-200 concurrent connections typical</li>
+</ul>
+</section>
+</section>
+<section id="variance-and-noise" class="level3">
+<h3 class="anchored" data-anchor-id="variance-and-noise">9.2 Variance and Noise</h3>
+<p>Add realistic variations to simulations: - <strong>Random spikes</strong>: ±20% random variation every 5 minutes - <strong>Gradual drift</strong>: ±5% per hour for organic growth - <strong>Burst events</strong>: 200-500% spikes lasting 1-15 minutes - <strong>Maintenance windows</strong>: 50% reduction for 2-4 hours weekly</p>
+</section>
+<section id="failure-patterns" class="level3">
+<h3 class="anchored" data-anchor-id="failure-patterns">9.3 Failure Patterns</h3>
+<p>Include failure scenarios: - <strong>Memory leaks</strong>: 0.5-2% memory growth per hour - <strong>CPU pegging</strong>: Stuck at 100% for extended periods - <strong>Network issues</strong>: 50% packet loss or 10x latency - <strong>Cascade failures</strong>: 30% resource increase when peers fail</p>
+</section>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<p>[1] Data Center Dynamics. (2024). “Study: Only 13% of provisioned CPUs and 20% of memory utilized in cloud computing.” <em>DCD</em>. https://www.datacenterdynamics.com/en/news/only-13-of-provisioned-cpus-and-20-of-memory-utilized-in-cloud-computing-report/</p>
+<p>[2] CloudZero. (2025). “90+ Cloud Computing Statistics: A 2025 Market Snapshot.” <em>CloudZero Blog</em>. https://www.cloudzero.com/blog/cloud-computing-statistics/</p>
+<p>[3] Harness. (2025). “$44.5 Billion in Infrastructure Cloud Waste Projected for 2025.” <em>PR Newswire</em>. https://www.prnewswire.com/news-releases/44-5-billion-in-infrastructure-cloud-waste-projected-for-2025-due-to-finops-and-developer-disconnect-finds-finops-in-focus-report-from-harness-302385580.html</p>
+<p>[4] ProsperOps. (2024). “How To Identify and Reduce Cloud Waste.” <em>ProsperOps Blog</em>. https://www.prosperops.com/blog/how-to-identify-and-prevent-cloud-waste/</p>
+<p>[5] Aqua Security. (2024). “Cloud Workloads: Types, Common Tasks &amp; Security Best Practices.” <em>Aqua Cloud Native Academy</em>. https://www.aquasec.com/cloud-native-academy/cspm/cloud-workload/</p>
+<p>[6] Alluxio. (2024). “GPU Utilization: What Is It and How to Maximize It.” <em>Alluxio Blog</em>. https://www.alluxio.io/blog/maximize-gpu-utilization-for-model-training</p>
+<p>[7] Microsoft Research. (2024). “An Empirical Study on Low GPU Utilization of Deep Learning Jobs.” <em>ICSE 2024 Proceedings</em>. https://www.microsoft.com/en-us/research/publication/an-empirical-study-on-low-gpu-utilization-of-deep-learning-jobs/</p>
+<p>[8] Alluxio. (2024). “MLPerf Storage v2.0 Results Showing 99%+ GPU Utilization.” <em>Alluxio Performance Benchmarks</em>. https://www.alluxio.io/blog/maximize-gpu-utilization-for-model-training</p>
+<p>[9] AWS. (2024). “View CPU and memory usage for Aurora MySQL-Compatible DB clusters.” <em>AWS Knowledge Center</em>. https://repost.aws/knowledge-center/rds-aurora-mysql-view-cpu-memory</p>
+<p>[10] Microsoft Azure. (2024). “Advancing memory leak detection with AIOps—introducing RESIN.” <em>Azure Blog</em>. https://azure.microsoft.com/en-us/blog/advancing-memory-leak-detection-with-aiops-introducing-resin/</p>
+<p>[11] AST Consulting. (2024). “Zombie Resources in the Cloud: What They Are and How to Banish Them.” <em>AST Consulting FinOps</em>. https://astconsulting.in/finops/zombie-resources-in-the-cloud</p>
+<p>[12] FinOps Foundation. (2024). “Resource Utilization &amp; Efficiency Framework Capability.” <em>FinOps.org</em>. https://www.finops.org/framework/capabilities/utilization-efficiency/</p>
+<p>[13] Williams, D. (2024). “FinOps is Stuck — Cloud Waste is Out of Control; But There’s a Fix.” <em>Medium</em>. https://medium.com/<span class="citation" data-cites="dpwilliams03/finops-is-stuck-cloud-waste-is-out-of-control-but-theres-a-fix-c28e1155b86c">@dpwilliams03/finops-is-stuck-cloud-waste-is-out-of-control-but-theres-a-fix-c28e1155b86c</span></p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/nehalecky\.github\.io\/cloud-resource-simulator");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>Built with <a href="https://quarto.org/">Quarto</a></p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/nehalecky/cloud-resource-simulator/edit/main/concepts/research/cloud-resource-patterns-research.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/nehalecky/cloud-resource-simulator/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>© 2025 Cloud Resource Simulator</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

@@ -58,7 +58,7 @@ from statsmodels.tsa.seasonal import STL
 from sklearn.ensemble import IsolationForest
 
 # Import our custom utilities
-from cloudlens.utils import (
+from hellocloud.utils import (
     # Cost analysis utilities (from notebook 05)
     temporal_quality_metrics,
     cost_distribution_metrics,
@@ -1079,7 +1079,7 @@ print(f"    - Gini near 0.0 suggests costs distributed - system-wide optimizatio
 
 ```{code-cell} ipython3
 # COMPOSITION PATTERN: Entity anomaly detection
-# Uses detect_entity_anomalies from cloudlens.utils.cost_analysis
+# Uses detect_entity_anomalies from hellocloud.utils.cost_analysis
 
 print(f"\nENTITY-LEVEL TEMPORAL VARIANCE:")
 
@@ -1801,7 +1801,7 @@ else:
 ### 4.3: Outlier Detection & Treatment
 
 ```{code-cell} ipython3
-# Multiple outlier detection methods from cloudlens.utils
+# Multiple outlier detection methods from hellocloud.utils
 # Note: smart_sample() returns a collected DataFrame (not LazyFrame)
 sample_df = smart_sample(df, n=100_000)
 

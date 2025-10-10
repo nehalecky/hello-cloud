@@ -44,7 +44,7 @@ import gpytorch
 from gpytorch.likelihoods import StudentTLikelihood, GaussianLikelihood
 
 # Cloud simulation library (our GP implementation)
-from cloudlens.ml_models.gaussian_process import (
+from hellocloud.ml_models.gaussian_process import (
     CompositePeriodicKernel,
     SparseGPModel,
     initialize_inducing_points,

@@ -14,8 +14,8 @@ import gpytorch
 import tempfile
 from pathlib import Path
 
-from cloudlens.ml_models.gaussian_process.models import SparseGPModel, initialize_inducing_points
-from cloudlens.ml_models.gaussian_process.training import (
+from hellocloud.ml_models.gaussian_process.models import SparseGPModel, initialize_inducing_points
+from hellocloud.ml_models.gaussian_process.training import (
     train_gp_model,
     save_model,
     load_model,
