@@ -1,0 +1,48 @@
+---
+title: "How-To Guides"
+---
+
+# How-To Guides
+
+Task-oriented guides for accomplishing specific goals with Cloud Resource Simulator.
+
+## Data Generation
+
+### [Generate Synthetic Cloud Data](generate-synthetic-data.qmd)
+Step-by-step guide for creating realistic synthetic cloud resource datasets.
+
+**Use cases:**
+- Testing optimization algorithms
+- Training machine learning models
+- Benchmarking analysis pipelines
+- Creating demonstration datasets
+
+---
+
+### [Train Gaussian Process Models](train-gp-models.qmd)
+Practical guide for training and evaluating GP models on cloud resource data.
+
+**Use cases:**
+- Forecasting resource utilization
+- Anomaly detection
+- Capacity planning
+- Cost optimization
+
+---
+
+## Coming Soon
+
+- **Export to HuggingFace Datasets**: Share your synthetic data
+- **Configure Bayesian Hierarchical Models**: Industry→Application→Resource modeling
+- **Optimize Resource Allocation**: Cost reduction strategies
+- **Detect Anomalies**: Statistical anomaly detection patterns
+
+## Need Help?
+
+- Check the [Tutorials](../tutorials/index.qmd) for learning-oriented guides
+- Read the [Concepts](../concepts/index.qmd) for deeper understanding
+- Browse the [API Reference](../reference/index.qmd) for detailed documentation
+
+## Contributing
+
+Have a how-to guide to share? Contributions welcome! See our [contributing guidelines](https://github.com/nehalecky/cloud-resource-simulator/blob/master/CONTRIBUTING.md).
