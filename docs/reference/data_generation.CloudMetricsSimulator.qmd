@@ -1,0 +1,56 @@
+# data_generation.CloudMetricsSimulator { #cloud_sim.data_generation.CloudMetricsSimulator }
+
+```python
+data_generation.CloudMetricsSimulator(
+    start_date=None,
+    end_date=None,
+    num_resources=100,
+    sampling_interval_minutes=60,
+)
+```
+
+Simulates cloud infrastructure metrics for multiple providers
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [calculate_unit_economics](#cloud_sim.data_generation.CloudMetricsSimulator.calculate_unit_economics) | Calculate unit economics metrics (cost per customer, feature, etc.) |
+| [generate_dataset](#cloud_sim.data_generation.CloudMetricsSimulator.generate_dataset) | Generate complete dataset with all resources |
+| [generate_usage_patterns](#cloud_sim.data_generation.CloudMetricsSimulator.generate_usage_patterns) | Generate realistic usage patterns for a resource |
+| [inject_anomalies](#cloud_sim.data_generation.CloudMetricsSimulator.inject_anomalies) | Inject realistic anomalies into the data |
+
+### calculate_unit_economics { #cloud_sim.data_generation.CloudMetricsSimulator.calculate_unit_economics }
+
+```python
+data_generation.CloudMetricsSimulator.calculate_unit_economics(df)
+```
+
+Calculate unit economics metrics (cost per customer, feature, etc.)
+
+### generate_dataset { #cloud_sim.data_generation.CloudMetricsSimulator.generate_dataset }
+
+```python
+data_generation.CloudMetricsSimulator.generate_dataset(include_anomalies=True)
+```
+
+Generate complete dataset with all resources
+
+### generate_usage_patterns { #cloud_sim.data_generation.CloudMetricsSimulator.generate_usage_patterns }
+
+```python
+data_generation.CloudMetricsSimulator.generate_usage_patterns(
+    resource,
+    timestamps,
+)
+```
+
+Generate realistic usage patterns for a resource
+
+### inject_anomalies { #cloud_sim.data_generation.CloudMetricsSimulator.inject_anomalies }
+
+```python
+data_generation.CloudMetricsSimulator.inject_anomalies(df, anomaly_rate=0.02)
+```
+
+Inject realistic anomalies into the data

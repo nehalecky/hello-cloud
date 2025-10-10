@@ -1,0 +1,77 @@
+# ml_models.gaussian_process.SparseGPModel { #cloud_sim.ml_models.gaussian_process.SparseGPModel }
+
+```python
+ml_models.gaussian_process.SparseGPModel(
+    inducing_points,
+    learn_inducing_locations=True,
+    slow_period=1.0,
+    fast_period=0.2,
+    rbf_lengthscale=0.1,
+)
+```
+
+Sparse Variational Gaussian Process (SVGP) with composite periodic kernel.
+
+Uses inducing points to achieve O(nm²) complexity instead of O(n³),
+enabling training on datasets with 100k+ samples.
+
+The model learns:
+1. **Inducing point locations** (optimized during training)
+2. **Variational distribution** over inducing function values
+3. **Kernel hyperparameters** (outputscale for each component)
+4. **Mean function** parameters (constant baseline)
+
+Example:
+    ```python
+    # Initialize inducing points (evenly spaced)
+    M = 200
+    inducing_indices = torch.linspace(0, len(X_train)-1, M, dtype=torch.long)
+    inducing_points = X_train[inducing_indices].clone()
+
+    # Create model
+    model = SparseGPModel(inducing_points=inducing_points)
+    likelihood = gpytorch.likelihoods.StudentTLikelihood()
+
+    # Train (see training.py for full example)
+    mll = gpytorch.mlls.VariationalELBO(likelihood, model, num_data=len(X_train))
+    ```
+
+Args:
+    inducing_points: Tensor of shape (M, D) where M is number of inducing points,
+                    D is input dimensionality (typically 1 for time series)
+    learn_inducing_locations: If True, optimize inducing point locations (default: True)
+    slow_period: Period for slow periodic component (default: 1.0)
+    fast_period: Period for fast periodic component (default: 0.2)
+    rbf_lengthscale: Lengthscale for RBF component (default: 0.1)
+
+Attributes:
+    mean_module: Constant mean function
+    covar_module: CompositePeriodicKernel for multi-scale patterns
+    variational_strategy: Handles inducing point approximation
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [inducing_points](#cloud_sim.ml_models.gaussian_process.SparseGPModel.inducing_points) | Current inducing point locations. |
+| [num_inducing_points](#cloud_sim.ml_models.gaussian_process.SparseGPModel.num_inducing_points) | Number of inducing points used in variational approximation. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [forward](#cloud_sim.ml_models.gaussian_process.SparseGPModel.forward) | Forward pass through the GP model. |
+
+### forward { #cloud_sim.ml_models.gaussian_process.SparseGPModel.forward }
+
+```python
+ml_models.gaussian_process.SparseGPModel.forward(x)
+```
+
+Forward pass through the GP model.
+
+Args:
+    x: Input tensor of shape (n, 1) for univariate time series
+
+Returns:
+    MultivariateNormal distribution with mean and covariance

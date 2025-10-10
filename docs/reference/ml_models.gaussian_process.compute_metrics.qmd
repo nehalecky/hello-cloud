@@ -1,0 +1,55 @@
+# ml_models.gaussian_process.compute_metrics { #cloud_sim.ml_models.gaussian_process.compute_metrics }
+
+```python
+ml_models.gaussian_process.compute_metrics(
+    y_true,
+    y_pred,
+    lower_95,
+    upper_95,
+    lower_99,
+    upper_99,
+    model_name='GP Model',
+)
+```
+
+Compute comprehensive model evaluation metrics.
+
+Includes both point prediction accuracy and uncertainty quantification quality.
+
+Args:
+    y_true: True values (n,)
+    y_pred: Predicted mean values (n,)
+    lower_95: Lower bound of 95% prediction interval (n,)
+    upper_95: Upper bound of 95% prediction interval (n,)
+    lower_99: Lower bound of 99% prediction interval (n,)
+    upper_99: Upper bound of 99% prediction interval (n,)
+    model_name: Name for result labeling (default: "GP Model")
+
+Returns:
+    Dictionary with metrics:
+    - 'Model': Model name
+    - 'RMSE': Root mean squared error
+    - 'MAE': Mean absolute error
+    - 'R²': R-squared score
+    - 'Coverage 95%': Fraction of points in 95% interval
+    - 'Coverage 99%': Fraction of points in 99% interval
+    - 'Sharpness 95%': Average width of 95% interval
+    - 'Sharpness 99%': Average width of 99% interval
+
+Example:
+    ```python
+    metrics = compute_metrics(
+        y_true=y_test,
+        y_pred=mean_predictions,
+        lower_95=lower_95_interval,
+        upper_95=upper_95_interval,
+        lower_99=lower_99_interval,
+        upper_99=upper_99_interval,
+        model_name="Robust GP"
+    )
+    ```
+
+Notes:
+    - **Calibration**: Coverage should match nominal level (95%, 99%)
+    - **Sharpness**: Narrower intervals are better IF well-calibrated
+    - **Point accuracy**: RMSE/MAE measure prediction error, R² measures variance explained

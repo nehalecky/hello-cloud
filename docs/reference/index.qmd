@@ -1,0 +1,28 @@
+# API Reference {.doc .doc-index}
+
+## Data Generation
+
+Synthetic cloud resource data generation with realistic utilization patterns
+
+| | |
+| --- | --- |
+| [data_generation.WorkloadPatternGenerator](data_generation.WorkloadPatternGenerator.qmd#cloud_sim.data_generation.WorkloadPatternGenerator) | Generate realistic cloud workload patterns based on research data |
+| [data_generation.WorkloadType](data_generation.WorkloadType.qmd#cloud_sim.data_generation.WorkloadType) | Different application workload patterns based on research |
+| [data_generation.CloudMetricsSimulator](data_generation.CloudMetricsSimulator.qmd#cloud_sim.data_generation.CloudMetricsSimulator) | Simulates cloud infrastructure metrics for multiple providers |
+| [data_generation.CloudMetricsDatasetBuilder](data_generation.CloudMetricsDatasetBuilder.qmd#cloud_sim.data_generation.CloudMetricsDatasetBuilder) | Build and manage HuggingFace datasets for cloud metrics |
+
+## Gaussian Process Models
+
+GPyTorch-based sparse variational GP for time series forecasting
+
+| | |
+| --- | --- |
+| [ml_models.gaussian_process.SparseGPModel](ml_models.gaussian_process.SparseGPModel.qmd#cloud_sim.ml_models.gaussian_process.SparseGPModel) | Sparse Variational Gaussian Process (SVGP) with composite periodic kernel. |
+| [ml_models.gaussian_process.CompositePeriodicKernel](ml_models.gaussian_process.CompositePeriodicKernel.qmd#cloud_sim.ml_models.gaussian_process.CompositePeriodicKernel) | Composite kernel for two-scale periodic patterns in cloud metrics. |
+| [ml_models.gaussian_process.initialize_inducing_points](ml_models.gaussian_process.initialize_inducing_points.qmd#cloud_sim.ml_models.gaussian_process.initialize_inducing_points) | Initialize inducing point locations for sparse GP. |
+| [ml_models.gaussian_process.train_gp_model](ml_models.gaussian_process.train_gp_model.qmd#cloud_sim.ml_models.gaussian_process.train_gp_model) | Train sparse GP model using mini-batch variational inference. |
+| [ml_models.gaussian_process.compute_metrics](ml_models.gaussian_process.compute_metrics.qmd#cloud_sim.ml_models.gaussian_process.compute_metrics) | Compute comprehensive model evaluation metrics. |
+
+## Bayesian Hierarchical Models
+
+PyMC-based hierarchical models for cloud resource patterns (coming soon)

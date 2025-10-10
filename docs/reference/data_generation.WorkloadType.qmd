@@ -1,0 +1,7 @@
+# data_generation.WorkloadType { #cloud_sim.data_generation.WorkloadType }
+
+```python
+data_generation.WorkloadType()
+```
+
+Different application workload patterns based on research

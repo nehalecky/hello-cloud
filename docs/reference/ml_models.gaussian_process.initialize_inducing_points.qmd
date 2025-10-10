@@ -1,0 +1,31 @@
+# ml_models.gaussian_process.initialize_inducing_points { #cloud_sim.ml_models.gaussian_process.initialize_inducing_points }
+
+```python
+ml_models.gaussian_process.initialize_inducing_points(
+    X_train,
+    num_inducing,
+    method='evenly_spaced',
+)
+```
+
+Initialize inducing point locations for sparse GP.
+
+Args:
+    X_train: Training inputs of shape (n, d)
+    num_inducing: Number of inducing points (M)
+    method: Initialization method:
+        - "evenly_spaced": Evenly spaced across training range (default)
+        - "random": Random subset of training points
+        - "kmeans": K-means clustering (not yet implemented)
+
+Returns:
+    Inducing points tensor of shape (M, d)
+
+Example:
+    ```python
+    inducing_points = initialize_inducing_points(
+        X_train=X_train_norm,
+        num_inducing=200,
+        method="evenly_spaced"
+    )
+    ```
