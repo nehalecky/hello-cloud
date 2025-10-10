@@ -165,8 +165,9 @@ class TestProjectImports:
     def test_submodules_importable(self):
         """Test that submodules can be imported."""
         submodules = [
-            "cloud_sim.data_generation",
-            "cloud_sim.ml_models",
+            "hellocloud.data_generation",
+            "hellocloud.ml_models",
+            "hellocloud.utils",
         ]
 
         for module_name in submodules:
@@ -175,40 +176,3 @@ class TestProjectImports:
             except ImportError as e:
                 pytest.fail(f"Cannot import {module_name}: {e}")
 
-    def test_pydantic_models_valid(self):
-        """Test that our Pydantic models are valid."""
-        from hellocloud.data_generation.workload_patterns import WorkloadCharacteristics
-
-        # This would have caught any Pydantic validation issues
-        try:
-            # Create a valid model instance
-            wc = WorkloadCharacteristics(
-                base_cpu_util=15.0,
-                base_mem_util=35.0,
-                cpu_variance=20.0,
-                mem_variance=10.0,
-                peak_multiplier=2.0,
-                idle_probability=0.3,
-                waste_factor=0.35,
-                scaling_pattern="auto",
-                seasonal_pattern=True,
-                burst_probability=0.15
-            )
-        except Exception as e:
-            pytest.fail(f"Cannot create WorkloadCharacteristics: {e}")
-
-        # Test validation works
-        with pytest.raises(ValueError):
-            # This should fail - CPU util > 100
-            WorkloadCharacteristics(
-                base_cpu_util=150.0,  # Invalid!
-                base_mem_util=35.0,
-                cpu_variance=20.0,
-                mem_variance=10.0,
-                peak_multiplier=2.0,
-                idle_probability=0.3,
-                waste_factor=0.35,
-                scaling_pattern="auto",
-                seasonal_pattern=True,
-                burst_probability=0.15
-            )

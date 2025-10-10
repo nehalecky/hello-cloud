@@ -1,8 +1,7 @@
 """
-Cloud Resource Simulation Platform
+Hello Cloud - Cloud Cost Analysis and Optimization
 
-Advanced synthetic data generation and ML models for cloud cost optimization.
-Demonstrates cutting-edge approaches to FinOps challenges.
+Hands-on tools for cloud resource usage analysis and cost optimization.
 """
 
 __version__ = "0.1.0"
@@ -12,6 +11,7 @@ from .data_generation import (
     CloudMetricsDatasetBuilder,
     CloudMetricsSimulator,
     WorkloadPatternGenerator,
+    WorkloadType,
 )
 from .ml_models import (
     CloudResourceHierarchicalModel,
@@ -24,9 +24,10 @@ from .utils import (
 )
 
 __all__ = [
+    "CloudMetricsDatasetBuilder",
     "CloudMetricsSimulator",
     "WorkloadPatternGenerator",
-    "CloudMetricsDatasetBuilder",
+    "WorkloadType",
     "CloudResourceHierarchicalModel",
     "CloudResourceTaxonomy",
     "configure_notebook_logging",

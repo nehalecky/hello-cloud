@@ -1,3 +1,12 @@
+import pytest
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
+pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)")
 """
 Tests for Gaussian Process kernels module.
 
@@ -9,8 +18,6 @@ Validates CompositePeriodicKernel behavior including:
 - Positive semi-definite (PSD) property
 """
 
-import pytest
-import torch
 from hellocloud.ml_models.gaussian_process.kernels import CompositePeriodicKernel
 
 

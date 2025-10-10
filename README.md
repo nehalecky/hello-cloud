@@ -85,8 +85,8 @@ See [`docs/`](docs/) for:
 ```
 hello-cloud/
 ├── src/hellocloud/         # Source code
+│   ├── data_generation/    # Synthetic workload pattern generation
 │   ├── utils/              # EDA and analysis utilities
-│   ├── etl/                # Data loaders (CloudZero, Alibaba traces)
 │   └── ml_models/          # Time series models (GP, PyMC)
 ├── notebooks/              # Analysis notebooks (MyST format)
 ├── tests/                  # Test suite
@@ -105,8 +105,8 @@ uv run black src/ tests/
 # Lint
 uv run ruff check --fix src/ tests/
 
-# Execute notebooks
-cd notebooks && uv run jupytext --execute 05_cloudzero_piedpiper_eda.md
+# Build documentation
+just docs
 ```
 
 ## License

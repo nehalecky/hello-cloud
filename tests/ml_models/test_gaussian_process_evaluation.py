@@ -1,3 +1,12 @@
+import pytest
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
+pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)")
 """
 Tests for Gaussian Process evaluation metrics module.
 
@@ -8,7 +17,6 @@ Validates metric computation including:
 - Prediction interval computation
 """
 
-import pytest
 import numpy as np
 from hellocloud.ml_models.gaussian_process.evaluation import (
     compute_metrics,

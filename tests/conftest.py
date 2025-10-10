@@ -13,7 +13,17 @@ from pathlib import Path
 import tempfile
 import shutil
 
-from hellocloud.data_generation import WorkloadType
+# Check if torch is available (for GP tests)
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
+# Skip GP test collection if torch not available
+if not TORCH_AVAILABLE:
+    collect_ignore_glob = ["**/test_gaussian_process_*.py"]
+
 from hellocloud.ml_models.application_taxonomy import (
     ApplicationDomain,
     ScalingBehavior,
@@ -93,7 +103,6 @@ def multi_resource_data():
         df = pl.DataFrame({
             "timestamp": timestamps,
             "resource_id": [f"res_{i:03d}"] * hours_per_resource,
-            "workload_type": [WorkloadType.WEB_APP if i % 2 == 0 else WorkloadType.BATCH_PROCESSING] * hours_per_resource,
             "cpu_utilization": np.random.beta(2, 8, hours_per_resource) * 100,
             "memory_utilization": np.random.beta(3, 7, hours_per_resource) * 100,
             "hourly_cost": np.random.gamma(2, 10 + i * 5, hours_per_resource),
@@ -216,36 +225,7 @@ def sample_application_archetype(sample_resource_pattern, sample_cost_profile):
     )
 
 
-# Forecasting Fixtures
-
-@pytest.fixture
-def mock_forecast_result():
-    """Create a mock forecast result."""
-    from hellocloud.ml_models.advanced_forecasting import ForecastResult
-
-    return ForecastResult(
-        point_forecast=np.array([10.0, 11.0, 12.0, 13.0, 14.0]),
-        lower_bound=np.array([9.0, 10.0, 11.0, 12.0, 13.0]),
-        upper_bound=np.array([11.0, 12.0, 13.0, 14.0, 15.0]),
-        quantiles={
-            0.1: np.array([9.5, 10.5, 11.5, 12.5, 13.5]),
-            0.5: np.array([10.0, 11.0, 12.0, 13.0, 14.0]),
-            0.9: np.array([10.5, 11.5, 12.5, 13.5, 14.5])
-        },
-        model_name="MockModel",
-        metrics={"mape": 0.05, "rmse": 1.2}
-    )
-
-
-@pytest.fixture
-def mock_chronos_pipeline():
-    """Create a mock Chronos pipeline."""
-    pipeline = MagicMock()
-    forecast = MagicMock()
-    forecast.quantile.return_value.squeeze.return_value.numpy.return_value = \
-        np.array([10.0, 11.0, 12.0])
-    pipeline.predict.return_value = forecast
-    return pipeline
+# Forecasting Fixtures (removed - foundation models deleted)
 
 
 # HuggingFace Fixtures
@@ -347,9 +327,6 @@ def benchmark_timer():
 
 def pytest_generate_tests(metafunc):
     """Generate parametrized test cases."""
-    if "workload_type" in metafunc.fixturenames:
-        metafunc.parametrize("workload_type", list(WorkloadType))
-
     if "application_domain" in metafunc.fixturenames:
         metafunc.parametrize("application_domain", list(ApplicationDomain))
 
@@ -376,3 +353,15 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "requires_gpu: marks tests that require GPU"
     )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip GP tests if torch is not available."""
+    if TORCH_AVAILABLE:
+        return  # torch available, run all tests
+
+    skip_gpu = pytest.mark.skip(reason="Requires torch (install with: uv sync --group gpu)")
+    for item in items:
+        # Skip all tests in GP test modules
+        if "test_gaussian_process" in str(item.fspath):
+            item.add_marker(skip_gpu)

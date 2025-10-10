@@ -1,6 +1,6 @@
 # Research Foundation
 
-This directory contains the empirical research that forms the foundation of our cloud resource simulation models.
+This directory contains the empirical research that forms the foundation of hello cloud understand of cloud workloads.
 
 ## Core Research Documents
 

@@ -1,1 +1,0 @@
-Sitemap: https://nehalecky.github.io/cloud-resource-simulator/sitemap.xml

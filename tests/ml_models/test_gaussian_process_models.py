@@ -1,3 +1,12 @@
+import pytest
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
+pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)")
 """
 Tests for Gaussian Process models module.
 
@@ -9,8 +18,6 @@ Validates SparseGPModel behavior including:
 - Integration with composite kernels
 """
 
-import pytest
-import torch
 import gpytorch
 from hellocloud.ml_models.gaussian_process.models import (
     SparseGPModel,

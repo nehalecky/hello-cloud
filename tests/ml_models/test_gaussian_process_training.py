@@ -1,3 +1,12 @@
+import pytest
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
+pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)")
 """
 Integration tests for Gaussian Process training module.
 
@@ -8,8 +17,6 @@ Validates training workflows including:
 - Numerical stability settings
 """
 
-import pytest
-import torch
 import gpytorch
 import tempfile
 from pathlib import Path
