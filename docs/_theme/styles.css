@@ -1,0 +1,68 @@
+/* Additional custom styles for Cloud Resource Simulator docs */
+
+/* Code highlighting improvements */
+code {
+  font-size: 0.9em;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+}
+
+/* Table styling */
+table {
+  margin: 1.5em 0;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+table th {
+  background-color: var(--bs-primary);
+  color: white;
+  padding: 0.75em;
+}
+
+table td {
+  padding: 0.75em;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* Figure captions */
+figcaption {
+  font-style: italic;
+  text-align: center;
+  margin-top: 0.5em;
+  color: var(--bs-secondary);
+}
+
+/* Insight boxes (from explanatory style) */
+.insight-box {
+  background-color: #f8f9fa;
+  border-left: 4px solid #2780e3;
+  padding: 1em;
+  margin: 1.5em 0;
+  font-family: monospace;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .insight-box {
+    background-color: #1a1a1a;
+  }
+
+  table td {
+    border-bottom-color: #444;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Back to top button styling */
+#quarto-back-to-top {
+  opacity: 0.7;
+}
+
+#quarto-back-to-top:hover {
+  opacity: 1;
+}
