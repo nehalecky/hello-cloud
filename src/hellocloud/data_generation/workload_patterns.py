@@ -6,17 +6,20 @@ Based on research showing actual cloud utilization statistics:
 - 30-32% of cloud spending is wasted
 """
 
-import polars as pl
-import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional, Literal
-from enum import Enum
-from pydantic import BaseModel, Field, field_validator
 import random
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Literal
+
+import numpy as np
+import polars as pl
 from loguru import logger
+from pydantic import BaseModel, Field, field_validator
+
 
 class WorkloadType(Enum):
     """Different application workload patterns based on research"""
+
     WEB_APP = "web_application"
     MICROSERVICE = "microservice"
     BATCH_PROCESSING = "batch_processing"
@@ -30,8 +33,10 @@ class WorkloadType(Enum):
     QUEUE = "message_queue"
     DEVELOPMENT = "development_environment"
 
+
 class WorkloadCharacteristics(BaseModel):
     """Characteristics based on real-world data"""
+
     base_cpu_util: float = Field(..., ge=0, le=100, description="Average CPU utilization (%)")
     base_mem_util: float = Field(..., ge=0, le=100, description="Average memory utilization (%)")
     cpu_variance: float = Field(..., ge=0, description="Variance in CPU usage")
@@ -43,19 +48,20 @@ class WorkloadCharacteristics(BaseModel):
     seasonal_pattern: bool = Field(..., description="Has seasonal patterns")
     burst_probability: float = Field(..., ge=0, le=1, description="Probability of bursts")
 
-    @field_validator('base_cpu_util', 'base_mem_util')
+    @field_validator("base_cpu_util", "base_mem_util")
     @classmethod
     def validate_percentage(cls, v: float) -> float:
         if not 0 <= v <= 100:
             raise ValueError(f"Utilization must be between 0 and 100, got {v}")
         return v
 
-    @field_validator('idle_probability', 'waste_factor', 'burst_probability')
+    @field_validator("idle_probability", "waste_factor", "burst_probability")
     @classmethod
     def validate_probability(cls, v: float) -> float:
         if not 0 <= v <= 1:
             raise ValueError(f"Probability must be between 0 and 1, got {v}")
         return v
+
 
 class WorkloadPatternGenerator:
     """Generate realistic cloud workload patterns based on research data"""
@@ -72,7 +78,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.35,
             scaling_pattern="auto",
             seasonal_pattern=True,
-            burst_probability=0.15
+            burst_probability=0.15,
         ),
         WorkloadType.MICROSERVICE: WorkloadCharacteristics(
             base_cpu_util=12,
@@ -84,7 +90,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.45,  # High waste in microservices
             scaling_pattern="auto",
             seasonal_pattern=True,
-            burst_probability=0.2
+            burst_probability=0.2,
         ),
         WorkloadType.BATCH_PROCESSING: WorkloadCharacteristics(
             base_cpu_util=8,  # Very low when not running
@@ -96,7 +102,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.6,  # Major waste source
             scaling_pattern="manual",
             seasonal_pattern=False,
-            burst_probability=0.05
+            burst_probability=0.05,
         ),
         WorkloadType.ML_TRAINING: WorkloadCharacteristics(
             base_cpu_util=25,  # Better utilized but still low
@@ -108,7 +114,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.4,
             scaling_pattern="manual",
             seasonal_pattern=False,
-            burst_probability=0.1
+            burst_probability=0.1,
         ),
         WorkloadType.ML_INFERENCE: WorkloadCharacteristics(
             base_cpu_util=30,
@@ -120,7 +126,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.25,
             scaling_pattern="auto",
             seasonal_pattern=True,
-            burst_probability=0.15
+            burst_probability=0.15,
         ),
         WorkloadType.DATABASE_OLTP: WorkloadCharacteristics(
             base_cpu_util=20,
@@ -132,7 +138,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.3,
             scaling_pattern="none",
             seasonal_pattern=True,
-            burst_probability=0.1
+            burst_probability=0.1,
         ),
         WorkloadType.DATABASE_OLAP: WorkloadCharacteristics(
             base_cpu_util=10,
@@ -144,7 +150,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.5,
             scaling_pattern="manual",
             seasonal_pattern=False,
-            burst_probability=0.05
+            burst_probability=0.05,
         ),
         WorkloadType.STREAMING: WorkloadCharacteristics(
             base_cpu_util=35,
@@ -156,7 +162,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.2,
             scaling_pattern="auto",
             seasonal_pattern=False,
-            burst_probability=0.2
+            burst_probability=0.2,
         ),
         WorkloadType.SERVERLESS: WorkloadCharacteristics(
             base_cpu_util=5,  # Very low average
@@ -168,7 +174,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.1,  # Low waste due to pay-per-use
             scaling_pattern="auto",
             seasonal_pattern=True,
-            burst_probability=0.3
+            burst_probability=0.3,
         ),
         WorkloadType.CACHE: WorkloadCharacteristics(
             base_cpu_util=10,
@@ -180,7 +186,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.25,
             scaling_pattern="none",
             seasonal_pattern=False,
-            burst_probability=0.05
+            burst_probability=0.05,
         ),
         WorkloadType.QUEUE: WorkloadCharacteristics(
             base_cpu_util=8,
@@ -192,7 +198,7 @@ class WorkloadPatternGenerator:
             waste_factor=0.35,
             scaling_pattern="auto",
             seasonal_pattern=False,
-            burst_probability=0.25
+            burst_probability=0.25,
         ),
         WorkloadType.DEVELOPMENT: WorkloadCharacteristics(
             base_cpu_util=5,
@@ -204,21 +210,18 @@ class WorkloadPatternGenerator:
             waste_factor=0.7,  # Major waste source
             scaling_pattern="none",
             seasonal_pattern=True,
-            burst_probability=0.1
+            burst_probability=0.1,
         ),
     }
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: int | None = None):
         """Initialize generator with optional seed for reproducibility"""
         if seed:
             np.random.seed(seed)
             random.seed(seed)
 
     def generate(
-        self,
-        num_samples: int = 1000,
-        workload_type: Optional[WorkloadType] = None,
-        **kwargs
+        self, num_samples: int = 1000, workload_type: WorkloadType | None = None, **kwargs
     ) -> pl.DataFrame:
         """Generate synthetic data with specified number of samples.
 
@@ -228,7 +231,7 @@ class WorkloadPatternGenerator:
             workload_type = WorkloadType.WEB_APP
 
         # Calculate time range based on number of samples
-        interval_minutes = kwargs.get('interval_minutes', 5)
+        interval_minutes = kwargs.get("interval_minutes", 5)
         end_time = datetime.now()
         total_minutes = num_samples * interval_minutes
         start_time = end_time - timedelta(minutes=total_minutes)
@@ -237,7 +240,7 @@ class WorkloadPatternGenerator:
             workload_type=workload_type,
             start_time=start_time,
             end_time=end_time,
-            interval_minutes=interval_minutes
+            interval_minutes=interval_minutes,
         )
 
     def generate_time_series(
@@ -245,7 +248,7 @@ class WorkloadPatternGenerator:
         workload_type: WorkloadType,
         start_time: datetime,
         end_time: datetime,
-        interval_minutes: int = 5
+        interval_minutes: int = 5,
     ) -> pl.DataFrame:
         """Generate time series data for a specific workload type"""
 
@@ -263,9 +266,7 @@ class WorkloadPatternGenerator:
             current += timedelta(minutes=interval_minutes)
 
         # Generate base patterns
-        cpu_utilization = self._generate_utilization_pattern(
-            num_points, timestamps, profile, "cpu"
-        )
+        cpu_utilization = self._generate_utilization_pattern(num_points, timestamps, profile, "cpu")
         memory_utilization = self._generate_utilization_pattern(
             num_points, timestamps, profile, "memory"
         )
@@ -286,31 +287,31 @@ class WorkloadPatternGenerator:
         disk_iops = self._generate_disk_pattern(cpu_utilization, workload_type)
 
         # Calculate efficiency scores
-        efficiency_score = self._calculate_efficiency(
-            cpu_utilization, memory_utilization, profile
-        )
+        efficiency_score = self._calculate_efficiency(cpu_utilization, memory_utilization, profile)
 
         # Create Polars DataFrame
-        return pl.DataFrame({
-            "timestamp": timestamps,
-            "workload_type": [workload_type.value] * num_points,
-            "cpu_utilization": cpu_utilization,
-            "memory_utilization": memory_utilization,
-            "network_in_mbps": network_in_mbps,
-            "network_out_mbps": network_out_mbps,
-            "disk_iops": disk_iops,
-            "efficiency_score": efficiency_score,
-            "is_idle": waste_indicators["is_idle"],
-            "is_overprovisioned": waste_indicators["is_overprovisioned"],
-            "waste_percentage": waste_indicators["waste_percentage"]
-        })
+        return pl.DataFrame(
+            {
+                "timestamp": timestamps,
+                "workload_type": [workload_type.value] * num_points,
+                "cpu_utilization": cpu_utilization,
+                "memory_utilization": memory_utilization,
+                "network_in_mbps": network_in_mbps,
+                "network_out_mbps": network_out_mbps,
+                "disk_iops": disk_iops,
+                "efficiency_score": efficiency_score,
+                "is_idle": waste_indicators["is_idle"],
+                "is_overprovisioned": waste_indicators["is_overprovisioned"],
+                "waste_percentage": waste_indicators["waste_percentage"],
+            }
+        )
 
     def _generate_utilization_pattern(
         self,
         num_points: int,
-        timestamps: List[datetime],
+        timestamps: list[datetime],
         profile: WorkloadCharacteristics,
-        metric_type: str
+        metric_type: str,
     ) -> np.ndarray:
         """Generate utilization pattern based on profile"""
 
@@ -338,18 +339,17 @@ class WorkloadPatternGenerator:
 
         # Add seasonal patterns
         if profile.seasonal_pattern:
-            seasonal_wave = np.sin(np.linspace(0, 4*np.pi, num_points))
+            seasonal_wave = np.sin(np.linspace(0, 4 * np.pi, num_points))
             utilization += seasonal_wave * variance * 0.5
 
         # Add random variance
-        noise = np.random.normal(0, variance/4, num_points)
+        noise = np.random.normal(0, variance / 4, num_points)
         utilization += noise
 
         # Add burst patterns
         if random.random() < profile.burst_probability:
             burst_locations = random.sample(
-                range(num_points),
-                k=int(num_points * profile.burst_probability)
+                range(num_points), k=int(num_points * profile.burst_probability)
             )
             for loc in burst_locations:
                 burst_duration = random.randint(5, 20)
@@ -365,11 +365,8 @@ class WorkloadPatternGenerator:
         return np.clip(utilization, 0, 100)
 
     def _add_correlation(
-        self,
-        cpu: np.ndarray,
-        memory: np.ndarray,
-        workload_type: WorkloadType
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, cpu: np.ndarray, memory: np.ndarray, workload_type: WorkloadType
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Add realistic correlation between CPU and memory"""
 
         # Different workloads have different correlation patterns
@@ -387,11 +384,8 @@ class WorkloadPatternGenerator:
         return cpu, np.clip(memory, 0, 100)
 
     def _generate_waste_patterns(
-        self,
-        cpu: np.ndarray,
-        memory: np.ndarray,
-        profile: WorkloadCharacteristics
-    ) -> Dict[str, np.ndarray]:
+        self, cpu: np.ndarray, memory: np.ndarray, profile: WorkloadCharacteristics
+    ) -> dict[str, np.ndarray]:
         """Generate waste indicators based on research"""
 
         # Idle detection (CPU < 5% AND memory < 10%)
@@ -399,8 +393,8 @@ class WorkloadPatternGenerator:
 
         # Over-provisioning detection (consistently low usage)
         window = 20  # 20 samples window
-        cpu_smooth = np.convolve(cpu, np.ones(window)/window, mode='same')
-        mem_smooth = np.convolve(memory, np.ones(window)/window, mode='same')
+        cpu_smooth = np.convolve(cpu, np.ones(window) / window, mode="same")
+        mem_smooth = np.convolve(memory, np.ones(window) / window, mode="same")
         is_overprovisioned = (cpu_smooth < 20) & (mem_smooth < 30)
 
         # Calculate waste percentage
@@ -414,14 +408,10 @@ class WorkloadPatternGenerator:
         return {
             "is_idle": is_idle,
             "is_overprovisioned": is_overprovisioned,
-            "waste_percentage": waste_percentage
+            "waste_percentage": waste_percentage,
         }
 
-    def _generate_network_pattern(
-        self,
-        cpu: np.ndarray,
-        direction: str
-    ) -> np.ndarray:
+    def _generate_network_pattern(self, cpu: np.ndarray, direction: str) -> np.ndarray:
         """Generate network traffic patterns"""
 
         base = 10 if direction == "in" else 5
@@ -429,16 +419,12 @@ class WorkloadPatternGenerator:
         network = base + cpu * 0.3 + np.random.exponential(2, len(cpu))
 
         # Add some spikes
-        spike_locations = np.random.choice(len(cpu), size=int(len(cpu)*0.05))
+        spike_locations = np.random.choice(len(cpu), size=int(len(cpu) * 0.05))
         network[spike_locations] *= np.random.uniform(2, 5, len(spike_locations))
 
         return np.clip(network, 0, 1000)  # Cap at 1Gbps
 
-    def _generate_disk_pattern(
-        self,
-        cpu: np.ndarray,
-        workload_type: WorkloadType
-    ) -> np.ndarray:
+    def _generate_disk_pattern(self, cpu: np.ndarray, workload_type: WorkloadType) -> np.ndarray:
         """Generate disk I/O patterns"""
 
         if workload_type in [WorkloadType.DATABASE_OLTP, WorkloadType.DATABASE_OLAP]:
@@ -455,10 +441,7 @@ class WorkloadPatternGenerator:
         return np.clip(iops, 0, 10000)
 
     def _calculate_efficiency(
-        self,
-        cpu: np.ndarray,
-        memory: np.ndarray,
-        profile: WorkloadCharacteristics
+        self, cpu: np.ndarray, memory: np.ndarray, profile: WorkloadCharacteristics
     ) -> np.ndarray:
         """Calculate efficiency score (0-100)"""
 
@@ -476,9 +459,7 @@ class WorkloadPatternGenerator:
         return np.clip(efficiency, 0, 100)
 
     def generate_anomalies(
-        self,
-        df: pl.DataFrame,
-        anomaly_types: Optional[List[str]] = None
+        self, df: pl.DataFrame, anomaly_types: list[str] | None = None
     ) -> pl.DataFrame:
         """Inject realistic anomalies into the data"""
 
@@ -488,7 +469,9 @@ class WorkloadPatternGenerator:
         # Work with numpy arrays for easier manipulation
         cpu_values = df["cpu_utilization"].to_numpy().copy()
         mem_values = df["memory_utilization"].to_numpy().copy()
-        eff_values = df["efficiency_score"].to_numpy().copy() if "efficiency_score" in df.columns else None
+        eff_values = (
+            df["efficiency_score"].to_numpy().copy() if "efficiency_score" in df.columns else None
+        )
 
         num_points = len(df)
 
@@ -505,7 +488,7 @@ class WorkloadPatternGenerator:
             elif anomaly_type == "cpu_spike" and num_points > 10:
                 # Sudden CPU spike
                 spike_idx = random.randint(0, num_points - 10)
-                cpu_values[spike_idx:spike_idx+10] = 95 + np.random.rand(10) * 5
+                cpu_values[spike_idx : spike_idx + 10] = 95 + np.random.rand(10) * 5
 
             elif anomaly_type == "idle_waste" and num_points > 50:
                 # Extended idle period (common waste pattern)
@@ -518,28 +501,33 @@ class WorkloadPatternGenerator:
                 # Auto-scaling failure pattern
                 failure_idx = random.randint(0, num_points - 30)
                 # CPU maxes out but memory stays low (scaling didn't trigger)
-                cpu_values[failure_idx:failure_idx+30] = 100
+                cpu_values[failure_idx : failure_idx + 30] = 100
                 if eff_values is not None:
-                    eff_values[failure_idx:failure_idx+30] = 0
+                    eff_values[failure_idx : failure_idx + 30] = 0
 
         # Create new DataFrame with modified values
         result_df = df.clone()
-        result_df = result_df.with_columns([
-            pl.Series("cpu_utilization", cpu_values),
-            pl.Series("memory_utilization", mem_values),
-        ])
+        result_df = result_df.with_columns(
+            [
+                pl.Series("cpu_utilization", cpu_values),
+                pl.Series("memory_utilization", mem_values),
+            ]
+        )
 
         if eff_values is not None:
-            result_df = result_df.with_columns([
-                pl.Series("efficiency_score", eff_values),
-            ])
+            result_df = result_df.with_columns(
+                [
+                    pl.Series("efficiency_score", eff_values),
+                ]
+            )
 
         return result_df
+
 
 def create_multi_workload_dataset(
     start_time: datetime,
     end_time: datetime,
-    workload_distribution: Optional[Dict[WorkloadType, int]] = None
+    workload_distribution: dict[WorkloadType, int] | None = None,
 ) -> pl.DataFrame:
     """Create a dataset with multiple workload types"""
 
@@ -552,7 +540,7 @@ def create_multi_workload_dataset(
             WorkloadType.BATCH_PROCESSING: 5,
             WorkloadType.ML_INFERENCE: 5,
             WorkloadType.CACHE: 5,
-            WorkloadType.DEVELOPMENT: 5
+            WorkloadType.DEVELOPMENT: 5,
         }
 
     generator = WorkloadPatternGenerator()
@@ -564,13 +552,11 @@ def create_multi_workload_dataset(
                 workload_type=workload_type,
                 start_time=start_time,
                 end_time=end_time,
-                interval_minutes=5
+                interval_minutes=5,
             )
 
             # Add resource identifier
-            df = df.with_columns([
-                pl.lit(f"{workload_type.value}_{i:03d}").alias("resource_id")
-            ])
+            df = df.with_columns([pl.lit(f"{workload_type.value}_{i:03d}").alias("resource_id")])
 
             # Add anomalies to some resources (20% chance)
             if random.random() < 0.2:
@@ -585,6 +571,7 @@ def create_multi_workload_dataset(
     combined_df = combined_df.sort(["timestamp", "resource_id"])
 
     return combined_df
+
 
 def main():
     """Generate sample workload data"""
@@ -604,25 +591,28 @@ def main():
     logger.info(f"Generated {len(df)} records for {df['resource_id'].n_unique()} resources")
 
     # Calculate statistics
-    stats = df.group_by("workload_type").agg([
-        pl.col("cpu_utilization").mean().alias("avg_cpu"),
-        pl.col("memory_utilization").mean().alias("avg_memory"),
-        pl.col("waste_percentage").mean().alias("avg_waste"),
-        pl.col("efficiency_score").mean().alias("avg_efficiency"),
-        pl.col("is_idle").sum().alias("idle_count"),
-        pl.col("is_overprovisioned").sum().alias("overprovisioned_count")
-    ])
+    stats = df.group_by("workload_type").agg(
+        [
+            pl.col("cpu_utilization").mean().alias("avg_cpu"),
+            pl.col("memory_utilization").mean().alias("avg_memory"),
+            pl.col("waste_percentage").mean().alias("avg_waste"),
+            pl.col("efficiency_score").mean().alias("avg_efficiency"),
+            pl.col("is_idle").sum().alias("idle_count"),
+            pl.col("is_overprovisioned").sum().alias("overprovisioned_count"),
+        ]
+    )
 
     print("\n=== Workload Statistics (Matching Real-World Research) ===")
     print(stats)
 
     # Overall statistics
-    print(f"\n=== Overall Statistics ===")
+    print("\n=== Overall Statistics ===")
     print(f"Average CPU Utilization: {df['cpu_utilization'].mean():.1f}% (Research: 13%)")
     print(f"Average Memory Utilization: {df['memory_utilization'].mean():.1f}% (Research: 20%)")
     print(f"Average Waste: {df['waste_percentage'].mean():.1f}% (Research: 30-32%)")
     print(f"Idle Time: {(df['is_idle'].sum() / len(df) * 100):.1f}%")
     print(f"Over-provisioned Time: {(df['is_overprovisioned'].sum() / len(df) * 100):.1f}%")
+
 
 if __name__ == "__main__":
     main()

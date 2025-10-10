@@ -5,26 +5,24 @@ Provides reusable functions for comparing distributions, computing statistical t
 and visualizing results using matplotlib/seaborn.
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import polars as pl
-import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
-from scipy.stats import gaussian_kde
 from scipy.special import rel_entr
-from typing import Optional, Dict, Tuple
+from scipy.stats import gaussian_kde
 
 
 def plot_pdf_cdf_comparison(
     distribution1: np.ndarray,
-    distribution2: Optional[np.ndarray] = None,
+    distribution2: np.ndarray | None = None,
     label1: str = "Distribution 1",
     label2: str = "Distribution 2",
-    color1: str = '#1f77b4',
-    color2: str = '#ff7f0e',
-    figsize: Tuple[int, int] = (14, 5),
-    alpha: float = 0.3
+    color1: str = "#1f77b4",
+    color2: str = "#ff7f0e",
+    figsize: tuple[int, int] = (14, 5),
+    alpha: float = 0.3,
 ) -> plt.Figure:
     """
     Plot PDF and CDF side-by-side for one or two distributions.
@@ -68,10 +66,10 @@ def plot_pdf_cdf_comparison(
         axes[0].plot(x_range, pdf2, linewidth=2.5, label=label2, color=color2)
         axes[0].fill_between(x_range, pdf2, alpha=alpha, color=color2)
 
-    axes[0].set_xlabel('Value', fontsize=12)
-    axes[0].set_ylabel('Probability Density', fontsize=12)
-    axes[0].set_title('Probability Density Function (PDF)', fontsize=13, fontweight='bold')
-    axes[0].legend(fontsize=11, loc='best')
+    axes[0].set_xlabel("Value", fontsize=12)
+    axes[0].set_ylabel("Probability Density", fontsize=12)
+    axes[0].set_title("Probability Density Function (PDF)", fontsize=13, fontweight="bold")
+    axes[0].legend(fontsize=11, loc="best")
     axes[0].grid(True, alpha=0.3)
 
     # --- CDF Plot ---
@@ -86,11 +84,11 @@ def plot_pdf_cdf_comparison(
         cdf2 = np.arange(1, len(sorted2) + 1) / len(sorted2)
         axes[1].plot(sorted2, cdf2, linewidth=2.5, label=label2, color=color2)
 
-    axes[1].set_xlabel('Value', fontsize=12)
-    axes[1].set_ylabel('Cumulative Probability', fontsize=12)
+    axes[1].set_xlabel("Value", fontsize=12)
+    axes[1].set_ylabel("Cumulative Probability", fontsize=12)
     axes[1].set_ylim(0, 1)
-    axes[1].set_title('Cumulative Distribution Function (CDF)', fontsize=13, fontweight='bold')
-    axes[1].legend(fontsize=11, loc='best')
+    axes[1].set_title("Cumulative Distribution Function (CDF)", fontsize=13, fontweight="bold")
+    axes[1].legend(fontsize=11, loc="best")
     axes[1].grid(True, alpha=0.3)
 
     plt.tight_layout()
@@ -102,9 +100,9 @@ def plot_distribution_comparison(
     distribution2: np.ndarray,
     label1: str,
     label2: str,
-    palette: str = 'colorblind',
-    figsize: Tuple[int, int] = (14, 5),
-    bins: int = 50
+    palette: str = "colorblind",
+    figsize: tuple[int, int] = (14, 5),
+    bins: int = 50,
 ) -> plt.Figure:
     """
     Plot KDE and histogram side-by-side for two distributions using seaborn.
@@ -124,25 +122,44 @@ def plot_distribution_comparison(
     fig, axes = plt.subplots(1, 2, figsize=figsize)
 
     # Prepare data for seaborn
-    data = pd.concat([
-        pd.DataFrame({'value': distribution1, 'type': label1}),
-        pd.DataFrame({'value': distribution2, 'type': label2})
-    ])
+    data = pd.concat(
+        [
+            pd.DataFrame({"value": distribution1, "type": label1}),
+            pd.DataFrame({"value": distribution2, "type": label2}),
+        ]
+    )
 
     # KDE plot
-    sns.kdeplot(data=data, x='value', hue='type', fill=True, alpha=0.5,
-                linewidth=2.5, ax=axes[0], palette=palette)
-    axes[0].set_xlabel('Value', fontsize=12)
-    axes[0].set_ylabel('Density', fontsize=12)
-    axes[0].set_title(f'KDE: {label1} vs {label2}', fontsize=13, fontweight='bold')
+    sns.kdeplot(
+        data=data,
+        x="value",
+        hue="type",
+        fill=True,
+        alpha=0.5,
+        linewidth=2.5,
+        ax=axes[0],
+        palette=palette,
+    )
+    axes[0].set_xlabel("Value", fontsize=12)
+    axes[0].set_ylabel("Density", fontsize=12)
+    axes[0].set_title(f"KDE: {label1} vs {label2}", fontsize=13, fontweight="bold")
     axes[0].legend(fontsize=10)
 
     # Histogram with KDE overlay
-    sns.histplot(data=data, x='value', hue='type', bins=bins,
-                 stat='density', alpha=0.6, kde=True, ax=axes[1], palette=palette)
-    axes[1].set_xlabel('Value', fontsize=12)
-    axes[1].set_ylabel('Density', fontsize=12)
-    axes[1].set_title(f'Histogram: {label1} vs {label2}', fontsize=13, fontweight='bold')
+    sns.histplot(
+        data=data,
+        x="value",
+        hue="type",
+        bins=bins,
+        stat="density",
+        alpha=0.6,
+        kde=True,
+        ax=axes[1],
+        palette=palette,
+    )
+    axes[1].set_xlabel("Value", fontsize=12)
+    axes[1].set_ylabel("Density", fontsize=12)
+    axes[1].set_title(f"Histogram: {label1} vs {label2}", fontsize=13, fontweight="bold")
     axes[1].legend(fontsize=10)
 
     plt.tight_layout()
@@ -150,10 +167,10 @@ def plot_distribution_comparison(
 
 
 def compute_ks_tests(
-    comparisons: Dict[str, Tuple],
-    data_segments: Optional[Dict[str, np.ndarray]] = None,
-    alpha: float = 0.05
-) -> Dict[str, Dict[str, float]]:
+    comparisons: dict[str, tuple],
+    data_segments: dict[str, np.ndarray] | None = None,
+    alpha: float = 0.05,
+) -> dict[str, dict[str, float]]:
     """
     Compute Kolmogorov-Smirnov tests for multiple distribution pairs.
 
@@ -183,20 +200,18 @@ def compute_ks_tests(
 
         ks_stat, ks_pval = stats.ks_2samp(dist1, dist2)
         results[name] = {
-            'KS Statistic': float(ks_stat),
-            'p-value': float(ks_pval),
-            f'Significant (α={alpha})': bool(ks_pval < alpha),
-            'Interpretation': 'Different distributions' if ks_pval < alpha else 'Similar distributions'
+            "KS Statistic": float(ks_stat),
+            "p-value": float(ks_pval),
+            f"Significant (α={alpha})": bool(ks_pval < alpha),
+            "Interpretation": (
+                "Different distributions" if ks_pval < alpha else "Similar distributions"
+            ),
         }
 
     return results
 
 
-def compute_kl_divergence(
-    reference: np.ndarray,
-    comparison: np.ndarray,
-    bins: int = 100
-) -> float:
+def compute_kl_divergence(reference: np.ndarray, comparison: np.ndarray, bins: int = 100) -> float:
     """
     Compute Kullback-Leibler divergence between two distributions.
 
@@ -235,11 +250,11 @@ def compute_kl_divergence(
 
 
 def compute_kl_divergences(
-    comparisons: Dict[str, Tuple],
-    data_segments: Optional[Dict[str, np.ndarray]] = None,
+    comparisons: dict[str, tuple],
+    data_segments: dict[str, np.ndarray] | None = None,
     bins: int = 100,
-    symmetric: bool = True
-) -> Dict[str, Dict[str, float]]:
+    symmetric: bool = True,
+) -> dict[str, dict[str, float]]:
     """
     Compute KL divergences for multiple distribution pairs.
 
@@ -269,39 +284,40 @@ def compute_kl_divergences(
 
         # Interpret KL divergence magnitude
         interpretation = (
-            'Very different' if kl_forward > 1.0 else
-            'Moderately different' if kl_forward > 0.1 else
-            'Similar'
+            "Very different"
+            if kl_forward > 1.0
+            else "Moderately different"
+            if kl_forward > 0.1
+            else "Similar"
         )
 
-        results[name] = {
-            'KL Divergence': float(kl_forward),
-            'Interpretation': interpretation
-        }
+        results[name] = {"KL Divergence": float(kl_forward), "Interpretation": interpretation}
 
         # Add reverse direction if symmetric
         if symmetric:
             kl_reverse = compute_kl_divergence(dist2, dist1, bins=bins)
-            reverse_name = ' ↔ '.join(reversed(name.split(' vs '))) if ' vs ' in name else f'{name} (reversed)'
+            reverse_name = (
+                " ↔ ".join(reversed(name.split(" vs "))) if " vs " in name else f"{name} (reversed)"
+            )
 
             interpretation_reverse = (
-                'Very different' if kl_reverse > 1.0 else
-                'Moderately different' if kl_reverse > 0.1 else
-                'Similar'
+                "Very different"
+                if kl_reverse > 1.0
+                else "Moderately different"
+                if kl_reverse > 0.1
+                else "Similar"
             )
 
             results[reverse_name] = {
-                'KL Divergence': float(kl_reverse),
-                'Interpretation': interpretation_reverse
+                "KL Divergence": float(kl_reverse),
+                "Interpretation": interpretation_reverse,
             }
 
     return results
 
 
 def plot_statistical_tests(
-    ks_results: Dict[str, Dict],
-    kl_results: Dict[str, Dict],
-    figsize: Tuple[int, int] = (14, 5)
+    ks_results: dict[str, dict], kl_results: dict[str, dict], figsize: tuple[int, int] = (14, 5)
 ) -> plt.Figure:
     """
     Visualize KS test and KL divergence results as horizontal bar charts.
@@ -318,51 +334,44 @@ def plot_statistical_tests(
 
     # --- KS Test Results ---
     ks_comparisons = list(ks_results.keys())
-    ks_statistics = [ks_results[k]['KS Statistic'] for k in ks_comparisons]
-    ks_significant = [ks_results[k].get('Significant (α=0.05)', False) for k in ks_comparisons]
+    ks_statistics = [ks_results[k]["KS Statistic"] for k in ks_comparisons]
+    ks_significant = [ks_results[k].get("Significant (α=0.05)", False) for k in ks_comparisons]
 
     # Color by significance
-    colors_ks = ['#d62728' if sig else '#2ca02c' for sig in ks_significant]
+    colors_ks = ["#d62728" if sig else "#2ca02c" for sig in ks_significant]
 
     axes[0].barh(ks_comparisons, ks_statistics, color=colors_ks, alpha=0.7)
-    axes[0].set_xlabel('KS Statistic', fontsize=12)
-    axes[0].set_title('Kolmogorov-Smirnov Test Results', fontsize=13, fontweight='bold')
-    axes[0].axvline(x=0.05, color='orange', linestyle='--', linewidth=2,
-                    label='Typical Threshold')
+    axes[0].set_xlabel("KS Statistic", fontsize=12)
+    axes[0].set_title("Kolmogorov-Smirnov Test Results", fontsize=13, fontweight="bold")
+    axes[0].axvline(x=0.05, color="orange", linestyle="--", linewidth=2, label="Typical Threshold")
     axes[0].legend(fontsize=9)
-    axes[0].grid(axis='x', alpha=0.3)
+    axes[0].grid(axis="x", alpha=0.3)
 
     # --- KL Divergence Results ---
     kl_comparisons = list(kl_results.keys())
-    kl_divergences = [kl_results[k]['KL Divergence'] for k in kl_comparisons]
-    kl_interpretations = [kl_results[k]['Interpretation'] for k in kl_comparisons]
+    kl_divergences = [kl_results[k]["KL Divergence"] for k in kl_comparisons]
+    kl_interpretations = [kl_results[k]["Interpretation"] for k in kl_comparisons]
 
     # Color by interpretation
     colors_kl = [
-        '#d62728' if 'Very' in interp else
-        '#ff7f0e' if 'Moderately' in interp else
-        '#2ca02c'
+        "#d62728" if "Very" in interp else "#ff7f0e" if "Moderately" in interp else "#2ca02c"
         for interp in kl_interpretations
     ]
 
     axes[1].barh(kl_comparisons, kl_divergences, color=colors_kl, alpha=0.7)
-    axes[1].set_xlabel('KL Divergence', fontsize=12)
-    axes[1].set_title('Kullback-Leibler Divergence', fontsize=13, fontweight='bold')
-    axes[1].axvline(x=0.1, color='orange', linestyle='--', linewidth=2,
-                    label='Moderate')
-    axes[1].axvline(x=1.0, color='red', linestyle='--', linewidth=2,
-                    label='High')
+    axes[1].set_xlabel("KL Divergence", fontsize=12)
+    axes[1].set_title("Kullback-Leibler Divergence", fontsize=13, fontweight="bold")
+    axes[1].axvline(x=0.1, color="orange", linestyle="--", linewidth=2, label="Moderate")
+    axes[1].axvline(x=1.0, color="red", linestyle="--", linewidth=2, label="High")
     axes[1].legend(fontsize=9)
-    axes[1].grid(axis='x', alpha=0.3)
+    axes[1].grid(axis="x", alpha=0.3)
 
     plt.tight_layout()
     return fig
 
 
 def print_distribution_summary(
-    ks_results: Dict[str, Dict],
-    kl_results: Dict[str, Dict],
-    key_comparison: str = 'Train vs Test'
+    ks_results: dict[str, dict], kl_results: dict[str, dict], key_comparison: str = "Train vs Test"
 ) -> None:
     """
     Print a formatted summary of distribution analysis results.
@@ -378,16 +387,16 @@ def print_distribution_summary(
 
     # Print all KS test results
     for comparison, results in ks_results.items():
-        p_value = results['p-value']
+        p_value = results["p-value"]
         significant = p_value < 0.05
 
-        status = 'SIGNIFICANTLY DIFFERENT ⚠️' if significant else 'SIMILAR ✓'
+        status = "SIGNIFICANTLY DIFFERENT ⚠️" if significant else "SIMILAR ✓"
         print(f"{comparison}: {status} (p={p_value:.4f})")
 
     # Special handling for key comparison
     if key_comparison in ks_results:
         key_results = ks_results[key_comparison]
-        key_significant = key_results['p-value'] < 0.05
+        key_significant = key_results["p-value"] < 0.05
 
         print(f"\n{'=' * 70}")
         print(f"KEY FINDING: {key_comparison}")

@@ -6,9 +6,9 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.17.3
 kernelspec:
-  display_name: cloud-sim
+  display_name: python3
   language: python
-  name: cloud-sim
+  name: python3
 ---
 
 # Understanding Cloud Workload Signatures: A Comprehensive Guide

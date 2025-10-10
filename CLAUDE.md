@@ -32,15 +32,21 @@ uv run pytest tests/ -v --cov=src/hellocloud --cov-fail-under=70
 ```
 
 ### Code Quality
+
+**📚 See [docs/development/CODE_QUALITY.md](docs/development/CODE_QUALITY.md) for comprehensive workflow documentation**
+
 ```bash
-# Format code with black
-uv run black src/ tests/
+# Recommended: Format and fix all issues at once
+just fix
 
-# Run linter
-uv run ruff check src/ tests/
+# Or run individually
+just format     # Format code with black
+just lint       # Check with ruff
+just lint-fix   # Auto-fix ruff issues
 
-# Fix linting issues automatically
-uv run ruff check --fix src/ tests/
+# Pre-commit hooks (automatic on git commit)
+just pre-commit-install  # One-time setup
+just pre-commit          # Run manually on all files
 
 # Type checking (optional, many imports ignored)
 uv run mypy src/

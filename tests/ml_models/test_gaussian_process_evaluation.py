@@ -2,11 +2,14 @@ import pytest
 
 try:
     import torch
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
 
-pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)")
+pytestmark = pytest.mark.skipif(
+    not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)"
+)
 """
 Tests for Gaussian Process evaluation metrics module.
 
@@ -18,9 +21,10 @@ Validates metric computation including:
 """
 
 import numpy as np
+
 from hellocloud.ml_models.gaussian_process.evaluation import (
-    compute_metrics,
     compute_anomaly_metrics,
+    compute_metrics,
     compute_prediction_intervals,
 )
 
@@ -47,17 +51,17 @@ class TestComputeMetrics:
             lower_95=lower_95,
             upper_95=upper_95,
             lower_99=lower_99,
-            upper_99=upper_99
+            upper_99=upper_99,
         )
 
         # With perfect predictions
-        assert metrics['RMSE'] == pytest.approx(0.0, abs=1e-10)
-        assert metrics['MAE'] == pytest.approx(0.0, abs=1e-10)
-        assert metrics['R²'] == pytest.approx(1.0, abs=1e-6)
+        assert metrics["RMSE"] == pytest.approx(0.0, abs=1e-10)
+        assert metrics["MAE"] == pytest.approx(0.0, abs=1e-10)
+        assert metrics["R²"] == pytest.approx(1.0, abs=1e-6)
 
         # All points should be within intervals
-        assert metrics['Coverage 95%'] == pytest.approx(1.0)
-        assert metrics['Coverage 99%'] == pytest.approx(1.0)
+        assert metrics["Coverage 95%"] == pytest.approx(1.0)
+        assert metrics["Coverage 99%"] == pytest.approx(1.0)
 
     def test_metrics_with_errors(self):
         """Test metrics computation with prediction errors."""
@@ -77,19 +81,19 @@ class TestComputeMetrics:
             lower_95=lower_95,
             upper_95=upper_95,
             lower_99=lower_99,
-            upper_99=upper_99
+            upper_99=upper_99,
         )
 
         # Should have non-zero error
-        assert metrics['RMSE'] > 0
-        assert metrics['MAE'] > 0
+        assert metrics["RMSE"] > 0
+        assert metrics["MAE"] > 0
 
         # R² should be less than 1
-        assert metrics['R²'] < 1.0
+        assert metrics["R²"] < 1.0
 
         # Coverage should be reasonable
-        assert 0 <= metrics['Coverage 95%'] <= 1.0
-        assert 0 <= metrics['Coverage 99%'] <= 1.0
+        assert 0 <= metrics["Coverage 95%"] <= 1.0
+        assert 0 <= metrics["Coverage 99%"] <= 1.0
 
     def test_calibration_perfect_95_coverage(self):
         """Test calibration with exactly 95% coverage."""
@@ -113,11 +117,11 @@ class TestComputeMetrics:
             lower_95=lower_95,
             upper_95=upper_95,
             lower_99=lower_99,
-            upper_99=upper_99
+            upper_99=upper_99,
         )
 
         # Coverage should be approximately 95% (with some random variation)
-        assert 0.90 <= metrics['Coverage 95%'] <= 1.0
+        assert 0.90 <= metrics["Coverage 95%"] <= 1.0
 
     def test_sharpness_calculation(self):
         """Test sharpness (interval width) calculation."""
@@ -133,9 +137,7 @@ class TestComputeMetrics:
         upper_99_narrow = y_pred + 3 * std_narrow
 
         metrics_narrow = compute_metrics(
-            y_true, y_pred,
-            lower_95_narrow, upper_95_narrow,
-            lower_99_narrow, upper_99_narrow
+            y_true, y_pred, lower_95_narrow, upper_95_narrow, lower_99_narrow, upper_99_narrow
         )
 
         # Wide intervals
@@ -146,14 +148,12 @@ class TestComputeMetrics:
         upper_99_wide = y_pred + 3 * std_wide
 
         metrics_wide = compute_metrics(
-            y_true, y_pred,
-            lower_95_wide, upper_95_wide,
-            lower_99_wide, upper_99_wide
+            y_true, y_pred, lower_95_wide, upper_95_wide, lower_99_wide, upper_99_wide
         )
 
         # Wide intervals should have higher sharpness
-        assert metrics_wide['Sharpness 95%'] > metrics_narrow['Sharpness 95%']
-        assert metrics_wide['Sharpness 99%'] > metrics_narrow['Sharpness 99%']
+        assert metrics_wide["Sharpness 95%"] > metrics_narrow["Sharpness 95%"]
+        assert metrics_wide["Sharpness 99%"] > metrics_narrow["Sharpness 99%"]
 
     def test_model_name_labeling(self):
         """Test that model name is correctly stored."""
@@ -163,12 +163,16 @@ class TestComputeMetrics:
         intervals = np.stack([y_pred - 1, y_pred + 1, y_pred - 2, y_pred + 2])
 
         metrics = compute_metrics(
-            y_true, y_pred,
-            intervals[0], intervals[1], intervals[2], intervals[3],
-            model_name="Test Model"
+            y_true,
+            y_pred,
+            intervals[0],
+            intervals[1],
+            intervals[2],
+            intervals[3],
+            model_name="Test Model",
         )
 
-        assert metrics['Model'] == "Test Model"
+        assert metrics["Model"] == "Test Model"
 
     def test_metrics_output_types(self):
         """Test that all metrics are float type."""
@@ -178,13 +182,12 @@ class TestComputeMetrics:
         intervals = np.stack([y_pred - 1, y_pred + 1, y_pred - 2, y_pred + 2])
 
         metrics = compute_metrics(
-            y_true, y_pred,
-            intervals[0], intervals[1], intervals[2], intervals[3]
+            y_true, y_pred, intervals[0], intervals[1], intervals[2], intervals[3]
         )
 
         # Check all numeric values are floats
         for key, value in metrics.items():
-            if key != 'Model':
+            if key != "Model":
                 assert isinstance(value, float), f"{key} should be float"
 
 
@@ -200,14 +203,13 @@ class TestComputeAnomalyMetrics:
         y_pred_anomaly = y_true_anomaly.copy()  # Perfect predictions
 
         metrics = compute_anomaly_metrics(
-            y_true_anomaly=y_true_anomaly,
-            y_pred_anomaly=y_pred_anomaly
+            y_true_anomaly=y_true_anomaly, y_pred_anomaly=y_pred_anomaly
         )
 
         # Perfect detection
-        assert metrics['Precision'] == pytest.approx(1.0)
-        assert metrics['Recall'] == pytest.approx(1.0)
-        assert metrics['F1-Score'] == pytest.approx(1.0)
+        assert metrics["Precision"] == pytest.approx(1.0)
+        assert metrics["Recall"] == pytest.approx(1.0)
+        assert metrics["F1-Score"] == pytest.approx(1.0)
 
     def test_no_anomalies_detected(self):
         """Test metrics when no anomalies are detected."""
@@ -218,14 +220,13 @@ class TestComputeAnomalyMetrics:
         y_pred_anomaly = np.zeros(n, dtype=bool)  # Predict no anomalies
 
         metrics = compute_anomaly_metrics(
-            y_true_anomaly=y_true_anomaly,
-            y_pred_anomaly=y_pred_anomaly
+            y_true_anomaly=y_true_anomaly, y_pred_anomaly=y_pred_anomaly
         )
 
         # No detections → precision=0 (with zero_division), recall=0
-        assert metrics['Precision'] == 0.0
-        assert metrics['Recall'] == 0.0
-        assert metrics['F1-Score'] == 0.0
+        assert metrics["Precision"] == 0.0
+        assert metrics["Recall"] == 0.0
+        assert metrics["F1-Score"] == 0.0
 
     def test_all_anomalies_flagged(self):
         """Test metrics when all points flagged as anomalies."""
@@ -236,15 +237,14 @@ class TestComputeAnomalyMetrics:
         y_pred_anomaly = np.ones(n, dtype=bool)  # Predict all as anomalies
 
         metrics = compute_anomaly_metrics(
-            y_true_anomaly=y_true_anomaly,
-            y_pred_anomaly=y_pred_anomaly
+            y_true_anomaly=y_true_anomaly, y_pred_anomaly=y_pred_anomaly
         )
 
         # Recall should be 1.0 (all true anomalies caught)
-        assert metrics['Recall'] == pytest.approx(1.0)
+        assert metrics["Recall"] == pytest.approx(1.0)
 
         # Precision should be 10/100 = 0.1
-        assert metrics['Precision'] == pytest.approx(0.1)
+        assert metrics["Precision"] == pytest.approx(0.1)
 
     def test_partial_detection(self):
         """Test metrics with partial anomaly detection."""
@@ -256,19 +256,18 @@ class TestComputeAnomalyMetrics:
         y_pred_anomaly[[10, 20, 50]] = True  # Detect 2/4, plus 1 false positive
 
         metrics = compute_anomaly_metrics(
-            y_true_anomaly=y_true_anomaly,
-            y_pred_anomaly=y_pred_anomaly
+            y_true_anomaly=y_true_anomaly, y_pred_anomaly=y_pred_anomaly
         )
 
         # Precision: 2/3 (2 true positives out of 3 detections)
-        assert metrics['Precision'] == pytest.approx(2.0 / 3.0)
+        assert metrics["Precision"] == pytest.approx(2.0 / 3.0)
 
         # Recall: 2/4 (2 true positives out of 4 actual anomalies)
-        assert metrics['Recall'] == pytest.approx(0.5)
+        assert metrics["Recall"] == pytest.approx(0.5)
 
         # F1: harmonic mean
-        expected_f1 = 2 * (2/3 * 0.5) / (2/3 + 0.5)
-        assert metrics['F1-Score'] == pytest.approx(expected_f1)
+        expected_f1 = 2 * (2 / 3 * 0.5) / (2 / 3 + 0.5)
+        assert metrics["F1-Score"] == pytest.approx(expected_f1)
 
     def test_threshold_labeling(self):
         """Test threshold name labeling."""
@@ -279,26 +278,23 @@ class TestComputeAnomalyMetrics:
             y_true_anomaly=y_true,
             y_pred_anomaly=y_pred,
             model_name="Test Model",
-            threshold_name="Custom Threshold"
+            threshold_name="Custom Threshold",
         )
 
-        assert metrics['Model'] == "Test Model"
-        assert metrics['Threshold'] == "Custom Threshold"
+        assert metrics["Model"] == "Test Model"
+        assert metrics["Threshold"] == "Custom Threshold"
 
     def test_with_integer_labels(self):
         """Test that function works with integer labels (0/1)."""
         y_true = np.array([0, 0, 1, 1, 0, 1])
         y_pred = np.array([0, 0, 1, 0, 0, 1])
 
-        metrics = compute_anomaly_metrics(
-            y_true_anomaly=y_true,
-            y_pred_anomaly=y_pred
-        )
+        metrics = compute_anomaly_metrics(y_true_anomaly=y_true, y_pred_anomaly=y_pred)
 
         # Should work with integers
-        assert 0 <= metrics['Precision'] <= 1
-        assert 0 <= metrics['Recall'] <= 1
-        assert 0 <= metrics['F1-Score'] <= 1
+        assert 0 <= metrics["Precision"] <= 1
+        assert 0 <= metrics["Recall"] <= 1
+        assert 0 <= metrics["F1-Score"] <= 1
 
 
 class TestComputePredictionIntervals:
@@ -311,10 +307,7 @@ class TestComputePredictionIntervals:
         std = np.ones(n)
 
         intervals = compute_prediction_intervals(
-            mean=mean,
-            std=std,
-            confidence_levels=[0.95, 0.99],
-            distribution="gaussian"
+            mean=mean, std=std, confidence_levels=[0.95, 0.99], distribution="gaussian"
         )
 
         # Check 95% interval
@@ -335,11 +328,7 @@ class TestComputePredictionIntervals:
         std = np.ones(n)
 
         intervals = compute_prediction_intervals(
-            mean=mean,
-            std=std,
-            confidence_levels=[0.95, 0.99],
-            distribution="student_t",
-            nu=4.0
+            mean=mean, std=std, confidence_levels=[0.95, 0.99], distribution="student_t", nu=4.0
         )
 
         lower_95, upper_95 = intervals[0.95]
@@ -357,17 +346,12 @@ class TestComputePredictionIntervals:
 
         # Gaussian intervals
         intervals_gauss = compute_prediction_intervals(
-            mean, std,
-            confidence_levels=[0.95],
-            distribution="gaussian"
+            mean, std, confidence_levels=[0.95], distribution="gaussian"
         )
 
         # Student-t intervals (ν=4, fairly heavy tails)
         intervals_t = compute_prediction_intervals(
-            mean, std,
-            confidence_levels=[0.95],
-            distribution="student_t",
-            nu=4.0
+            mean, std, confidence_levels=[0.95], distribution="student_t", nu=4.0
         )
 
         lower_gauss, upper_gauss = intervals_gauss[0.95]
@@ -385,9 +369,7 @@ class TestComputePredictionIntervals:
         std = np.array([1.0, 1.0, 1.0])
 
         intervals = compute_prediction_intervals(
-            mean, std,
-            confidence_levels=[0.80, 0.90, 0.95, 0.99],
-            distribution="gaussian"
+            mean, std, confidence_levels=[0.80, 0.90, 0.95, 0.99], distribution="gaussian"
         )
 
         # Check all levels exist
@@ -410,9 +392,7 @@ class TestComputePredictionIntervals:
         std = np.array([2.0, 1.0, 0.5])
 
         intervals = compute_prediction_intervals(
-            mean, std,
-            confidence_levels=[0.95],
-            distribution="gaussian"
+            mean, std, confidence_levels=[0.95], distribution="gaussian"
         )
 
         lower, upper = intervals[0.95]
@@ -429,10 +409,7 @@ class TestComputePredictionIntervals:
         std = np.array([1.0])
 
         with pytest.raises(ValueError, match="Unknown distribution"):
-            compute_prediction_intervals(
-                mean, std,
-                distribution="invalid_distribution"
-            )
+            compute_prediction_intervals(mean, std, distribution="invalid_distribution")
 
     def test_varying_std(self):
         """Test intervals with heteroscedastic uncertainty (varying std)."""
@@ -441,9 +418,7 @@ class TestComputePredictionIntervals:
         std = np.linspace(0.5, 2.0, n)  # Varying uncertainty
 
         intervals = compute_prediction_intervals(
-            mean, std,
-            confidence_levels=[0.95],
-            distribution="gaussian"
+            mean, std, confidence_levels=[0.95], distribution="gaussian"
         )
 
         lower, upper = intervals[0.95]

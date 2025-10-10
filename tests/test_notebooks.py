@@ -19,10 +19,10 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple
+
 import pytest
 from loguru import logger
-
 
 # Configuration
 NOTEBOOK_DIR = Path(__file__).parent.parent / "notebooks"
@@ -34,22 +34,27 @@ NOTEBOOKS = [
     "05_cloudzero_piedpiper_eda.md",
 ]
 
+
 # Auto-generate .py versions for execution if they don't exist
 def ensure_python_notebooks():
     """Ensure .py versions of MyST notebooks exist for execution testing."""
     for notebook_name in NOTEBOOKS:
         md_path = NOTEBOOK_DIR / notebook_name
-        py_name = notebook_name.replace('.md', '.py')
+        py_name = notebook_name.replace(".md", ".py")
         py_path = NOTEBOOK_DIR / py_name
 
         if md_path.exists() and not py_path.exists():
             try:
-                subprocess.run([
-                    "uv", "run", "jupytext", "--to", "py", str(md_path)
-                ], cwd=NOTEBOOK_DIR, check=True, capture_output=True)
+                subprocess.run(
+                    ["uv", "run", "jupytext", "--to", "py", str(md_path)],
+                    cwd=NOTEBOOK_DIR,
+                    check=True,
+                    capture_output=True,
+                )
                 logger.info(f"Generated {py_name} from {notebook_name}")
             except subprocess.CalledProcessError as e:
                 logger.warning(f"Failed to generate {py_name}: {e}")
+
 
 # Call during module import
 ensure_python_notebooks()
@@ -57,22 +62,25 @@ ensure_python_notebooks()
 
 class NotebookResult(NamedTuple):
     """Result of notebook execution."""
+
     name: str
     success: bool
     stdout: str
     stderr: str
     duration: float
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class NotebookExecutionError(Exception):
     """Raised when notebook execution fails."""
+
     pass
 
 
 # ============================================================================
 # FIXTURES (Run notebooks exactly once per session)
 # ============================================================================
+
 
 @pytest.fixture(scope="session")
 def execution_env():
@@ -81,7 +89,7 @@ def execution_env():
     return {
         **os.environ,
         "PYTHONPATH": str(project_root / "src"),
-        "PROJECT_ROOT": str(project_root)
+        "PROJECT_ROOT": str(project_root),
     }
 
 
@@ -95,7 +103,7 @@ def executed_notebook(request, execution_env) -> NotebookResult:
     """
     notebook_name = request.param
     # Convert .md name to .py for execution
-    py_name = notebook_name.replace('.md', '.py')
+    py_name = notebook_name.replace(".md", ".py")
     script_path = NOTEBOOK_DIR / py_name
 
     if not script_path.exists():
@@ -104,6 +112,7 @@ def executed_notebook(request, execution_env) -> NotebookResult:
     logger.info(f"[SINGLE EXECUTION] Running: {notebook_name} (as {py_name})")
 
     import time
+
     start_time = time.time()
 
     try:
@@ -113,7 +122,7 @@ def executed_notebook(request, execution_env) -> NotebookResult:
             capture_output=True,
             text=True,
             timeout=EXECUTION_TIMEOUT,
-            env=execution_env
+            env=execution_env,
         )
 
         duration = time.time() - start_time
@@ -125,7 +134,7 @@ def executed_notebook(request, execution_env) -> NotebookResult:
                 stdout=result.stdout,
                 stderr=result.stderr,
                 duration=duration,
-                error=f"Exit code {result.returncode}"
+                error=f"Exit code {result.returncode}",
             )
 
         logger.success(f"[EXECUTED] {notebook_name} in {duration:.1f}s")
@@ -134,7 +143,7 @@ def executed_notebook(request, execution_env) -> NotebookResult:
             success=True,
             stdout=result.stdout,
             stderr=result.stderr,
-            duration=duration
+            duration=duration,
         )
 
     except subprocess.TimeoutExpired:
@@ -146,18 +155,13 @@ def executed_notebook(request, execution_env) -> NotebookResult:
             stdout="",
             stderr="",
             duration=duration,
-            error=f"Timeout after {EXECUTION_TIMEOUT}s"
+            error=f"Timeout after {EXECUTION_TIMEOUT}s",
         )
     except Exception as e:
         duration = time.time() - start_time
         logger.error(f"[ERROR] {notebook_name}: {e}")
         return NotebookResult(
-            name=notebook_name,
-            success=False,
-            stdout="",
-            stderr="",
-            duration=duration,
-            error=str(e)
+            name=notebook_name, success=False, stdout="", stderr="", duration=duration, error=str(e)
         )
 
 
@@ -170,8 +174,8 @@ def all_notebook_results(request):
     # Get the parametrized fixture results
     for notebook_name in NOTEBOOKS:
         # Create a sub-request for each notebook
-        sub_request = request.getfixturevalue('executed_notebook')
-        if hasattr(sub_request, 'name'):
+        sub_request = request.getfixturevalue("executed_notebook")
+        if hasattr(sub_request, "name"):
             results[sub_request.name] = sub_request
 
     return results
@@ -180,6 +184,7 @@ def all_notebook_results(request):
 # ============================================================================
 # SMOKE TESTS (Fast - no execution)
 # ============================================================================
+
 
 @pytest.mark.smoke
 @pytest.mark.parametrize("notebook_name", NOTEBOOKS)
@@ -190,7 +195,7 @@ def test_notebook_syntax(notebook_name):
     if not script_path.exists():
         pytest.skip(f"Notebook {notebook_name} not found")
 
-    with open(script_path, 'r') as f:
+    with open(script_path) as f:
         content = f.read()
 
     try:
@@ -210,7 +215,7 @@ def test_notebook_imports(notebook_name):
         pytest.skip(f"Notebook {notebook_name} not found")
 
     # Extract import statements
-    with open(script_path, 'r') as f:
+    with open(script_path) as f:
         content = f.read()
 
     try:
@@ -228,7 +233,7 @@ def test_notebook_imports(notebook_name):
         logger.info(f"✓ Found {len(imports)} imports in {notebook_name}")
 
         # Test critical imports that should be available
-        critical_imports = ['polars', 'numpy', 'hellocloud']
+        critical_imports = ["polars", "numpy", "hellocloud"]
         for imp in critical_imports:
             matching = [i for i in imports if imp in i]
             assert len(matching) > 0, f"Missing critical import '{imp}' in {notebook_name}"
@@ -240,6 +245,7 @@ def test_notebook_imports(notebook_name):
 # ============================================================================
 # EXECUTION TESTS (Use shared fixture results - no duplication)
 # ============================================================================
+
 
 def test_notebook_execution_success(executed_notebook):
     """Test that notebook executed successfully."""
@@ -276,6 +282,7 @@ def test_notebook_performance(executed_notebook):
 # CONTENT VALIDATION TESTS (Check outputs without re-execution)
 # ============================================================================
 
+
 def test_data_exploration_content(executed_notebook):
     """Test that data exploration notebook produces expected content."""
     result = executed_notebook
@@ -293,7 +300,7 @@ def test_data_exploration_content(executed_notebook):
     missing = [ind for ind in expected_indicators if ind not in output_text]
 
     assert len(missing) == 0, f"Missing expected analysis content: {missing}"
-    logger.info(f"✓ Data exploration contains expected analysis indicators")
+    logger.info("✓ Data exploration contains expected analysis indicators")
 
 
 def test_workload_signatures_content(executed_notebook):
@@ -313,12 +320,13 @@ def test_workload_signatures_content(executed_notebook):
     missing = [pat for pat in expected_patterns if pat not in output_text]
 
     assert len(missing) == 0, f"Missing expected pattern analysis: {missing}"
-    logger.info(f"✓ Workload signatures contains pattern analysis")
+    logger.info("✓ Workload signatures contains pattern analysis")
 
 
 # ============================================================================
 # INTEGRATION TESTS
 # ============================================================================
+
 
 @pytest.mark.integration
 def test_all_notebooks_executed():
@@ -336,6 +344,7 @@ def test_all_notebooks_executed():
 # ============================================================================
 # TEST COLLECTION AND REPORTING
 # ============================================================================
+
 
 def pytest_collection_modifyitems(config, items):
     """Add markers and organize test collection."""

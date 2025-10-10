@@ -3,17 +3,19 @@ PyMC-based Hierarchical Bayesian Model for Cloud Resource Simulation
 Learns from real data and generates realistic synthetic patterns
 """
 
-import pymc as pm
+from datetime import datetime, timedelta
+from typing import Any
+
+import arviz as az
+import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
-import arviz as az
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
+import pymc as pm
 from loguru import logger
 
 # Import our taxonomy
 from .application_taxonomy import CloudResourceTaxonomy
+
 
 class CloudResourceHierarchicalModel:
     """
@@ -31,9 +33,9 @@ class CloudResourceHierarchicalModel:
 
     def __init__(
         self,
-        observed_data: Optional[pl.DataFrame] = None,
-        seed: Optional[int] = None,
-        archetypes: Optional[List[str]] = None
+        observed_data: pl.DataFrame | None = None,
+        seed: int | None = None,
+        archetypes: list[str] | None = None,
     ):
         """
         Initialize model with optional observed data for learning
@@ -60,7 +62,7 @@ class CloudResourceHierarchicalModel:
 
         self.n_archetypes = len(self.archetypes)
 
-    def build_model(self, data: Optional[pl.DataFrame] = None):
+    def build_model(self, data: pl.DataFrame | None = None):
         """
         Build the complete hierarchical model
 
@@ -77,26 +79,24 @@ class CloudResourceHierarchicalModel:
             # =========================================
 
             # Industry-wide utilization (Beta distribution for percentages)
-            industry_cpu_alpha = pm.Gamma('industry_cpu_alpha', alpha=2, beta=0.5)
-            industry_cpu_beta = pm.Gamma('industry_cpu_beta', alpha=10, beta=0.5)
+            industry_cpu_alpha = pm.Gamma("industry_cpu_alpha", alpha=2, beta=0.5)
+            industry_cpu_beta = pm.Gamma("industry_cpu_beta", alpha=10, beta=0.5)
             industry_cpu_mean = pm.Deterministic(
-                'industry_cpu_mean',
-                industry_cpu_alpha / (industry_cpu_alpha + industry_cpu_beta)
+                "industry_cpu_mean", industry_cpu_alpha / (industry_cpu_alpha + industry_cpu_beta)
             )
 
-            industry_mem_alpha = pm.Gamma('industry_mem_alpha', alpha=3, beta=0.5)
-            industry_mem_beta = pm.Gamma('industry_mem_beta', alpha=12, beta=0.5)
+            industry_mem_alpha = pm.Gamma("industry_mem_alpha", alpha=3, beta=0.5)
+            industry_mem_beta = pm.Gamma("industry_mem_beta", alpha=12, beta=0.5)
             industry_mem_mean = pm.Deterministic(
-                'industry_mem_mean',
-                industry_mem_alpha / (industry_mem_alpha + industry_mem_beta)
+                "industry_mem_mean", industry_mem_alpha / (industry_mem_alpha + industry_mem_beta)
             )
 
             # Industry-wide waste factor (30-32% from research)
-            industry_waste = pm.Beta('industry_waste', alpha=3, beta=7)
+            industry_waste = pm.Beta("industry_waste", alpha=3, beta=7)
 
             # Variance in utilization
-            industry_cpu_variance = pm.InverseGamma('industry_cpu_variance', alpha=3, beta=1)
-            industry_mem_variance = pm.InverseGamma('industry_mem_variance', alpha=3, beta=1)
+            industry_cpu_variance = pm.InverseGamma("industry_cpu_variance", alpha=3, beta=1)
+            industry_mem_variance = pm.InverseGamma("industry_mem_variance", alpha=3, beta=1)
 
             # =========================================
             # LEVEL 2: Application Archetype Level
@@ -105,31 +105,23 @@ class CloudResourceHierarchicalModel:
 
             # Archetype-specific parameters (centered on industry)
             archetype_cpu_mean = pm.Beta(
-                'archetype_cpu_mean',
+                "archetype_cpu_mean",
                 alpha=industry_cpu_alpha * pm.math.ones(self.n_archetypes),
                 beta=industry_cpu_beta * pm.math.ones(self.n_archetypes),
-                shape=self.n_archetypes
+                shape=self.n_archetypes,
             )
 
             archetype_mem_mean = pm.Beta(
-                'archetype_mem_mean',
+                "archetype_mem_mean",
                 alpha=industry_mem_alpha * pm.math.ones(self.n_archetypes),
                 beta=industry_mem_beta * pm.math.ones(self.n_archetypes),
-                shape=self.n_archetypes
+                shape=self.n_archetypes,
             )
 
             # Archetype-specific variance
-            archetype_cpu_cv = pm.HalfNormal(
-                'archetype_cpu_cv',
-                sigma=0.5,
-                shape=self.n_archetypes
-            )
+            archetype_cpu_cv = pm.HalfNormal("archetype_cpu_cv", sigma=0.5, shape=self.n_archetypes)
 
-            archetype_mem_cv = pm.HalfNormal(
-                'archetype_mem_cv',
-                sigma=0.3,
-                shape=self.n_archetypes
-            )
+            archetype_mem_cv = pm.HalfNormal("archetype_mem_cv", sigma=0.3, shape=self.n_archetypes)
 
             # =========================================
             # Correlation Structure (LKJ Prior)
@@ -142,15 +134,15 @@ class CloudResourceHierarchicalModel:
 
             # Cholesky decomposition for efficiency
             chol_corr = pm.LKJCholeskyCov(
-                'chol_corr',
+                "chol_corr",
                 n=n_metrics,
                 eta=2.0,  # Slight preference for independence
                 sd_dist=pm.HalfNormal.dist(sigma=1.0),
-                compute_corr=True
+                compute_corr=True,
             )
 
             # Extract correlation matrix
-            corr_matrix = pm.Deterministic('corr_matrix', chol_corr[1])
+            corr_matrix = pm.Deterministic("corr_matrix", chol_corr[1])
 
             # =========================================
             # Temporal Patterns (Fourier Series)
@@ -160,31 +152,19 @@ class CloudResourceHierarchicalModel:
             # Daily pattern (24 hours)
             n_fourier_daily = 4
             daily_cos_coef = pm.Normal(
-                'daily_cos_coef',
-                mu=0,
-                sigma=0.5,
-                shape=(self.n_archetypes, n_fourier_daily)
+                "daily_cos_coef", mu=0, sigma=0.5, shape=(self.n_archetypes, n_fourier_daily)
             )
             daily_sin_coef = pm.Normal(
-                'daily_sin_coef',
-                mu=0,
-                sigma=0.5,
-                shape=(self.n_archetypes, n_fourier_daily)
+                "daily_sin_coef", mu=0, sigma=0.5, shape=(self.n_archetypes, n_fourier_daily)
             )
 
             # Weekly pattern (7 days)
             n_fourier_weekly = 2
             weekly_cos_coef = pm.Normal(
-                'weekly_cos_coef',
-                mu=0,
-                sigma=0.3,
-                shape=(self.n_archetypes, n_fourier_weekly)
+                "weekly_cos_coef", mu=0, sigma=0.3, shape=(self.n_archetypes, n_fourier_weekly)
             )
             weekly_sin_coef = pm.Normal(
-                'weekly_sin_coef',
-                mu=0,
-                sigma=0.3,
-                shape=(self.n_archetypes, n_fourier_weekly)
+                "weekly_sin_coef", mu=0, sigma=0.3, shape=(self.n_archetypes, n_fourier_weekly)
             )
 
             # =========================================
@@ -197,29 +177,28 @@ class CloudResourceHierarchicalModel:
 
             # Dirichlet prior for transition matrix rows
             transition_probs = pm.Dirichlet(
-                'transition_probs',
-                a=np.array([
-                    [10, 2, 2, 0.5],   # From normal: likely to stay normal
-                    [5, 8, 1, 0.5],    # From peak: likely to stay peak or return to normal
-                    [3, 1, 8, 0.5],    # From idle: likely to stay idle
-                    [8, 2, 2, 2]       # From failure: likely to return to normal
-                ]),
-                shape=(n_states, n_states)
+                "transition_probs",
+                a=np.array(
+                    [
+                        [10, 2, 2, 0.5],  # From normal: likely to stay normal
+                        [5, 8, 1, 0.5],  # From peak: likely to stay peak or return to normal
+                        [3, 1, 8, 0.5],  # From idle: likely to stay idle
+                        [8, 2, 2, 2],  # From failure: likely to return to normal
+                    ]
+                ),
+                shape=(n_states, n_states),
             )
 
             # State-specific multipliers
             state_cpu_multipliers = pm.Gamma(
-                'state_cpu_multipliers',
+                "state_cpu_multipliers",
                 alpha=[5, 20, 0.5, 10],  # normal, peak, idle, failure
                 beta=[5, 10, 5, 5],
-                shape=n_states
+                shape=n_states,
             )
 
             state_mem_multipliers = pm.Gamma(
-                'state_mem_multipliers',
-                alpha=[5, 15, 1, 8],
-                beta=[5, 10, 5, 5],
-                shape=n_states
+                "state_mem_multipliers", alpha=[5, 15, 1, 8], beta=[5, 10, 5, 5], shape=n_states
             )
 
             # =========================================
@@ -230,11 +209,11 @@ class CloudResourceHierarchicalModel:
             if self.observed_data is not None:
                 # Map resources to archetypes
                 resource_archetypes = self._encode_archetypes(
-                    self.observed_data['archetype'].to_list()
+                    self.observed_data["archetype"].to_list()
                 )
 
                 # Extract time features
-                timestamps = self.observed_data['timestamp'].to_list()
+                timestamps = self.observed_data["timestamp"].to_list()
                 hour_of_day = np.array([t.hour for t in timestamps])
                 day_of_week = np.array([t.weekday() for t in timestamps])
 
@@ -243,28 +222,27 @@ class CloudResourceHierarchicalModel:
                     hour_of_day,
                     24,
                     daily_cos_coef[resource_archetypes],
-                    daily_sin_coef[resource_archetypes]
+                    daily_sin_coef[resource_archetypes],
                 )
 
                 weekly_component = self._calculate_fourier_component(
                     day_of_week,
                     7,
                     weekly_cos_coef[resource_archetypes],
-                    weekly_sin_coef[resource_archetypes]
+                    weekly_sin_coef[resource_archetypes],
                 )
 
                 # Total seasonal effect
                 seasonal_effect = pm.Deterministic(
-                    'seasonal_effect',
-                    1 + daily_component + weekly_component
+                    "seasonal_effect", 1 + daily_component + weekly_component
                 )
 
                 # Hidden Markov Model for regime states
                 # This is simplified - full HMM would be more complex
                 state_indicators = pm.Categorical(
-                    'state_indicators',
+                    "state_indicators",
                     p=np.array([0.7, 0.15, 0.12, 0.03]),  # Prior state probabilities
-                    shape=len(self.observed_data)
+                    shape=len(self.observed_data),
                 )
 
                 # Apply state multipliers
@@ -272,22 +250,26 @@ class CloudResourceHierarchicalModel:
                 mem_state_effect = state_mem_multipliers[state_indicators]
 
                 # Final observations with all effects
-                cpu_mean = archetype_cpu_mean[resource_archetypes] * seasonal_effect * cpu_state_effect
-                mem_mean = archetype_mem_mean[resource_archetypes] * seasonal_effect * mem_state_effect
+                cpu_mean = (
+                    archetype_cpu_mean[resource_archetypes] * seasonal_effect * cpu_state_effect
+                )
+                mem_mean = (
+                    archetype_mem_mean[resource_archetypes] * seasonal_effect * mem_state_effect
+                )
 
                 # Observation noise
                 cpu_observed = pm.Beta(
-                    'cpu_observed',
+                    "cpu_observed",
                     alpha=cpu_mean * 100,  # Scale for Beta
                     beta=(1 - cpu_mean) * 100,
-                    observed=self.observed_data['cpu_utilization'].to_numpy() / 100
+                    observed=self.observed_data["cpu_utilization"].to_numpy() / 100,
                 )
 
                 mem_observed = pm.Beta(
-                    'mem_observed',
+                    "mem_observed",
                     alpha=mem_mean * 100,
                     beta=(1 - mem_mean) * 100,
-                    observed=self.observed_data['memory_utilization'].to_numpy() / 100
+                    observed=self.observed_data["memory_utilization"].to_numpy() / 100,
                 )
 
             # =========================================
@@ -297,53 +279,43 @@ class CloudResourceHierarchicalModel:
 
             # Archetype-specific waste
             archetype_waste = pm.Beta(
-                'archetype_waste',
+                "archetype_waste",
                 alpha=industry_waste * 10 * pm.math.ones(self.n_archetypes),
                 beta=(1 - industry_waste) * 10 * pm.math.ones(self.n_archetypes),
-                shape=self.n_archetypes
+                shape=self.n_archetypes,
             )
 
             # Over-provisioning factor
-            overprovisioning = pm.Beta(
-                'overprovisioning',
-                alpha=2,
-                beta=3,
-                shape=self.n_archetypes
-            )
+            overprovisioning = pm.Beta("overprovisioning", alpha=2, beta=3, shape=self.n_archetypes)
 
         self.model = model
         return model
 
-    def _encode_archetypes(self, archetype_names: List[str]) -> np.ndarray:
+    def _encode_archetypes(self, archetype_names: list[str]) -> np.ndarray:
         """Convert archetype names to indices"""
         archetype_to_idx = {name: i for i, name in enumerate(self.archetypes)}
         return np.array([archetype_to_idx.get(name, 0) for name in archetype_names])
 
     def _calculate_fourier_component(
-        self,
-        time_values: np.ndarray,
-        period: int,
-        cos_coef: np.ndarray,
-        sin_coef: np.ndarray
+        self, time_values: np.ndarray, period: int, cos_coef: np.ndarray, sin_coef: np.ndarray
     ) -> np.ndarray:
         """Calculate Fourier series component"""
         n_fourier = cos_coef.shape[-1]
         result = np.zeros_like(time_values, dtype=float)
 
         for k in range(1, n_fourier + 1):
-            result += (
-                cos_coef[:, k-1] * np.cos(2 * np.pi * k * time_values / period) +
-                sin_coef[:, k-1] * np.sin(2 * np.pi * k * time_values / period)
-            )
+            result += cos_coef[:, k - 1] * np.cos(2 * np.pi * k * time_values / period) + sin_coef[
+                :, k - 1
+            ] * np.sin(2 * np.pi * k * time_values / period)
 
         return result
 
     def fit(
         self,
-        data: Optional[pl.DataFrame] = None,
+        data: pl.DataFrame | None = None,
         draws: int = 2000,
         tune: int = 1000,
-        chains: int = 4
+        chains: int = 4,
     ):
         """
         Fit model using MCMC sampling
@@ -360,18 +332,18 @@ class CloudResourceHierarchicalModel:
         with self.model:
             # Use NUTS sampler with initialization
             sample_kwargs = {
-                'draws': draws,
-                'tune': tune,
-                'chains': chains,
-                'cores': min(chains, 4),
-                'init': 'advi',  # Use ADVI for initialization
-                'target_accept': 0.9,
-                'return_inferencedata': True
+                "draws": draws,
+                "tune": tune,
+                "chains": chains,
+                "cores": min(chains, 4),
+                "init": "advi",  # Use ADVI for initialization
+                "target_accept": 0.9,
+                "return_inferencedata": True,
             }
 
             # Add random seed if specified
             if self.seed is not None:
-                sample_kwargs['random_seed'] = self.seed
+                sample_kwargs["random_seed"] = self.seed
 
             self.trace = pm.sample(**sample_kwargs)
 
@@ -388,7 +360,7 @@ class CloudResourceHierarchicalModel:
 
         # Check R-hat statistics
         summary = az.summary(self.trace)
-        problematic_vars = summary[summary['r_hat'] > 1.01]
+        problematic_vars = summary[summary["r_hat"] > 1.01]
 
         if len(problematic_vars) > 0:
             logger.warning(f"Variables with R-hat > 1.01: {problematic_vars.index.tolist()}")
@@ -396,7 +368,7 @@ class CloudResourceHierarchicalModel:
             logger.info("All variables converged (R-hat < 1.01)")
 
         # Check effective sample size
-        low_ess = summary[summary['ess_bulk'] < 400]
+        low_ess = summary[summary["ess_bulk"] < 400]
         if len(low_ess) > 0:
             logger.warning(f"Variables with low ESS: {low_ess.index.tolist()}")
 
@@ -404,13 +376,13 @@ class CloudResourceHierarchicalModel:
 
     def generate_synthetic_data(
         self,
-        archetype: Optional[str] = None,
-        n_resources: Optional[int] = None,
-        num_resources: Optional[int] = None,
-        duration_hours: Optional[int] = None,
-        time_periods: Optional[int] = None,
-        start_date: Optional[datetime] = None,
-        sampling_interval_minutes: int = 5
+        archetype: str | None = None,
+        n_resources: int | None = None,
+        num_resources: int | None = None,
+        duration_hours: int | None = None,
+        time_periods: int | None = None,
+        start_date: datetime | None = None,
+        sampling_interval_minutes: int = 5,
     ) -> pl.DataFrame:
         """
         Generate synthetic data using the fitted model
@@ -456,11 +428,27 @@ class CloudResourceHierarchicalModel:
 
         # Extract parameters for this archetype
         if self.trace:
-            cpu_mean = self.trace.posterior['archetype_cpu_mean'].mean(dim=['chain', 'draw'])[archetype_idx].item()
-            mem_mean = self.trace.posterior['archetype_mem_mean'].mean(dim=['chain', 'draw'])[archetype_idx].item()
-            cpu_cv = self.trace.posterior['archetype_cpu_cv'].mean(dim=['chain', 'draw'])[archetype_idx].item()
-            mem_cv = self.trace.posterior['archetype_mem_cv'].mean(dim=['chain', 'draw'])[archetype_idx].item()
-            corr_matrix = self.trace.posterior['corr_matrix'].mean(dim=['chain', 'draw']).values
+            cpu_mean = (
+                self.trace.posterior["archetype_cpu_mean"]
+                .mean(dim=["chain", "draw"])[archetype_idx]
+                .item()
+            )
+            mem_mean = (
+                self.trace.posterior["archetype_mem_mean"]
+                .mean(dim=["chain", "draw"])[archetype_idx]
+                .item()
+            )
+            cpu_cv = (
+                self.trace.posterior["archetype_cpu_cv"]
+                .mean(dim=["chain", "draw"])[archetype_idx]
+                .item()
+            )
+            mem_cv = (
+                self.trace.posterior["archetype_mem_cv"]
+                .mean(dim=["chain", "draw"])[archetype_idx]
+                .item()
+            )
+            corr_matrix = self.trace.posterior["corr_matrix"].mean(dim=["chain", "draw"]).values
         else:
             # Use taxonomy defaults
             taxonomy_arch = CloudResourceTaxonomy.get_archetype(archetype)
@@ -486,19 +474,22 @@ class CloudResourceHierarchicalModel:
             ]
         else:
             timestamps = [
-                datetime.now() - timedelta(hours=duration_hours) +
-                timedelta(minutes=i * sampling_interval_minutes)
+                datetime.now()
+                - timedelta(hours=duration_hours)
+                + timedelta(minutes=i * sampling_interval_minutes)
                 for i in range(num_samples)
             ]
 
         # Generate multivariate correlated data
-        mean_vector = np.array([
-            cpu_mean * 100,  # Convert back to percentage
-            mem_mean * 100,
-            20,  # Network In baseline
-            15,  # Network Out baseline
-            100  # Disk IOPS baseline
-        ])
+        mean_vector = np.array(
+            [
+                cpu_mean * 100,  # Convert back to percentage
+                mem_mean * 100,
+                20,  # Network In baseline
+                15,  # Network Out baseline
+                100,  # Disk IOPS baseline
+            ]
+        )
 
         # Create covariance matrix from correlation and CVs
         std_vector = mean_vector * np.array([cpu_cv, mem_cv, 0.5, 0.4, 0.6])
@@ -530,16 +521,18 @@ class CloudResourceHierarchicalModel:
             metrics[:, 2:] = np.maximum(metrics[:, 2:], 0)
 
             # Create resource DataFrame
-            resource_df = pl.DataFrame({
-                'timestamp': timestamps,
-                'resource_id': f"{archetype}_{resource_id:04d}",
-                'archetype': archetype,
-                'cpu_utilization': metrics[:, 0],
-                'memory_utilization': metrics[:, 1],
-                'network_in_mbps': metrics[:, 2],
-                'network_out_mbps': metrics[:, 3],
-                'disk_iops': metrics[:, 4]
-            })
+            resource_df = pl.DataFrame(
+                {
+                    "timestamp": timestamps,
+                    "resource_id": f"{archetype}_{resource_id:04d}",
+                    "archetype": archetype,
+                    "cpu_utilization": metrics[:, 0],
+                    "memory_utilization": metrics[:, 1],
+                    "network_in_mbps": metrics[:, 2],
+                    "network_out_mbps": metrics[:, 3],
+                    "disk_iops": metrics[:, 4],
+                }
+            )
 
             all_data.append(resource_df)
 
@@ -547,31 +540,37 @@ class CloudResourceHierarchicalModel:
         result = pl.concat(all_data)
 
         # Add derived metrics
-        result = result.with_columns([
-            # Hourly cost (based on utilization and resource type)
-            (10 + pl.col('cpu_utilization') * 0.1 + pl.col('memory_utilization') * 0.05 +
-             np.random.normal(0, 2, len(result))).alias('hourly_cost'),
-
-            # Efficiency score
-            ((pl.col('cpu_utilization') + pl.col('memory_utilization')) / 2).alias('efficiency_score'),
-
-            # Waste indicator
-            ((100 - pl.col('cpu_utilization')) * 0.5 +
-             (100 - pl.col('memory_utilization')) * 0.5).alias('waste_percentage'),
-
-            # Idle detection
-            ((pl.col('cpu_utilization') < 5) &
-             (pl.col('memory_utilization') < 10)).alias('is_idle'),
-
-            # Over-provisioned detection
-            ((pl.col('cpu_utilization') < 20) &
-             (pl.col('memory_utilization') < 30)).alias('is_overprovisioned')
-        ])
+        result = result.with_columns(
+            [
+                # Hourly cost (based on utilization and resource type)
+                (
+                    10
+                    + pl.col("cpu_utilization") * 0.1
+                    + pl.col("memory_utilization") * 0.05
+                    + np.random.normal(0, 2, len(result))
+                ).alias("hourly_cost"),
+                # Efficiency score
+                ((pl.col("cpu_utilization") + pl.col("memory_utilization")) / 2).alias(
+                    "efficiency_score"
+                ),
+                # Waste indicator
+                (
+                    (100 - pl.col("cpu_utilization")) * 0.5
+                    + (100 - pl.col("memory_utilization")) * 0.5
+                ).alias("waste_percentage"),
+                # Idle detection
+                ((pl.col("cpu_utilization") < 5) & (pl.col("memory_utilization") < 10)).alias(
+                    "is_idle"
+                ),
+                # Over-provisioned detection
+                ((pl.col("cpu_utilization") < 20) & (pl.col("memory_utilization") < 30)).alias(
+                    "is_overprovisioned"
+                ),
+            ]
+        )
 
         # Ensure hourly_cost is non-negative
-        result = result.with_columns([
-            pl.col('hourly_cost').clip(lower_bound=0)
-        ])
+        result = result.with_columns([pl.col("hourly_cost").clip(lower_bound=0)])
 
         return result
 
@@ -582,8 +581,7 @@ class CloudResourceHierarchicalModel:
 
         # Trace plots
         az.plot_trace(
-            self.trace,
-            var_names=['industry_cpu_mean', 'industry_mem_mean', 'industry_waste']
+            self.trace, var_names=["industry_cpu_mean", "industry_mem_mean", "industry_waste"]
         )
         plt.suptitle("Industry-Level Parameters")
         plt.tight_layout()
@@ -591,8 +589,7 @@ class CloudResourceHierarchicalModel:
 
         # Posterior distributions
         az.plot_posterior(
-            self.trace,
-            var_names=['industry_cpu_mean', 'industry_mem_mean', 'industry_waste']
+            self.trace, var_names=["industry_cpu_mean", "industry_mem_mean", "industry_waste"]
         )
         plt.suptitle("Posterior Distributions")
         plt.tight_layout()
@@ -608,36 +605,43 @@ class CloudResourceHierarchicalModel:
             raise ValueError("Model must be fitted first")
 
         # Extract posterior means
-        cpu_mean = self.trace.posterior['industry_cpu_mean'].mean().item() * 100
-        mem_mean = self.trace.posterior['industry_mem_mean'].mean().item() * 100
-        waste_mean = self.trace.posterior['industry_waste'].mean().item() * 100
+        cpu_mean = self.trace.posterior["industry_cpu_mean"].mean().item() * 100
+        mem_mean = self.trace.posterior["industry_mem_mean"].mean().item() * 100
+        waste_mean = self.trace.posterior["industry_waste"].mean().item() * 100
 
         # Log comparison results
         logger.info("Model vs Research Comparison:")
-        logger.info("  CPU Utilization - Model: {:.1f}%, Research: 13%, Diff: {:.1f}%",
-                   cpu_mean, cpu_mean - 13)
-        logger.info("  Memory Utilization - Model: {:.1f}%, Research: 20%, Diff: {:.1f}%",
-                   mem_mean, mem_mean - 20)
-        logger.info("  Waste Percentage - Model: {:.1f}%, Research: 30-32%, Diff: {:.1f}%",
-                   waste_mean, waste_mean - 31)
+        logger.info(
+            "  CPU Utilization - Model: {:.1f}%, Research: 13%, Diff: {:.1f}%",
+            cpu_mean,
+            cpu_mean - 13,
+        )
+        logger.info(
+            "  Memory Utilization - Model: {:.1f}%, Research: 20%, Diff: {:.1f}%",
+            mem_mean,
+            mem_mean - 20,
+        )
+        logger.info(
+            "  Waste Percentage - Model: {:.1f}%, Research: 30-32%, Diff: {:.1f}%",
+            waste_mean,
+            waste_mean - 31,
+        )
 
         return {
-            'cpu_model': cpu_mean,
-            'cpu_research': 13,
-            'cpu_diff': cpu_mean - 13,
-            'mem_model': mem_mean,
-            'mem_research': 20,
-            'mem_diff': mem_mean - 20,
-            'waste_model': waste_mean,
-            'waste_research': 31,
-            'waste_diff': waste_mean - 31
+            "cpu_model": cpu_mean,
+            "cpu_research": 13,
+            "cpu_diff": cpu_mean - 13,
+            "mem_model": mem_mean,
+            "mem_research": 20,
+            "mem_diff": mem_mean - 20,
+            "waste_model": waste_mean,
+            "waste_research": 31,
+            "waste_diff": waste_mean - 31,
         }
 
     def posterior_predictions(
-        self,
-        archetype: str,
-        num_samples: int = 100
-    ) -> Dict[str, np.ndarray]:
+        self, archetype: str, num_samples: int = 100
+    ) -> dict[str, np.ndarray]:
         """
         Generate posterior predictions for a specific archetype.
 
@@ -653,11 +657,11 @@ class CloudResourceHierarchicalModel:
 
         # Handle common aliases for archetypes
         archetype_aliases = {
-            'Web Application': 'ecommerce_platform',
-            'Batch Processing': 'batch_etl_pipeline',
-            'ML Training': 'ml_training_gpu',
-            'Database': 'postgresql_oltp',
-            'Cache': 'redis_cache'
+            "Web Application": "ecommerce_platform",
+            "Batch Processing": "batch_etl_pipeline",
+            "ML Training": "ml_training_gpu",
+            "Database": "postgresql_oltp",
+            "Cache": "redis_cache",
         }
 
         if archetype in archetype_aliases:
@@ -672,10 +676,10 @@ class CloudResourceHierarchicalModel:
         archetype_idx = self.archetypes.index(archetype)
 
         # Extract posterior samples for this archetype
-        cpu_alpha = self.trace.posterior['archetype_cpu_mean'].values[:, :, archetype_idx].flatten()
+        cpu_alpha = self.trace.posterior["archetype_cpu_mean"].values[:, :, archetype_idx].flatten()
         cpu_beta = 1 - cpu_alpha  # Convert to beta distribution parameters
 
-        mem_alpha = self.trace.posterior['archetype_mem_mean'].values[:, :, archetype_idx].flatten()
+        mem_alpha = self.trace.posterior["archetype_mem_mean"].values[:, :, archetype_idx].flatten()
         mem_beta = 1 - mem_alpha
 
         # Sample from posterior predictive
@@ -699,9 +703,9 @@ class CloudResourceHierarchicalModel:
             cost_predictions.append(max(0, cost))
 
         return {
-            'cpu': np.array(cpu_predictions),
-            'memory': np.array(mem_predictions),
-            'cost': np.array(cost_predictions)
+            "cpu": np.array(cpu_predictions),
+            "memory": np.array(mem_predictions),
+            "cost": np.array(cost_predictions),
         }
 
     def save_model(self, filepath: str):
@@ -726,13 +730,14 @@ class CloudResourceHierarchicalModel:
             filepath: Path to the saved model
         """
         import os
+
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Model file not found: {filepath}")
 
         self.trace = az.from_netcdf(filepath)
         logger.info(f"Model loaded from {filepath}")
 
-    def compute_waste_metrics(self, data: pl.DataFrame) -> Dict[str, Any]:
+    def compute_waste_metrics(self, data: pl.DataFrame) -> dict[str, Any]:
         """
         Compute waste metrics from resource utilization data.
 
@@ -743,8 +748,8 @@ class CloudResourceHierarchicalModel:
             Dictionary with waste metrics
         """
         # Calculate average utilization
-        avg_cpu = data['cpu_utilization'].mean()
-        avg_memory = data['memory_utilization'].mean()
+        avg_cpu = data["cpu_utilization"].mean()
+        avg_memory = data["memory_utilization"].mean()
 
         # Calculate waste percentage (based on under-utilization)
         cpu_waste = (100 - avg_cpu) * 0.7  # 70% of unused CPU is waste
@@ -753,50 +758,57 @@ class CloudResourceHierarchicalModel:
 
         # Calculate waste by archetype if available
         waste_by_archetype = {}
-        if 'archetype' in data.columns:
-            for archetype in data['archetype'].unique():
-                arch_data = data.filter(pl.col('archetype') == archetype)
-                arch_cpu = arch_data['cpu_utilization'].mean()
-                arch_mem = arch_data['memory_utilization'].mean()
+        if "archetype" in data.columns:
+            for archetype in data["archetype"].unique():
+                arch_data = data.filter(pl.col("archetype") == archetype)
+                arch_cpu = arch_data["cpu_utilization"].mean()
+                arch_mem = arch_data["memory_utilization"].mean()
                 arch_waste = ((100 - arch_cpu) * 0.7 + (100 - arch_mem) * 0.5) / 2
                 waste_by_archetype[archetype] = arch_waste
 
         # Calculate optimization potential
-        if 'hourly_cost' in data.columns:
-            total_cost = data['hourly_cost'].sum()
+        if "hourly_cost" in data.columns:
+            total_cost = data["hourly_cost"].sum()
             potential_savings = total_cost * (total_waste / 100)
             optimization_potential = potential_savings / total_cost * 100
         else:
             optimization_potential = total_waste
 
         return {
-            'total_waste_percentage': total_waste,
-            'cpu_waste_percentage': cpu_waste,
-            'memory_waste_percentage': memory_waste,
-            'waste_by_archetype': waste_by_archetype,
-            'optimization_potential': optimization_potential,
-            'avg_cpu_utilization': avg_cpu,
-            'avg_memory_utilization': avg_memory
+            "total_waste_percentage": total_waste,
+            "cpu_waste_percentage": cpu_waste,
+            "memory_waste_percentage": memory_waste,
+            "waste_by_archetype": waste_by_archetype,
+            "optimization_potential": optimization_potential,
+            "avg_cpu_utilization": avg_cpu,
+            "avg_memory_utilization": avg_memory,
         }
+
 
 def demo_hierarchical_model():
     """Demonstrate the hierarchical Bayesian model"""
     logger.info("Demonstrating Cloud Resource Hierarchical Bayesian Model")
 
     # Generate some sample observed data (normally would be real data)
-    sample_data = pl.DataFrame({
-        'timestamp': [datetime.now() - timedelta(hours=i) for i in range(1000)],
-        'archetype': ['ecommerce_platform'] * 500 + ['dev_environment'] * 500,
-        'cpu_utilization': np.concatenate([
-            np.random.beta(2, 8, 500) * 100,  # E-commerce ~20%
-            np.random.beta(1, 15, 500) * 100  # Dev ~6%
-        ]),
-        'memory_utilization': np.concatenate([
-            np.random.beta(4, 6, 500) * 100,  # E-commerce ~40%
-            np.random.beta(2, 10, 500) * 100  # Dev ~17%
-        ]),
-        'resource_id': [f"res_{i:04d}" for i in range(1000)]
-    })
+    sample_data = pl.DataFrame(
+        {
+            "timestamp": [datetime.now() - timedelta(hours=i) for i in range(1000)],
+            "archetype": ["ecommerce_platform"] * 500 + ["dev_environment"] * 500,
+            "cpu_utilization": np.concatenate(
+                [
+                    np.random.beta(2, 8, 500) * 100,  # E-commerce ~20%
+                    np.random.beta(1, 15, 500) * 100,  # Dev ~6%
+                ]
+            ),
+            "memory_utilization": np.concatenate(
+                [
+                    np.random.beta(4, 6, 500) * 100,  # E-commerce ~40%
+                    np.random.beta(2, 10, 500) * 100,  # Dev ~17%
+                ]
+            ),
+            "resource_id": [f"res_{i:04d}" for i in range(1000)],
+        }
+    )
 
     # Build and fit model
     model = CloudResourceHierarchicalModel(observed_data=sample_data)
@@ -813,17 +825,16 @@ def demo_hierarchical_model():
 
     # Generate synthetic data
     synthetic = model.generate_synthetic_data(
-        archetype='ecommerce_platform',
-        n_resources=10,
-        duration_hours=24
+        archetype="ecommerce_platform", n_resources=10, duration_hours=24
     )
 
-    print(f"\n=== Generated Synthetic Data ===")
+    print("\n=== Generated Synthetic Data ===")
     print(f"Records: {len(synthetic)}")
     print(f"CPU Mean: {synthetic['cpu_utilization'].mean():.1f}%")
     print(f"Memory Mean: {synthetic['memory_utilization'].mean():.1f}%")
     print(f"Waste Mean: {synthetic['waste_percentage'].mean():.1f}%")
     print(f"Idle Time: {(synthetic['is_idle'].sum() / len(synthetic) * 100):.1f}%")
+
 
 if __name__ == "__main__":
     demo_hierarchical_model()

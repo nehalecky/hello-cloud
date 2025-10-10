@@ -3,11 +3,12 @@ Test project configuration and setup validity.
 These tests would have caught the TOML parsing errors.
 """
 
-import pytest
-import toml
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
+import toml
 
 # Project root directory
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -22,7 +23,7 @@ class TestProjectConfiguration:
 
         # This test would have caught our TOML parsing errors
         try:
-            with open(pyproject_path, "r") as f:
+            with open(pyproject_path) as f:
                 config = toml.load(f)
         except toml.TomlDecodeError as e:
             pytest.fail(f"pyproject.toml is not valid TOML: {e}")
@@ -32,18 +33,21 @@ class TestProjectConfiguration:
         assert "dependencies" in config["project"], "Missing project.dependencies"
 
         # Verify dependencies is a list, not dict (would have caught our error)
-        assert isinstance(config["project"]["dependencies"], list), \
-            "project.dependencies must be a list, not a dict"
+        assert isinstance(
+            config["project"]["dependencies"], list
+        ), "project.dependencies must be a list, not a dict"
 
         # Verify no deprecated fields
         if "tool" in config and "uv" in config["tool"]:
             if "dev-dependencies" in config["tool"]["uv"]:
-                pytest.fail("Deprecated tool.uv.dev-dependencies found. Use dependency-groups.dev instead")
+                pytest.fail(
+                    "Deprecated tool.uv.dev-dependencies found. Use dependency-groups.dev instead"
+                )
 
     def test_dependencies_format(self):
         """Test that dependencies are in correct PEP 621 format."""
         pyproject_path = PROJECT_ROOT / "pyproject.toml"
-        with open(pyproject_path, "r") as f:
+        with open(pyproject_path) as f:
             config = toml.load(f)
 
         deps = config["project"]["dependencies"]
@@ -51,13 +55,14 @@ class TestProjectConfiguration:
         for dep in deps:
             assert isinstance(dep, str), f"Dependency {dep} must be a string"
             # Basic check for valid dependency format
-            assert ">" in dep or "=" in dep or "[" in dep, \
-                f"Dependency {dep} doesn't look like a valid requirement specifier"
+            assert (
+                ">" in dep or "=" in dep or "[" in dep
+            ), f"Dependency {dep} doesn't look like a valid requirement specifier"
 
     def test_optional_dependencies_format(self):
         """Test that optional dependencies are properly formatted."""
         pyproject_path = PROJECT_ROOT / "pyproject.toml"
-        with open(pyproject_path, "r") as f:
+        with open(pyproject_path) as f:
             config = toml.load(f)
 
         if "optional-dependencies" in config["project"]:
@@ -67,7 +72,9 @@ class TestProjectConfiguration:
             for group_name, deps in opt_deps.items():
                 assert isinstance(deps, list), f"{group_name} dependencies must be a list"
                 for dep in deps:
-                    assert isinstance(dep, str), f"Dependency {dep} in {group_name} must be a string"
+                    assert isinstance(
+                        dep, str
+                    ), f"Dependency {dep} in {group_name} must be a string"
 
     def test_uv_can_parse_pyproject(self):
         """Test that uv can successfully parse our pyproject.toml."""
@@ -76,7 +83,7 @@ class TestProjectConfiguration:
             ["uv", "pip", "list", "--format", "json"],
             capture_output=True,
             text=True,
-            cwd=PROJECT_ROOT
+            cwd=PROJECT_ROOT,
         )
 
         if result.returncode != 0:
@@ -91,7 +98,7 @@ class TestProjectConfiguration:
         pyproject_path = PROJECT_ROOT / "pyproject.toml"
 
         # Read the file as text to check for obvious duplicates
-        with open(pyproject_path, "r") as f:
+        with open(pyproject_path) as f:
             content = f.read()
 
         # Check for duplicate section headers
@@ -106,7 +113,7 @@ class TestProjectConfiguration:
     def test_dependency_groups_format(self):
         """Test that dependency-groups follow PEP 735 format."""
         pyproject_path = PROJECT_ROOT / "pyproject.toml"
-        with open(pyproject_path, "r") as f:
+        with open(pyproject_path) as f:
             config = toml.load(f)
 
         if "dependency-groups" in config:
@@ -116,12 +123,14 @@ class TestProjectConfiguration:
             for group_name, deps in groups.items():
                 assert isinstance(deps, list), f"dependency-groups.{group_name} must be a list"
                 for dep in deps:
-                    assert isinstance(dep, str), f"Dependency {dep} in {group_name} must be a string"
+                    assert isinstance(
+                        dep, str
+                    ), f"Dependency {dep} in {group_name} must be a string"
 
     def test_python_version_consistency(self):
         """Test that Python version is consistent across configuration."""
         pyproject_path = PROJECT_ROOT / "pyproject.toml"
-        with open(pyproject_path, "r") as f:
+        with open(pyproject_path) as f:
             config = toml.load(f)
 
         # Check requires-python
@@ -133,20 +142,22 @@ class TestProjectConfiguration:
         assert ">=" in requires_python, "requires-python should use >= specifier"
 
         min_version = requires_python.replace(">=", "").strip()
-        assert min_version <= current_python, \
-            f"Current Python {current_python} doesn't meet requirement {requires_python}"
+        assert (
+            min_version <= current_python
+        ), f"Current Python {current_python} doesn't meet requirement {requires_python}"
 
     def test_package_name_valid(self):
         """Test that package name follows Python naming conventions."""
         pyproject_path = PROJECT_ROOT / "pyproject.toml"
-        with open(pyproject_path, "r") as f:
+        with open(pyproject_path) as f:
             config = toml.load(f)
 
         name = config["project"]["name"]
 
         # Check valid Python package name
-        assert name.replace("-", "_").replace("_", "").isalnum(), \
-            f"Package name '{name}' contains invalid characters"
+        assert (
+            name.replace("-", "_").replace("_", "").isalnum()
+        ), f"Package name '{name}' contains invalid characters"
 
         # Check it doesn't start with a number
         assert not name[0].isdigit(), f"Package name '{name}' cannot start with a number"
@@ -175,4 +186,3 @@ class TestProjectImports:
                 __import__(module_name)
             except ImportError as e:
                 pytest.fail(f"Cannot import {module_name}: {e}")
-

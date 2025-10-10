@@ -1,11 +1,12 @@
 """Tests for HuggingFace dataset builder."""
 
-import pytest
-import polars as pl
-import numpy as np
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import polars as pl
+import pytest
 
 from hellocloud.data_generation.hf_dataset_builder import (
     CloudMetricsDatasetBuilder,
@@ -33,7 +34,7 @@ class TestCloudMetricsDatasetBuilder:
 
     def test_feature_schema_definition(self):
         """Test that feature schema is properly defined."""
-        assert hasattr(CloudMetricsDatasetBuilder, 'FEATURE_SCHEMA')
+        assert hasattr(CloudMetricsDatasetBuilder, "FEATURE_SCHEMA")
         schema = CloudMetricsDatasetBuilder.FEATURE_SCHEMA
 
         # Check essential fields exist
@@ -49,7 +50,7 @@ class TestCloudMetricsDatasetBuilder:
         assert schema["cpu_utilization"].dtype == "float32"
         assert schema["is_idle"].dtype == "bool"
 
-    @patch('hellocloud.data_generation.hf_dataset_builder.Dataset')
+    @patch("hellocloud.data_generation.hf_dataset_builder.Dataset")
     def test_polars_to_dataset_conversion(self, mock_dataset):
         """Test converting Polars DataFrame to HuggingFace Dataset."""
         # Mock Dataset constructor to accept arrow table
@@ -75,10 +76,12 @@ class TestCloudMetricsDatasetBuilder:
         builder = CloudMetricsDatasetBuilder()
 
         # DataFrame missing required columns
-        df = pl.DataFrame({
-            "resource_id": ["res_001", "res_002"],
-            # Missing: timestamp, cpu_utilization, memory_utilization, hourly_cost
-        })
+        df = pl.DataFrame(
+            {
+                "resource_id": ["res_001", "res_002"],
+                # Missing: timestamp, cpu_utilization, memory_utilization, hourly_cost
+            }
+        )
 
         with pytest.raises(ValueError, match="Required column .* not found in DataFrame"):
             builder.polars_to_dataset(df)
@@ -88,13 +91,15 @@ class TestCloudMetricsDatasetBuilder:
         builder = CloudMetricsDatasetBuilder()
 
         # Minimal DataFrame with only required columns
-        df = pl.DataFrame({
-            "resource_id": ["res_001", "res_002"],
-            "timestamp": [datetime.now(), datetime.now()],
-            "cpu_utilization": [15.0, 20.0],
-            "memory_utilization": [25.0, 30.0],
-            "hourly_cost": [10.0, 15.0]
-        })
+        df = pl.DataFrame(
+            {
+                "resource_id": ["res_001", "res_002"],
+                "timestamp": [datetime.now(), datetime.now()],
+                "cpu_utilization": [15.0, 20.0],
+                "memory_utilization": [25.0, 30.0],
+                "hourly_cost": [10.0, 15.0],
+            }
+        )
 
         # Call the method to verify it adds the defaults
         dataset = builder.polars_to_dataset(df)
@@ -111,7 +116,7 @@ class TestCloudMetricsDatasetBuilder:
         # Create sample data spanning multiple days
         df = self._create_sample_dataframe(num_hours=168)  # 1 week
 
-        with patch('hellocloud.data_generation.hf_dataset_builder.DatasetDict') as mock_dict:
+        with patch("hellocloud.data_generation.hf_dataset_builder.DatasetDict") as mock_dict:
             mock_dict.return_value = MagicMock()
 
             splits = builder.create_time_series_splits(df, test_size=0.2)
@@ -128,13 +133,15 @@ class TestCloudMetricsDatasetBuilder:
 
         # Create data with clear time ordering
         timestamps = [datetime(2024, 1, 1) + timedelta(hours=i) for i in range(100)]
-        df = pl.DataFrame({
-            "resource_id": ["res_001"] * 100,
-            "timestamp": timestamps,
-            "cpu_utilization": list(range(100)),  # Increasing values to check order
-            "memory_utilization": [20.0] * 100,
-            "hourly_cost": [10.0] * 100
-        })
+        df = pl.DataFrame(
+            {
+                "resource_id": ["res_001"] * 100,
+                "timestamp": timestamps,
+                "cpu_utilization": list(range(100)),  # Increasing values to check order
+                "memory_utilization": [20.0] * 100,
+                "hourly_cost": [10.0] * 100,
+            }
+        )
 
         # Mock Dataset creation to capture the data
         captured_train = None
@@ -145,7 +152,7 @@ class TestCloudMetricsDatasetBuilder:
             dataset.data = data
             return dataset
 
-        with patch('hellocloud.data_generation.hf_dataset_builder.Dataset') as mock_dataset:
+        with patch("hellocloud.data_generation.hf_dataset_builder.Dataset") as mock_dataset:
             mock_dataset.from_dict.side_effect = capture_dataset
 
             splits = builder.create_time_series_splits(df, test_size=0.2)
@@ -165,7 +172,7 @@ class TestCloudMetricsDatasetBuilder:
 
         df = self._create_sample_dataframe(num_hours=24)
 
-        with patch('hellocloud.data_generation.hf_dataset_builder.Dataset') as mock_dataset:
+        with patch("hellocloud.data_generation.hf_dataset_builder.Dataset") as mock_dataset:
             mock_dataset_instance = MagicMock()
             mock_dataset.from_dict.return_value = mock_dataset_instance
             mock_dataset_instance.map.return_value = mock_dataset_instance
@@ -184,10 +191,7 @@ class TestCloudMetricsDatasetBuilder:
         df = self._create_sample_dataframe(num_hours=100)
 
         windows = builder.prepare_sliding_windows(
-            df,
-            window_size=24,
-            stride=6,
-            target_col="hourly_cost"
+            df, window_size=24, stride=6, target_col="hourly_cost"
         )
 
         assert isinstance(windows, list)
@@ -211,22 +215,20 @@ class TestCloudMetricsDatasetBuilder:
         # Create data with multiple resources
         dfs = []
         for i in range(3):
-            df = pl.DataFrame({
-                "resource_id": [f"res_{i:03d}"] * 50,
-                "timestamp": [datetime.now() + timedelta(hours=j) for j in range(50)],
-                "cpu_utilization": np.random.randn(50) * 10 + 15,
-                "memory_utilization": np.random.randn(50) * 10 + 25,
-                "hourly_cost": np.random.gamma(2, 10, 50)
-            })
+            df = pl.DataFrame(
+                {
+                    "resource_id": [f"res_{i:03d}"] * 50,
+                    "timestamp": [datetime.now() + timedelta(hours=j) for j in range(50)],
+                    "cpu_utilization": np.random.randn(50) * 10 + 15,
+                    "memory_utilization": np.random.randn(50) * 10 + 25,
+                    "hourly_cost": np.random.gamma(2, 10, 50),
+                }
+            )
             dfs.append(df)
 
         combined_df = pl.concat(dfs)
 
-        windows = builder.prepare_sliding_windows(
-            combined_df,
-            window_size=10,
-            stride=5
-        )
+        windows = builder.prepare_sliding_windows(combined_df, window_size=10, stride=5)
 
         # Check that each window has consistent resource_id
         for window in windows:
@@ -275,13 +277,15 @@ class TestCloudMetricsDatasetBuilder:
         assert len(errors) == 0
 
         # Dataset with invalid values
-        df_invalid = pl.DataFrame({
-            "resource_id": ["res_001", "res_002"],
-            "timestamp": [datetime.now(), datetime.now()],
-            "cpu_utilization": [150.0, -10.0],  # Invalid: >100 and <0
-            "memory_utilization": [25.0, 30.0],
-            "hourly_cost": [10.0, -5.0]  # Invalid: negative cost
-        })
+        df_invalid = pl.DataFrame(
+            {
+                "resource_id": ["res_001", "res_002"],
+                "timestamp": [datetime.now(), datetime.now()],
+                "cpu_utilization": [150.0, -10.0],  # Invalid: >100 and <0
+                "memory_utilization": [25.0, 30.0],
+                "hourly_cost": [10.0, -5.0],  # Invalid: negative cost
+            }
+        )
 
         is_valid, errors = builder.validate_dataset(df_invalid)
 
@@ -290,31 +294,31 @@ class TestCloudMetricsDatasetBuilder:
         assert any("cpu_utilization" in error for error in errors)
         assert any("hourly_cost" in error for error in errors)
 
-
     # Helper methods
 
     def _create_sample_dataframe(self, num_hours=24):
         """Create sample Polars DataFrame for testing."""
         timestamps = [datetime.now() + timedelta(hours=i) for i in range(num_hours)]
 
-        return pl.DataFrame({
-            "resource_id": ["res_001"] * num_hours,
-            "timestamp": timestamps,
-            "workload_type": ["web_application"] * num_hours,
-            "cpu_utilization": np.random.beta(2, 8, num_hours) * 100,
-            "memory_utilization": np.random.beta(3, 7, num_hours) * 100,
-            "network_in_mbps": np.random.gamma(2, 2, num_hours),
-            "network_out_mbps": np.random.gamma(2, 2, num_hours),
-            "disk_iops": np.random.gamma(3, 100, num_hours),
-            "hourly_cost": np.random.gamma(2, 10, num_hours),
-            "efficiency_score": np.random.beta(5, 2, num_hours) * 100,
-            "waste_percentage": np.random.beta(3, 7, num_hours) * 100,
-            "is_idle": np.random.choice([True, False], num_hours, p=[0.2, 0.8]),
-            "is_overprovisioned": np.random.choice([True, False], num_hours, p=[0.3, 0.7]),
-            "is_anomaly": np.random.choice([True, False], num_hours, p=[0.05, 0.95]),
-            "cloud_provider": ["AWS"] * num_hours,
-            "region": ["us-east-1"] * num_hours,
-            "instance_type": ["t3.medium"] * num_hours,
-            "environment": ["prod"] * num_hours,
-        })
-
+        return pl.DataFrame(
+            {
+                "resource_id": ["res_001"] * num_hours,
+                "timestamp": timestamps,
+                "workload_type": ["web_application"] * num_hours,
+                "cpu_utilization": np.random.beta(2, 8, num_hours) * 100,
+                "memory_utilization": np.random.beta(3, 7, num_hours) * 100,
+                "network_in_mbps": np.random.gamma(2, 2, num_hours),
+                "network_out_mbps": np.random.gamma(2, 2, num_hours),
+                "disk_iops": np.random.gamma(3, 100, num_hours),
+                "hourly_cost": np.random.gamma(2, 10, num_hours),
+                "efficiency_score": np.random.beta(5, 2, num_hours) * 100,
+                "waste_percentage": np.random.beta(3, 7, num_hours) * 100,
+                "is_idle": np.random.choice([True, False], num_hours, p=[0.2, 0.8]),
+                "is_overprovisioned": np.random.choice([True, False], num_hours, p=[0.3, 0.7]),
+                "is_anomaly": np.random.choice([True, False], num_hours, p=[0.05, 0.95]),
+                "cloud_provider": ["AWS"] * num_hours,
+                "region": ["us-east-1"] * num_hours,
+                "instance_type": ["t3.medium"] * num_hours,
+                "environment": ["prod"] * num_hours,
+            }
+        )

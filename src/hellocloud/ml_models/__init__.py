@@ -1,13 +1,13 @@
 """Machine learning models for cloud cost optimization."""
 
-from .pymc_cloud_model import CloudResourceHierarchicalModel
 from .application_taxonomy import (
-    CloudResourceTaxonomy,
     ApplicationArchetype,
     ApplicationDomain,
-    ScalingBehavior,
+    CloudResourceTaxonomy,
     OptimizationPotential,
+    ScalingBehavior,
 )
+from .pymc_cloud_model import CloudResourceHierarchicalModel
 
 __all__ = [
     "CloudResourceHierarchicalModel",

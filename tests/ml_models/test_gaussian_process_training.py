@@ -2,11 +2,14 @@ import pytest
 
 try:
     import torch
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
 
-pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)")
+pytestmark = pytest.mark.skipif(
+    not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)"
+)
 """
 Integration tests for Gaussian Process training module.
 
@@ -17,15 +20,16 @@ Validates training workflows including:
 - Numerical stability settings
 """
 
-import gpytorch
 import tempfile
 from pathlib import Path
 
+import gpytorch
+
 from hellocloud.ml_models.gaussian_process.models import SparseGPModel, initialize_inducing_points
 from hellocloud.ml_models.gaussian_process.training import (
-    train_gp_model,
-    save_model,
     load_model,
+    save_model,
+    train_gp_model,
 )
 
 
@@ -62,7 +66,7 @@ class TestGPTraining:
             y_train=y,
             n_epochs=5,
             batch_size=128,
-            verbose=False
+            verbose=False,
         )
 
         # Check losses returned
@@ -80,7 +84,7 @@ class TestGPTraining:
             y_train=y,
             n_epochs=20,
             batch_size=128,
-            verbose=False
+            verbose=False,
         )
 
         # Loss should decrease (allow some fluctuation)
@@ -88,8 +92,9 @@ class TestGPTraining:
         early_loss = sum(losses[:5]) / 5
         late_loss = sum(losses[-5:]) / 5
 
-        assert late_loss < early_loss, \
-            f"Loss should decrease: early={early_loss:.4f}, late={late_loss:.4f}"
+        assert (
+            late_loss < early_loss
+        ), f"Loss should decrease: early={early_loss:.4f}, late={late_loss:.4f}"
 
     def test_train_with_student_t_likelihood(self, synthetic_data):
         """Test training with Student-t likelihood."""
@@ -110,7 +115,7 @@ class TestGPTraining:
             y_train=y,
             n_epochs=10,
             batch_size=128,
-            verbose=False
+            verbose=False,
         )
 
         # Should complete without errors
@@ -132,7 +137,7 @@ class TestGPTraining:
             y_train=y,
             n_epochs=3,
             batch_size=64,  # Small batch size
-            verbose=False
+            verbose=False,
         )
 
         # Should complete without errors
@@ -145,18 +150,14 @@ class TestGPTraining:
         n = 2000
         X = torch.linspace(0, 1, n).reshape(-1, 1)
         y = (
-            torch.sin(2 * torch.pi * 5 * X.squeeze()) +  # Fast period
-            torch.sin(2 * torch.pi * 1 * X.squeeze()) +  # Slow period
-            0.1 * torch.randn(n)
+            torch.sin(2 * torch.pi * 5 * X.squeeze())  # Fast period
+            + torch.sin(2 * torch.pi * 1 * X.squeeze())  # Slow period
+            + 0.1 * torch.randn(n)
         )
 
         # Model with composite periodic kernel
         inducing_points = initialize_inducing_points(X, num_inducing=100)
-        model = SparseGPModel(
-            inducing_points=inducing_points,
-            slow_period=1.0,
-            fast_period=0.2
-        )
+        model = SparseGPModel(inducing_points=inducing_points, slow_period=1.0, fast_period=0.2)
         likelihood = gpytorch.likelihoods.GaussianLikelihood()
 
         losses = train_gp_model(
@@ -166,12 +167,11 @@ class TestGPTraining:
             y_train=y,
             n_epochs=30,
             batch_size=256,
-            verbose=False
+            verbose=False,
         )
 
         # Loss should decrease significantly
-        assert losses[-1] < losses[0] * 0.8, \
-            "Loss should decrease by at least 20%"
+        assert losses[-1] < losses[0] * 0.8, "Loss should decrease by at least 20%"
 
 
 class TestModelPersistence:
@@ -189,12 +189,7 @@ class TestModelPersistence:
         likelihood = gpytorch.likelihoods.GaussianLikelihood()
 
         # Train briefly
-        losses = train_gp_model(
-            model, likelihood, X, y,
-            n_epochs=5,
-            batch_size=64,
-            verbose=False
-        )
+        losses = train_gp_model(model, likelihood, X, y, n_epochs=5, batch_size=64, verbose=False)
 
         return model, likelihood, losses, X, y
 
@@ -205,12 +200,7 @@ class TestModelPersistence:
         with tempfile.TemporaryDirectory() as tmpdir:
             save_path = Path(tmpdir) / "test_model.pth"
 
-            save_model(
-                model=model,
-                likelihood=likelihood,
-                save_path=str(save_path),
-                losses=losses
-            )
+            save_model(model=model, likelihood=likelihood, save_path=str(save_path), losses=losses)
 
             # File should exist
             assert save_path.exists()
@@ -236,19 +226,19 @@ class TestModelPersistence:
                 likelihood=likelihood_original,
                 save_path=str(save_path),
                 losses=losses,
-                metadata={'test': 'data'}
+                metadata={"test": "data"},
             )
 
             # Load model
             model_loaded, likelihood_loaded, checkpoint = load_model(
                 load_path=str(save_path),
                 likelihood_class=gpytorch.likelihoods.GaussianLikelihood,
-                device=torch.device('cpu')
+                device=torch.device("cpu"),
             )
 
             # Check metadata
-            assert checkpoint['metadata']['test'] == 'data'
-            assert checkpoint['losses'] == losses
+            assert checkpoint["metadata"]["test"] == "data"
+            assert checkpoint["losses"] == losses
 
             # Generate predictions from loaded model
             model_loaded.eval()
@@ -260,11 +250,12 @@ class TestModelPersistence:
 
             # Predictions should match
             import numpy as np
+
             np.testing.assert_array_almost_equal(
                 mean_original,
                 mean_loaded,
                 decimal=5,
-                err_msg="Loaded model predictions don't match original"
+                err_msg="Loaded model predictions don't match original",
             )
 
     def test_load_student_t_model(self):
@@ -281,11 +272,7 @@ class TestModelPersistence:
         )
 
         # Train briefly
-        train_gp_model(
-            model, likelihood, X, y,
-            n_epochs=3,
-            verbose=False
-        )
+        train_gp_model(model, likelihood, X, y, n_epochs=3, verbose=False)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             save_path = Path(tmpdir) / "student_t_model.pth"
@@ -294,13 +281,12 @@ class TestModelPersistence:
 
             # Load with correct likelihood class
             model_loaded, likelihood_loaded, checkpoint = load_model(
-                load_path=str(save_path),
-                likelihood_class=gpytorch.likelihoods.StudentTLikelihood
+                load_path=str(save_path), likelihood_class=gpytorch.likelihoods.StudentTLikelihood
             )
 
             # Check degrees of freedom saved
-            assert 'final_nu' in checkpoint
-            assert checkpoint['final_nu'] > 0
+            assert "final_nu" in checkpoint
+            assert checkpoint["final_nu"] > 0
 
             # Check likelihood is Student-t
             assert isinstance(likelihood_loaded, gpytorch.likelihoods.StudentTLikelihood)
@@ -351,7 +337,7 @@ class TestNumericalStability:
             batch_size=128,
             cholesky_jitter=1e-3,
             cholesky_max_tries=10,
-            verbose=False
+            verbose=False,
         )
 
         # Should complete without NotPSDError
@@ -366,16 +352,11 @@ class TestNumericalStability:
         model = SparseGPModel(inducing_points=inducing_points)
         likelihood = gpytorch.likelihoods.GaussianLikelihood()
 
-        losses = train_gp_model(
-            model, likelihood, X, y,
-            n_epochs=10,
-            verbose=False
-        )
+        losses = train_gp_model(model, likelihood, X, y, n_epochs=10, verbose=False)
 
         # All losses should be finite
         for i, loss in enumerate(losses):
-            assert torch.isfinite(torch.tensor(loss)), \
-                f"Loss at epoch {i} is not finite: {loss}"
+            assert torch.isfinite(torch.tensor(loss)), f"Loss at epoch {i} is not finite: {loss}"
 
 
 @pytest.fixture

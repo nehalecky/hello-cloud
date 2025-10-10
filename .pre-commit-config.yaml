@@ -1,0 +1,51 @@
+# Pre-commit hooks for code quality
+# Install: uv run pre-commit install
+# Update: uv run pre-commit autoupdate
+# Run manually: uv run pre-commit run --all-files
+
+repos:
+  # Black - code formatting
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.11
+        args: [--line-length=100]
+
+  # Ruff - fast Python linter (replaces flake8, isort, pyupgrade)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      # Linter
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      # Formatter (optional, black is primary)
+      - id: ruff-format
+
+  # Basic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^tests/fixtures/
+      - id: end-of-file-fixer
+        exclude: ^tests/fixtures/
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: ^tests/fixtures/
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+        exclude: ^tests/fixtures/
+
+  # Notebook checks (if using Jupyter)
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.9.1
+    hooks:
+      - id: nbqa-black
+        additional_dependencies: [black==24.10.0]
+      - id: nbqa-ruff
+        additional_dependencies: [ruff==0.8.4]

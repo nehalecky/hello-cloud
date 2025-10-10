@@ -21,10 +21,10 @@ References:
 """
 
 try:
+    from .evaluation import compute_anomaly_metrics, compute_metrics, compute_prediction_intervals
     from .kernels import CompositePeriodicKernel
     from .models import SparseGPModel, initialize_inducing_points
-    from .training import train_gp_model, save_model, load_model
-    from .evaluation import compute_metrics, compute_anomaly_metrics, compute_prediction_intervals
+    from .training import load_model, save_model, train_gp_model
 
     __all__ = [
         "CompositePeriodicKernel",
@@ -37,7 +37,7 @@ try:
         "compute_anomaly_metrics",
         "compute_prediction_intervals",
     ]
-except ImportError as e:
+except ImportError:
     # GPU dependencies (torch, gpytorch) not installed
     __all__ = []
 

@@ -64,7 +64,7 @@ Jupytext manages `.md` ↔ `.ipynb` syncing automatically via `jupytext.toml`.
 ---
 kernelspec:
   display_name: Python 3 (cloud-sim)
-  name: cloud-sim
+  name: python3
 ---
 
 # Analysis Title

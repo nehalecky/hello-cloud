@@ -2,11 +2,14 @@ import pytest
 
 try:
     import torch
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
 
-pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)")
+pytestmark = pytest.mark.skipif(
+    not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)"
+)
 """
 Tests for Gaussian Process models module.
 
@@ -19,10 +22,8 @@ Validates SparseGPModel behavior including:
 """
 
 import gpytorch
-from hellocloud.ml_models.gaussian_process.models import (
-    SparseGPModel,
-    initialize_inducing_points
-)
+
+from hellocloud.ml_models.gaussian_process.models import SparseGPModel, initialize_inducing_points
 
 
 class TestSparseGPModel:
@@ -47,9 +48,9 @@ class TestSparseGPModel:
         model = SparseGPModel(inducing_points=inducing_points)
 
         # Verify components exist
-        assert hasattr(model, 'mean_module'), "Missing mean_module"
-        assert hasattr(model, 'covar_module'), "Missing covar_module"
-        assert hasattr(model, 'variational_strategy'), "Missing variational_strategy"
+        assert hasattr(model, "mean_module"), "Missing mean_module"
+        assert hasattr(model, "covar_module"), "Missing covar_module"
+        assert hasattr(model, "variational_strategy"), "Missing variational_strategy"
 
         # Verify it's an ApproximateGP
         assert isinstance(model, gpytorch.models.ApproximateGP)
@@ -59,8 +60,9 @@ class TestSparseGPModel:
         M = len(inducing_points)
         model = SparseGPModel(inducing_points=inducing_points)
 
-        assert model.num_inducing_points == M, \
-            f"Expected {M} inducing points, got {model.num_inducing_points}"
+        assert (
+            model.num_inducing_points == M
+        ), f"Expected {M} inducing points, got {model.num_inducing_points}"
 
     def test_model_forward_pass_shape(self, inducing_points):
         """Test model forward pass returns correct distribution."""
@@ -74,8 +76,9 @@ class TestSparseGPModel:
         output = model(x)
 
         # Verify output is MultivariateNormal
-        assert isinstance(output, gpytorch.distributions.MultivariateNormal), \
-            f"Expected MultivariateNormal, got {type(output)}"
+        assert isinstance(
+            output, gpytorch.distributions.MultivariateNormal
+        ), f"Expected MultivariateNormal, got {type(output)}"
 
         # Verify shapes
         assert output.mean.shape == (n,), f"Expected mean shape ({n},), got {output.mean.shape}"
@@ -98,31 +101,27 @@ class TestSparseGPModel:
 
     def test_model_inducing_points_learnable(self, inducing_points):
         """Test inducing points are learnable parameters by default."""
-        model = SparseGPModel(
-            inducing_points=inducing_points,
-            learn_inducing_locations=True
-        )
+        model = SparseGPModel(inducing_points=inducing_points, learn_inducing_locations=True)
 
         # Access inducing points
         inducing_pts = model.variational_strategy.inducing_points
 
         # Verify requires_grad is True
-        assert inducing_pts.requires_grad, \
-            "Inducing points should be learnable (requires_grad=True)"
+        assert (
+            inducing_pts.requires_grad
+        ), "Inducing points should be learnable (requires_grad=True)"
 
     def test_model_inducing_points_fixed(self, inducing_points):
         """Test inducing points can be fixed (not optimized)."""
-        model = SparseGPModel(
-            inducing_points=inducing_points,
-            learn_inducing_locations=False
-        )
+        model = SparseGPModel(inducing_points=inducing_points, learn_inducing_locations=False)
 
         # Access inducing points
         inducing_pts = model.variational_strategy.inducing_points
 
         # Verify requires_grad is False
-        assert not inducing_pts.requires_grad, \
-            "Inducing points should be fixed (requires_grad=False)"
+        assert (
+            not inducing_pts.requires_grad
+        ), "Inducing points should be fixed (requires_grad=False)"
 
     def test_model_with_custom_kernel_params(self):
         """Test model accepts custom kernel parameters."""
@@ -132,12 +131,12 @@ class TestSparseGPModel:
             inducing_points=inducing_points,
             slow_period=1250 / 10000,
             fast_period=250 / 10000,
-            rbf_lengthscale=0.05
+            rbf_lengthscale=0.05,
         )
 
         # Verify kernel exists
-        assert hasattr(model.covar_module, 'slow_periodic')
-        assert hasattr(model.covar_module, 'fast_periodic')
+        assert hasattr(model.covar_module, "slow_periodic")
+        assert hasattr(model.covar_module, "fast_periodic")
 
     def test_model_gradient_flow(self, inducing_points, small_training_data):
         """Test gradients flow through model parameters."""
@@ -210,10 +209,10 @@ class TestSparseGPModel:
         model = SparseGPModel(inducing_points=inducing_points)
 
         # Move to CPU (should already be there)
-        model = model.to('cpu')
+        model = model.to("cpu")
         x = torch.randn(10, 1)
         output = model(x)
-        assert output.mean.device.type == 'cpu'
+        assert output.mean.device.type == "cpu"
 
         # Note: Skip GPU test as CI may not have GPU
         # In production, test with: model.to('cuda')
@@ -235,14 +234,14 @@ class TestInitializeInducingPoints:
         M = 100
 
         inducing_points = initialize_inducing_points(
-            X_train=X_train,
-            num_inducing=M,
-            method="evenly_spaced"
+            X_train=X_train, num_inducing=M, method="evenly_spaced"
         )
 
         # Verify shape
-        assert inducing_points.shape == (M, 1), \
-            f"Expected shape ({M}, 1), got {inducing_points.shape}"
+        assert inducing_points.shape == (
+            M,
+            1,
+        ), f"Expected shape ({M}, 1), got {inducing_points.shape}"
 
         # Verify points are approximately evenly spaced
         # (linspace can have rounding, so check std is reasonable)
@@ -251,8 +250,9 @@ class TestInitializeInducingPoints:
         std_diff = diffs.std()
 
         # Standard deviation should be small relative to mean (allow up to 5%)
-        assert std_diff < mean_diff * 0.05, \
-            f"Points should be approximately evenly spaced (std={std_diff:.6f}, mean={mean_diff:.6f})"
+        assert (
+            std_diff < mean_diff * 0.05
+        ), f"Points should be approximately evenly spaced (std={std_diff:.6f}, mean={mean_diff:.6f})"
 
         # Verify range coverage
         assert torch.isclose(inducing_points.min(), X_train.min(), atol=1e-6)
@@ -264,9 +264,7 @@ class TestInitializeInducingPoints:
         M = 100
 
         inducing_points = initialize_inducing_points(
-            X_train=X_train,
-            num_inducing=M,
-            method="random"
+            X_train=X_train, num_inducing=M, method="random"
         )
 
         # Verify shape
@@ -282,22 +280,14 @@ class TestInitializeInducingPoints:
         X_train = training_data
 
         with pytest.raises(NotImplementedError):
-            initialize_inducing_points(
-                X_train=X_train,
-                num_inducing=50,
-                method="kmeans"
-            )
+            initialize_inducing_points(X_train=X_train, num_inducing=50, method="kmeans")
 
     def test_invalid_method_raises_error(self, training_data):
         """Test that invalid method raises ValueError."""
         X_train = training_data
 
         with pytest.raises(ValueError, match="Unknown initialization method"):
-            initialize_inducing_points(
-                X_train=X_train,
-                num_inducing=50,
-                method="invalid_method"
-            )
+            initialize_inducing_points(X_train=X_train, num_inducing=50, method="invalid_method")
 
     def test_initialization_with_different_sizes(self, training_data):
         """Test initialization works with various inducing point counts."""
@@ -307,13 +297,10 @@ class TestInitializeInducingPoints:
 
         for M in sizes:
             inducing_points = initialize_inducing_points(
-                X_train=X_train,
-                num_inducing=M,
-                method="evenly_spaced"
+                X_train=X_train, num_inducing=M, method="evenly_spaced"
             )
 
-            assert len(inducing_points) == M, \
-                f"Expected {M} points, got {len(inducing_points)}"
+            assert len(inducing_points) == M, f"Expected {M} points, got {len(inducing_points)}"
 
     def test_initialization_preserves_dtype(self, training_data):
         """Test initialization preserves tensor dtype."""
@@ -331,7 +318,7 @@ class TestInitializeInducingPoints:
         """Test initialization preserves tensor device."""
         X_cpu = torch.randn(100, 1)
         inducing_cpu = initialize_inducing_points(X_cpu, 20)
-        assert inducing_cpu.device.type == 'cpu'
+        assert inducing_cpu.device.type == "cpu"
 
         # Note: Skip GPU test for CI compatibility
         # In production: test with X_cuda = X_cpu.to('cuda')
@@ -343,11 +330,11 @@ class TestInitializeInducingPoints:
         M = 50
 
         inducing_points = initialize_inducing_points(
-            X_train=X_multi,
-            num_inducing=M,
-            method="evenly_spaced"
+            X_train=X_multi, num_inducing=M, method="evenly_spaced"
         )
 
         # Verify shape
-        assert inducing_points.shape == (M, d), \
-            f"Expected shape ({M}, {d}), got {inducing_points.shape}"
+        assert inducing_points.shape == (
+            M,
+            d,
+        ), f"Expected shape ({M}, {d}), got {inducing_points.shape}"

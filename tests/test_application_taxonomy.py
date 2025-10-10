@@ -1,17 +1,17 @@
 """Tests for application taxonomy system."""
 
-import pytest
 import numpy as np
+import pytest
 from pydantic import ValidationError
 
 from hellocloud.ml_models.application_taxonomy import (
+    ApplicationArchetype,
     ApplicationDomain,
-    ScalingBehavior,
+    CloudResourceTaxonomy,
+    CostProfile,
     OptimizationPotential,
     ResourcePattern,
-    CostProfile,
-    ApplicationArchetype,
-    CloudResourceTaxonomy,
+    ScalingBehavior,
 )
 
 
@@ -60,7 +60,7 @@ class TestResourcePattern:
             seasonality_strength=0.3,
             burst_frequency=5.0,
             burst_amplitude=2.5,
-            burst_duration_minutes=30
+            burst_duration_minutes=30,
         )
         assert pattern.cpu_p50 == 15.0
         assert pattern.correlation_matrix.shape == (5, 5)
@@ -81,7 +81,7 @@ class TestResourcePattern:
                 seasonality_strength=0.3,
                 burst_frequency=5.0,
                 burst_amplitude=2.5,
-                burst_duration_minutes=30
+                burst_duration_minutes=30,
             )
         assert "less than or equal to 100" in str(exc_info.value)
 
@@ -101,7 +101,7 @@ class TestResourcePattern:
                 seasonality_strength=0.3,
                 burst_frequency=5.0,
                 burst_amplitude=2.5,
-                burst_duration_minutes=30
+                burst_duration_minutes=30,
             )
         assert "Correlation matrix must be 5x5" in str(exc_info.value)
 
@@ -121,7 +121,7 @@ class TestResourcePattern:
                 seasonality_strength=0.3,
                 burst_frequency=5.0,
                 burst_amplitude=2.5,
-                burst_duration_minutes=30
+                burst_duration_minutes=30,
             )
 
 
@@ -135,7 +135,7 @@ class TestCostProfile:
             cost_variability=0.3,
             waste_percentage=32.0,  # Research average
             optimization_difficulty=0.6,
-            business_criticality=0.8
+            business_criticality=0.8,
         )
         assert profile.avg_hourly_cost == 25.50
         assert profile.waste_percentage == 32.0
@@ -148,7 +148,7 @@ class TestCostProfile:
             cost_variability=0.1,
             waste_percentage=0.0,
             optimization_difficulty=0.1,
-            business_criticality=0.5
+            business_criticality=0.5,
         )
         assert profile.waste_percentage == 0.0
 
@@ -158,7 +158,7 @@ class TestCostProfile:
             cost_variability=0.1,
             waste_percentage=100.0,
             optimization_difficulty=0.9,
-            business_criticality=0.1
+            business_criticality=0.1,
         )
         assert profile.waste_percentage == 100.0
 
@@ -169,7 +169,7 @@ class TestCostProfile:
                 cost_variability=0.1,
                 waste_percentage=150.0,  # Invalid
                 optimization_difficulty=0.5,
-                business_criticality=0.5
+                business_criticality=0.5,
             )
 
     def test_business_criticality_range(self):
@@ -180,7 +180,7 @@ class TestCostProfile:
                 cost_variability=0.1,
                 waste_percentage=30.0,
                 optimization_difficulty=0.5,
-                business_criticality=1.5  # Invalid: > 1
+                business_criticality=1.5,  # Invalid: > 1
             )
 
 
@@ -206,7 +206,7 @@ class TestApplicationArchetype:
                 seasonality_strength=0.3,
                 burst_frequency=5.0,
                 burst_amplitude=2.5,
-                burst_duration_minutes=30
+                burst_duration_minutes=30,
             ),
             scaling_behavior=ScalingBehavior.ELASTIC_AUTO,
             optimization_potential=OptimizationPotential.HIGH,
@@ -215,7 +215,7 @@ class TestApplicationArchetype:
                 cost_variability=0.3,
                 waste_percentage=35.0,
                 optimization_difficulty=0.4,
-                business_criticality=0.9
+                business_criticality=0.9,
             ),
             typical_stack=["Python", "Django", "PostgreSQL"],
             cloud_services=["EC2", "RDS", "ELB"],
@@ -227,7 +227,7 @@ class TestApplicationArchetype:
             data_volume_gb_per_day=100.0,
             data_retention_days=90,
             example_companies=["Netflix", "Spotify"],
-            market_size_percentage=25.0
+            market_size_percentage=25.0,
         )
 
         assert archetype.name == "Web Application"
@@ -254,7 +254,7 @@ class TestApplicationArchetype:
                 seasonality_strength=0.1,
                 burst_frequency=1.0,
                 burst_amplitude=1.5,
-                burst_duration_minutes=15
+                burst_duration_minutes=15,
             ),
             scaling_behavior=ScalingBehavior.STATIC,
             optimization_potential=OptimizationPotential.LOW,
@@ -263,7 +263,7 @@ class TestApplicationArchetype:
                 cost_variability=0.1,
                 waste_percentage=20.0,
                 optimization_difficulty=0.2,
-                business_criticality=0.3
+                business_criticality=0.3,
             ),
             typical_stack=["Python"],
             cloud_services=["EC2"],
@@ -273,7 +273,7 @@ class TestApplicationArchetype:
             availability_target=99.0,
             latency_p99_ms=1000.0,
             data_volume_gb_per_day=1.0,
-            data_retention_days=7
+            data_retention_days=7,
             # Note: not providing example_companies
         )
 
@@ -285,7 +285,7 @@ class TestCloudResourceTaxonomy:
 
     def test_archetypes_defined(self):
         """Test that archetypes are defined in the taxonomy."""
-        assert hasattr(CloudResourceTaxonomy, 'ARCHETYPES')
+        assert hasattr(CloudResourceTaxonomy, "ARCHETYPES")
         assert isinstance(CloudResourceTaxonomy.ARCHETYPES, dict)
 
         # Should have at least some archetypes
@@ -317,9 +317,7 @@ class TestCloudResourceTaxonomy:
 
     def test_get_by_domain(self):
         """Test filtering archetypes by domain."""
-        ml_archetypes = CloudResourceTaxonomy.get_by_domain(
-            ApplicationDomain.MACHINE_LEARNING
-        )
+        ml_archetypes = CloudResourceTaxonomy.get_by_domain(ApplicationDomain.MACHINE_LEARNING)
         assert isinstance(ml_archetypes, list)
         for archetype in ml_archetypes:
             assert archetype.domain == ApplicationDomain.MACHINE_LEARNING
@@ -336,6 +334,7 @@ class TestCloudResourceTaxonomy:
 
         # Should return a Polars DataFrame
         import polars as pl
+
         assert isinstance(ml_features, pl.DataFrame)
 
         if CloudResourceTaxonomy.ARCHETYPES:
@@ -344,9 +343,15 @@ class TestCloudResourceTaxonomy:
 
             # Check expected columns exist
             expected_columns = {
-                'archetype', 'domain', 'cpu_p50', 'cpu_p95',
-                'memory_p50', 'memory_p95', 'waste_percentage',
-                'optimization_potential', 'business_criticality'
+                "archetype",
+                "domain",
+                "cpu_p50",
+                "cpu_p95",
+                "memory_p50",
+                "memory_p95",
+                "waste_percentage",
+                "optimization_potential",
+                "business_criticality",
             }
             actual_columns = set(ml_features.columns)
             assert expected_columns.issubset(actual_columns)
@@ -357,22 +362,27 @@ class TestCloudResourceTaxonomy:
         assert isinstance(priors, dict)
 
         # Should have specific prior types with mean/std/min/max
-        expected_priors = {'cpu_utilization', 'memory_utilization', 'waste_percentage', 'hourly_cost'}
+        expected_priors = {
+            "cpu_utilization",
+            "memory_utilization",
+            "waste_percentage",
+            "hourly_cost",
+        }
         assert expected_priors.issubset(priors.keys())
 
         # Check each prior has required statistics
         for prior_name in expected_priors:
             prior = priors[prior_name]
-            assert 'mean' in prior
-            assert 'std' in prior
-            assert 'min' in prior
-            assert 'max' in prior
+            assert "mean" in prior
+            assert "std" in prior
+            assert "min" in prior
+            assert "max" in prior
 
         # Check prior values are reasonable
-        assert 0 <= priors['cpu_mu'] <= 100
-        assert 0 <= priors['memory_mu'] <= 100
-        assert priors['cpu_sigma'] > 0
-        assert priors['memory_sigma'] > 0
+        assert 0 <= priors["cpu_mu"] <= 100
+        assert 0 <= priors["memory_mu"] <= 100
+        assert priors["cpu_sigma"] > 0
+        assert priors["memory_sigma"] > 0
 
 
 class TestIntegration:
@@ -434,10 +444,13 @@ class TestIntegration:
             assert 20 <= avg_waste <= 45
 
 
-@pytest.mark.parametrize("pattern_type,expected_values", [
-    ("business_hours", ["business_hours", "constant", "batch", "irregular"]),
-    ("weekly", ["weekday_heavy", "constant", "weekend_heavy"])
-])
+@pytest.mark.parametrize(
+    "pattern_type,expected_values",
+    [
+        ("business_hours", ["business_hours", "constant", "batch", "irregular"]),
+        ("weekly", ["weekday_heavy", "constant", "weekend_heavy"]),
+    ],
+)
 def test_pattern_type_literals(pattern_type, expected_values):
     """Test that pattern type literals are properly constrained."""
     # This is more of a documentation test

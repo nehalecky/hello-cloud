@@ -2,11 +2,14 @@ import pytest
 
 try:
     import torch
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
 
-pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)")
+pytestmark = pytest.mark.skipif(
+    not TORCH_AVAILABLE, reason="Requires torch (install with: uv sync --group gpu)"
+)
 """
 Tests for Gaussian Process kernels module.
 
@@ -29,9 +32,9 @@ class TestCompositePeriodicKernel:
         kernel = CompositePeriodicKernel()
 
         # Verify components exist
-        assert hasattr(kernel, 'slow_periodic'), "Missing slow_periodic component"
-        assert hasattr(kernel, 'fast_periodic'), "Missing fast_periodic component"
-        assert hasattr(kernel, 'rbf'), "Missing rbf component"
+        assert hasattr(kernel, "slow_periodic"), "Missing slow_periodic component"
+        assert hasattr(kernel, "fast_periodic"), "Missing fast_periodic component"
+        assert hasattr(kernel, "rbf"), "Missing rbf component"
 
         # Verify all are ScaleKernels
         assert isinstance(kernel.slow_periodic, torch.nn.Module)
@@ -45,9 +48,7 @@ class TestCompositePeriodicKernel:
         rbf_length = 0.05
 
         kernel = CompositePeriodicKernel(
-            slow_period=slow_period,
-            fast_period=fast_period,
-            rbf_lengthscale=rbf_length
+            slow_period=slow_period, fast_period=fast_period, rbf_lengthscale=rbf_length
         )
 
         # Access underlying periodic kernels
@@ -56,13 +57,11 @@ class TestCompositePeriodicKernel:
 
         # Verify periods are set correctly
         assert torch.isclose(
-            slow_base.period_length,
-            torch.tensor(slow_period)
+            slow_base.period_length, torch.tensor(slow_period)
         ), "Slow period not set correctly"
 
         assert torch.isclose(
-            fast_base.period_length,
-            torch.tensor(fast_period)
+            fast_base.period_length, torch.tensor(fast_period)
         ), "Fast period not set correctly"
 
     def test_kernel_forward_pass_shape(self):
@@ -112,8 +111,9 @@ class TestCompositePeriodicKernel:
         eigenvalues = torch.linalg.eigvalsh(K)
 
         # Verify all eigenvalues are non-negative (allowing small numerical error)
-        assert torch.all(eigenvalues >= -1e-6), \
-            f"Kernel not PSD, min eigenvalue: {eigenvalues.min()}"
+        assert torch.all(
+            eigenvalues >= -1e-6
+        ), f"Kernel not PSD, min eigenvalue: {eigenvalues.min()}"
 
     def test_kernel_symmetry(self):
         """Test kernel produces symmetric matrices."""
@@ -148,8 +148,7 @@ class TestCompositePeriodicKernel:
         # Verify additivity: K_total = K_slow + K_fast + K_rbf
         K_sum = K_slow + K_fast + K_rbf
 
-        assert torch.allclose(K_total, K_sum, atol=1e-5), \
-            "Kernel is not additive"
+        assert torch.allclose(K_total, K_sum, atol=1e-5), "Kernel is not additive"
 
     def test_fixed_lengthscales_no_gradient(self):
         """Test that lengthscales are fixed (requires_grad=False)."""
@@ -161,19 +160,18 @@ class TestCompositePeriodicKernel:
         rbf_base = kernel.rbf.base_kernel
 
         # Verify requires_grad is False
-        assert not slow_base.raw_lengthscale.requires_grad, \
-            "Slow periodic lengthscale should be fixed"
-        assert not fast_base.raw_lengthscale.requires_grad, \
-            "Fast periodic lengthscale should be fixed"
-        assert not rbf_base.raw_lengthscale.requires_grad, \
-            "RBF lengthscale should be fixed"
+        assert (
+            not slow_base.raw_lengthscale.requires_grad
+        ), "Slow periodic lengthscale should be fixed"
+        assert (
+            not fast_base.raw_lengthscale.requires_grad
+        ), "Fast periodic lengthscale should be fixed"
+        assert not rbf_base.raw_lengthscale.requires_grad, "RBF lengthscale should be fixed"
 
     def test_kernel_with_sequential_inputs(self):
         """Test kernel behavior with sequential time series inputs."""
         kernel = CompositePeriodicKernel(
-            slow_period=1250.0 / 10000.0,
-            fast_period=250.0 / 10000.0,
-            rbf_lengthscale=0.1
+            slow_period=1250.0 / 10000.0, fast_period=250.0 / 10000.0, rbf_lengthscale=0.1
         )
 
         # Create sequential normalized timestamps [0, 1]
@@ -185,8 +183,9 @@ class TestCompositePeriodicKernel:
 
         # Verify diagonal dominance (self-covariance is highest)
         K_diag = torch.diag(K)
-        assert torch.all(K_diag >= K.max(dim=1).values - 1e-5), \
-            "Diagonal should contain maximum covariance"
+        assert torch.all(
+            K_diag >= K.max(dim=1).values - 1e-5
+        ), "Diagonal should contain maximum covariance"
 
     def test_kernel_stationarity_property(self):
         """Test kernel is stationary (translation invariant)."""
@@ -214,7 +213,7 @@ class TestCompositePeriodicKernel:
         # Note: Periodic kernel is NOT truly stationary, so this might not hold
         # But the property should still be marked as stationary for GPyTorch
         # We're just testing the property exists
-        assert hasattr(kernel, 'is_stationary')
+        assert hasattr(kernel, "is_stationary")
 
     def test_kernel_with_different_input_sizes(self):
         """Test kernel handles different input sizes correctly."""
@@ -228,8 +227,7 @@ class TestCompositePeriodicKernel:
             x2 = torch.randn(n2, 1)
 
             K = kernel(x1, x2).evaluate()
-            assert K.shape == (n1, n2), \
-                f"Failed for sizes ({n1}, {n2}): got {K.shape}"
+            assert K.shape == (n1, n2), f"Failed for sizes ({n1}, {n2}): got {K.shape}"
 
     def test_kernel_output_dtype(self):
         """Test kernel preserves input dtype."""
@@ -245,41 +243,43 @@ class TestCompositePeriodicKernel:
         K_float64 = kernel(x_float64, x_float64).evaluate()
         assert K_float64.dtype == torch.float64, "Should preserve float64"
 
-    @pytest.mark.parametrize("slow_period,fast_period", [
-        (1.0, 0.2),
-        (0.5, 0.1),
-        (2.0, 0.5),
-        (1250/10000, 250/10000),  # Real use case
-    ])
+    @pytest.mark.parametrize(
+        "slow_period,fast_period",
+        [
+            (1.0, 0.2),
+            (0.5, 0.1),
+            (2.0, 0.5),
+            (1250 / 10000, 250 / 10000),  # Real use case
+        ],
+    )
     def test_kernel_with_various_periods(self, slow_period, fast_period):
         """Test kernel works with various period configurations."""
-        kernel = CompositePeriodicKernel(
-            slow_period=slow_period,
-            fast_period=fast_period
-        )
+        kernel = CompositePeriodicKernel(slow_period=slow_period, fast_period=fast_period)
 
         x = torch.randn(20, 1)
         K = kernel(x, x).evaluate()
 
         # Verify PSD property holds
         eigenvalues = torch.linalg.eigvalsh(K)
-        assert torch.all(eigenvalues >= -1e-6), \
-            f"Not PSD with periods ({slow_period}, {fast_period})"
+        assert torch.all(
+            eigenvalues >= -1e-6
+        ), f"Not PSD with periods ({slow_period}, {fast_period})"
 
     def test_kernel_outputscale_is_learnable(self):
         """Test that outputscale parameters are learnable (not fixed)."""
         kernel = CompositePeriodicKernel()
 
         # Check that outputscale parameters exist and require gradients
-        assert hasattr(kernel.slow_periodic, 'outputscale')
-        assert hasattr(kernel.fast_periodic, 'outputscale')
-        assert hasattr(kernel.rbf, 'outputscale')
+        assert hasattr(kernel.slow_periodic, "outputscale")
+        assert hasattr(kernel.fast_periodic, "outputscale")
+        assert hasattr(kernel.rbf, "outputscale")
 
         # Verify these are learnable (part of model parameters)
         # This is tested by verifying they're not explicitly fixed
         slow_outputscale = kernel.slow_periodic.outputscale
-        assert slow_outputscale.requires_grad, \
-            "Outputscale should be learnable (requires_grad=True)"
+        assert (
+            slow_outputscale.requires_grad
+        ), "Outputscale should be learnable (requires_grad=True)"
 
     def test_kernel_numerical_stability(self):
         """Test kernel remains numerically stable with extreme inputs."""

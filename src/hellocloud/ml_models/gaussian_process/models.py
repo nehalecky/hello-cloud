@@ -13,11 +13,11 @@ References:
 - GPyTorch SVGP tutorial: https://docs.gpytorch.ai/en/latest/examples/04_Variational_and_Approximate_GPs/SVGP_Regression_CUDA.html
 """
 
-import torch
 import gpytorch
+import torch
+from gpytorch.distributions import MultivariateNormal
 from gpytorch.models import ApproximateGP
 from gpytorch.variational import CholeskyVariationalDistribution, VariationalStrategy
-from gpytorch.distributions import MultivariateNormal
 
 from .kernels import CompositePeriodicKernel
 
@@ -82,7 +82,7 @@ class SparseGPModel(ApproximateGP):
             self,
             inducing_points,
             variational_distribution,
-            learn_inducing_locations=learn_inducing_locations
+            learn_inducing_locations=learn_inducing_locations,
         )
 
         super().__init__(variational_strategy)
@@ -92,9 +92,7 @@ class SparseGPModel(ApproximateGP):
 
         # Composite periodic kernel for multi-scale patterns
         self.covar_module = CompositePeriodicKernel(
-            slow_period=slow_period,
-            fast_period=fast_period,
-            rbf_lengthscale=rbf_lengthscale
+            slow_period=slow_period, fast_period=fast_period, rbf_lengthscale=rbf_lengthscale
         )
 
     def forward(self, x: torch.Tensor) -> MultivariateNormal:
@@ -123,9 +121,7 @@ class SparseGPModel(ApproximateGP):
 
 
 def initialize_inducing_points(
-    X_train: torch.Tensor,
-    num_inducing: int,
-    method: str = "evenly_spaced"
+    X_train: torch.Tensor, num_inducing: int, method: str = "evenly_spaced"
 ) -> torch.Tensor:
     """
     Initialize inducing point locations for sparse GP.

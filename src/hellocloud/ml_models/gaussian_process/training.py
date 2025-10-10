@@ -13,10 +13,10 @@ Based on GPyTorch SVGP best practices:
 - Cholesky jitter for numerical stability
 """
 
-from typing import Dict, List, Optional, Tuple
 from pathlib import Path
-import torch
+
 import gpytorch
+import torch
 from gpytorch.mlls import VariationalELBO
 from loguru import logger
 
@@ -34,7 +34,7 @@ def train_gp_model(
     cholesky_jitter: float = 1e-3,
     cholesky_max_tries: int = 10,
     verbose: bool = True,
-) -> List[float]:
+) -> list[float]:
     """
     Train sparse GP model using mini-batch variational inference.
 
@@ -75,10 +75,12 @@ def train_gp_model(
     likelihood.train()
 
     # Set up optimizer
-    optimizer = torch.optim.Adam([
-        {'params': model.parameters(), 'lr': learning_rate},
-        {'params': likelihood.parameters(), 'lr': learning_rate},
-    ])
+    optimizer = torch.optim.Adam(
+        [
+            {"params": model.parameters(), "lr": learning_rate},
+            {"params": likelihood.parameters(), "lr": learning_rate},
+        ]
+    )
 
     # Set up loss function
     mll = VariationalELBO(likelihood, model, num_data=len(y_train))
@@ -87,7 +89,7 @@ def train_gp_model(
     n_batches = int(torch.ceil(torch.tensor(len(X_train) / batch_size)).item())
 
     if verbose:
-        logger.info(f"Training configuration:")
+        logger.info("Training configuration:")
         logger.info(f"  Epochs: {n_epochs}")
         logger.info(f"  Batch size: {batch_size}")
         logger.info(f"  Batches per epoch: {n_batches}")
@@ -97,17 +99,18 @@ def train_gp_model(
     # Training loop with numerical stability settings
     losses = []
 
-    with gpytorch.settings.cholesky_jitter(cholesky_jitter), \
-         gpytorch.settings.cholesky_max_tries(cholesky_max_tries), \
-         gpytorch.settings.cg_tolerance(1e-2):
-
+    with (
+        gpytorch.settings.cholesky_jitter(cholesky_jitter),
+        gpytorch.settings.cholesky_max_tries(cholesky_max_tries),
+        gpytorch.settings.cg_tolerance(1e-2),
+    ):
         for epoch in range(n_epochs):
             epoch_loss = 0.0
 
             # Mini-batch training
             for batch_idx in range(0, len(X_train), batch_size):
-                X_batch = X_train[batch_idx:batch_idx + batch_size]
-                y_batch = y_train[batch_idx:batch_idx + batch_size]
+                X_batch = X_train[batch_idx : batch_idx + batch_size]
+                y_batch = y_train[batch_idx : batch_idx + batch_size]
 
                 optimizer.zero_grad()
                 output = model(X_batch)
@@ -124,7 +127,7 @@ def train_gp_model(
             # Print progress
             if verbose and ((epoch + 1) % 10 == 0 or epoch == 0):
                 extra_info = ""
-                if hasattr(likelihood, 'deg_free'):
+                if hasattr(likelihood, "deg_free"):
                     # Student-t likelihood has degrees of freedom
                     extra_info = f" | ν: {likelihood.deg_free.item():.2f}"
 
@@ -141,8 +144,8 @@ def save_model(
     model: SparseGPModel,
     likelihood: gpytorch.likelihoods.Likelihood,
     save_path: str,
-    losses: Optional[List[float]] = None,
-    metadata: Optional[Dict] = None,
+    losses: list[float] | None = None,
+    metadata: dict | None = None,
 ) -> None:
     """
     Save trained GP model to disk.
@@ -169,27 +172,27 @@ def save_model(
     save_dir.mkdir(parents=True, exist_ok=True)
 
     checkpoint = {
-        'model_state_dict': model.state_dict(),
-        'likelihood_state_dict': likelihood.state_dict(),
-        'inducing_points': model.inducing_points.detach().clone(),
-        'num_inducing_points': model.num_inducing_points,
+        "model_state_dict": model.state_dict(),
+        "likelihood_state_dict": likelihood.state_dict(),
+        "inducing_points": model.inducing_points.detach().clone(),
+        "num_inducing_points": model.num_inducing_points,
         # Save kernel configuration for proper model reconstruction
-        'kernel_config': {
-            'slow_period': model.covar_module.slow_period,
-            'fast_period': model.covar_module.fast_period,
-            'rbf_lengthscale': model.covar_module.rbf_lengthscale,
+        "kernel_config": {
+            "slow_period": model.covar_module.slow_period,
+            "fast_period": model.covar_module.fast_period,
+            "rbf_lengthscale": model.covar_module.rbf_lengthscale,
         },
     }
 
     if losses is not None:
-        checkpoint['losses'] = losses
+        checkpoint["losses"] = losses
 
     if metadata is not None:
-        checkpoint['metadata'] = metadata
+        checkpoint["metadata"] = metadata
 
     # Save Student-t degrees of freedom if applicable
-    if hasattr(likelihood, 'deg_free'):
-        checkpoint['final_nu'] = likelihood.deg_free.item()
+    if hasattr(likelihood, "deg_free"):
+        checkpoint["final_nu"] = likelihood.deg_free.item()
 
     torch.save(checkpoint, save_path)
     logger.info(f"Model saved to {save_path}")
@@ -198,11 +201,11 @@ def save_model(
 def load_model(
     load_path: str,
     likelihood_class: type,
-    device: Optional[torch.device] = None,
-    slow_period: Optional[float] = None,
-    fast_period: Optional[float] = None,
-    rbf_lengthscale: Optional[float] = None,
-) -> Tuple[SparseGPModel, gpytorch.likelihoods.Likelihood, Dict]:
+    device: torch.device | None = None,
+    slow_period: float | None = None,
+    fast_period: float | None = None,
+    rbf_lengthscale: float | None = None,
+) -> tuple[SparseGPModel, gpytorch.likelihoods.Likelihood, dict]:
     """
     Load trained GP model from disk.
 
@@ -242,50 +245,52 @@ def load_model(
         ```
     """
     if device is None:
-        device = torch.device('cpu')
+        device = torch.device("cpu")
 
     # Load checkpoint
     checkpoint = torch.load(load_path, map_location=device, weights_only=False)
 
     # Recreate model architecture
-    inducing_points = checkpoint['inducing_points'].to(device)
+    inducing_points = checkpoint["inducing_points"].to(device)
 
     # Get kernel configuration (use saved config or provided parameters)
-    kernel_config = checkpoint.get('kernel_config', {})
-    slow_period_val = kernel_config.get('slow_period', slow_period or 1.0)
-    fast_period_val = kernel_config.get('fast_period', fast_period or 0.2)
-    rbf_lengthscale_val = kernel_config.get('rbf_lengthscale', rbf_lengthscale or 0.1)
+    kernel_config = checkpoint.get("kernel_config", {})
+    slow_period_val = kernel_config.get("slow_period", slow_period or 1.0)
+    fast_period_val = kernel_config.get("fast_period", fast_period or 0.2)
+    rbf_lengthscale_val = kernel_config.get("rbf_lengthscale", rbf_lengthscale or 0.1)
 
     model = SparseGPModel(
         inducing_points=inducing_points,
         slow_period=slow_period_val,
         fast_period=fast_period_val,
-        rbf_lengthscale=rbf_lengthscale_val
+        rbf_lengthscale=rbf_lengthscale_val,
     ).to(device)
 
     # Recreate likelihood
     if likelihood_class == gpytorch.likelihoods.StudentTLikelihood:
-        likelihood = likelihood_class(
-            deg_free_prior=gpytorch.priors.NormalPrior(4.0, 1.0)
-        ).to(device)
+        likelihood = likelihood_class(deg_free_prior=gpytorch.priors.NormalPrior(4.0, 1.0)).to(
+            device
+        )
     else:
         likelihood = likelihood_class().to(device)
 
     # Load trained weights
-    model.load_state_dict(checkpoint['model_state_dict'])
-    likelihood.load_state_dict(checkpoint['likelihood_state_dict'])
+    model.load_state_dict(checkpoint["model_state_dict"])
+    likelihood.load_state_dict(checkpoint["likelihood_state_dict"])
 
     logger.info(f"Model loaded from {load_path}")
     # Use .get() for backward compatibility with old checkpoints
-    num_inducing = checkpoint.get('num_inducing_points', inducing_points.size(0))
+    num_inducing = checkpoint.get("num_inducing_points", inducing_points.size(0))
     logger.info(f"  Inducing points: {num_inducing}")
-    logger.info(f"  Kernel config: slow={slow_period_val:.6f}, fast={fast_period_val:.6f}, rbf={rbf_lengthscale_val:.6f}")
+    logger.info(
+        f"  Kernel config: slow={slow_period_val:.6f}, fast={fast_period_val:.6f}, rbf={rbf_lengthscale_val:.6f}"
+    )
 
-    if 'losses' in checkpoint:
+    if "losses" in checkpoint:
         logger.info(f"  Training epochs: {len(checkpoint['losses'])}")
         logger.info(f"  Final loss: {checkpoint['losses'][-1]:.4f}")
 
-    if 'final_nu' in checkpoint:
+    if "final_nu" in checkpoint:
         logger.info(f"  Degrees of freedom (ν): {checkpoint['final_nu']:.2f}")
 
     return model, likelihood, checkpoint

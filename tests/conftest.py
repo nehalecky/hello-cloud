@@ -1,21 +1,24 @@
 """Shared fixtures and configuration for tests."""
 
 import os
-# MUST set MPLBACKEND before any matplotlib imports
-os.environ['MPLBACKEND'] = 'Agg'
 
-import pytest
+# MUST set MPLBACKEND before any matplotlib imports
+os.environ["MPLBACKEND"] = "Agg"
+
+import shutil
+import tempfile
+from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import MagicMock, Mock
+
 import numpy as np
 import polars as pl
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, Mock
-from pathlib import Path
-import tempfile
-import shutil
+import pytest
 
 # Check if torch is available (for GP tests)
 try:
     import torch
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
@@ -25,14 +28,13 @@ if not TORCH_AVAILABLE:
     collect_ignore_glob = ["**/test_gaussian_process_*.py"]
 
 from hellocloud.ml_models.application_taxonomy import (
+    ApplicationArchetype,
     ApplicationDomain,
-    ScalingBehavior,
+    CostProfile,
     OptimizationPotential,
     ResourcePattern,
-    CostProfile,
-    ApplicationArchetype
+    ScalingBehavior,
 )
-
 
 # Test configuration
 pytest.TEST_SEED = 42
@@ -53,7 +55,8 @@ def configure_altair_renderer():
     """Configure Altair to use non-interactive renderer for testing."""
     try:
         import altair as alt
-        alt.renderers.enable('json')  # Non-interactive renderer for testing
+
+        alt.renderers.enable("json")  # Non-interactive renderer for testing
         alt.data_transformers.disable_max_rows()  # Allow large datasets in tests
     except ImportError:
         pass  # Altair not installed, skip configuration
@@ -71,24 +74,27 @@ def temp_dir():
 
 # Data Generation Fixtures
 
+
 @pytest.fixture
 def sample_time_series_data():
     """Generate sample time series data."""
     num_hours = 168  # 1 week
     timestamps = [datetime.now() + timedelta(hours=i) for i in range(num_hours)]
 
-    return pl.DataFrame({
-        "timestamp": timestamps,
-        "resource_id": ["res_001"] * num_hours,
-        "cpu_utilization": np.random.beta(2, 8, num_hours) * 100,
-        "memory_utilization": np.random.beta(3, 7, num_hours) * 100,
-        "network_in_mbps": np.random.gamma(2, 2, num_hours),
-        "network_out_mbps": np.random.gamma(2, 2, num_hours),
-        "disk_iops": np.random.gamma(3, 100, num_hours),
-        "hourly_cost": np.random.gamma(2, 10, num_hours),
-        "efficiency_score": np.random.beta(5, 2, num_hours) * 100,
-        "waste_percentage": np.random.beta(3, 7, num_hours) * 100,
-    })
+    return pl.DataFrame(
+        {
+            "timestamp": timestamps,
+            "resource_id": ["res_001"] * num_hours,
+            "cpu_utilization": np.random.beta(2, 8, num_hours) * 100,
+            "memory_utilization": np.random.beta(3, 7, num_hours) * 100,
+            "network_in_mbps": np.random.gamma(2, 2, num_hours),
+            "network_out_mbps": np.random.gamma(2, 2, num_hours),
+            "disk_iops": np.random.gamma(3, 100, num_hours),
+            "hourly_cost": np.random.gamma(2, 10, num_hours),
+            "efficiency_score": np.random.beta(5, 2, num_hours) * 100,
+            "waste_percentage": np.random.beta(3, 7, num_hours) * 100,
+        }
+    )
 
 
 @pytest.fixture
@@ -100,13 +106,15 @@ def multi_resource_data():
 
     for i in range(num_resources):
         timestamps = [datetime.now() + timedelta(hours=j) for j in range(hours_per_resource)]
-        df = pl.DataFrame({
-            "timestamp": timestamps,
-            "resource_id": [f"res_{i:03d}"] * hours_per_resource,
-            "cpu_utilization": np.random.beta(2, 8, hours_per_resource) * 100,
-            "memory_utilization": np.random.beta(3, 7, hours_per_resource) * 100,
-            "hourly_cost": np.random.gamma(2, 10 + i * 5, hours_per_resource),
-        })
+        df = pl.DataFrame(
+            {
+                "timestamp": timestamps,
+                "resource_id": [f"res_{i:03d}"] * hours_per_resource,
+                "cpu_utilization": np.random.beta(2, 8, hours_per_resource) * 100,
+                "memory_utilization": np.random.beta(3, 7, hours_per_resource) * 100,
+                "hourly_cost": np.random.gamma(2, 10 + i * 5, hours_per_resource),
+            }
+        )
         dfs.append(df)
 
     return pl.concat(dfs)
@@ -132,17 +140,20 @@ def anomalous_data():
     is_anomaly = np.zeros(num_hours, dtype=bool)
     is_anomaly[anomaly_indices] = True
 
-    return pl.DataFrame({
-        "timestamp": timestamps,
-        "resource_id": ["res_001"] * num_hours,
-        "cpu_utilization": np.clip(cpu_util, 0, 100),
-        "memory_utilization": np.clip(memory_util, 0, 100),
-        "hourly_cost": hourly_cost,
-        "is_anomaly": is_anomaly,
-    })
+    return pl.DataFrame(
+        {
+            "timestamp": timestamps,
+            "resource_id": ["res_001"] * num_hours,
+            "cpu_utilization": np.clip(cpu_util, 0, 100),
+            "memory_utilization": np.clip(memory_util, 0, 100),
+            "hourly_cost": hourly_cost,
+            "is_anomaly": is_anomaly,
+        }
+    )
 
 
 # Model Fixtures
+
 
 @pytest.fixture
 def mock_pymc_model():
@@ -158,12 +169,12 @@ def mock_pymc_trace():
     """Create a mock PyMC trace."""
     trace = MagicMock()
     trace.posterior = {
-        'cpu_alpha': np.random.gamma(2, 1, (2, 100, 3)),  # chains, draws, dimensions
-        'cpu_beta': np.random.gamma(8, 1, (2, 100, 3)),
-        'memory_alpha': np.random.gamma(3, 1, (2, 100, 3)),
-        'memory_beta': np.random.gamma(7, 1, (2, 100, 3)),
-        'cost_mu': np.random.normal(50, 10, (2, 100, 3)),
-        'cost_sigma': np.random.gamma(2, 5, (2, 100, 3)),
+        "cpu_alpha": np.random.gamma(2, 1, (2, 100, 3)),  # chains, draws, dimensions
+        "cpu_beta": np.random.gamma(8, 1, (2, 100, 3)),
+        "memory_alpha": np.random.gamma(3, 1, (2, 100, 3)),
+        "memory_beta": np.random.gamma(7, 1, (2, 100, 3)),
+        "cost_mu": np.random.normal(50, 10, (2, 100, 3)),
+        "cost_sigma": np.random.gamma(2, 5, (2, 100, 3)),
     }
     return trace
 
@@ -184,7 +195,7 @@ def sample_resource_pattern():
         seasonality_strength=0.3,
         burst_frequency=5.0,
         burst_amplitude=2.5,
-        burst_duration_minutes=30
+        burst_duration_minutes=30,
     )
 
 
@@ -196,7 +207,7 @@ def sample_cost_profile():
         cost_variability=0.3,
         waste_percentage=32.0,
         optimization_difficulty=0.6,
-        business_criticality=0.8
+        business_criticality=0.8,
     )
 
 
@@ -221,7 +232,7 @@ def sample_application_archetype(sample_resource_pattern, sample_cost_profile):
         data_volume_gb_per_day=100.0,
         data_retention_days=90,
         example_companies=["TestCorp"],
-        market_size_percentage=10.0
+        market_size_percentage=10.0,
     )
 
 
@@ -229,6 +240,7 @@ def sample_application_archetype(sample_resource_pattern, sample_cost_profile):
 
 
 # HuggingFace Fixtures
+
 
 @pytest.fixture
 def mock_hf_dataset():
@@ -239,7 +251,7 @@ def mock_hf_dataset():
     dataset.features = {
         "resource_id": "string",
         "timestamp": "timestamp[ns]",
-        "cpu_utilization": "float32"
+        "cpu_utilization": "float32",
     }
     return dataset
 
@@ -256,22 +268,26 @@ def mock_hf_api():
 
 # Utility Functions
 
+
 def create_synthetic_metrics(num_samples: int, seed: int = None) -> pl.DataFrame:
     """Create synthetic cloud metrics for testing."""
     if seed is not None:
         np.random.seed(seed)
 
-    return pl.DataFrame({
-        "timestamp": [datetime.now() + timedelta(hours=i) for i in range(num_samples)],
-        "cpu_utilization": np.random.beta(2, 8, num_samples) * 100,
-        "memory_utilization": np.random.beta(3, 7, num_samples) * 100,
-        "hourly_cost": np.random.gamma(2, 10, num_samples),
-        "efficiency_score": np.random.beta(5, 2, num_samples) * 100,
-    })
+    return pl.DataFrame(
+        {
+            "timestamp": [datetime.now() + timedelta(hours=i) for i in range(num_samples)],
+            "cpu_utilization": np.random.beta(2, 8, num_samples) * 100,
+            "memory_utilization": np.random.beta(3, 7, num_samples) * 100,
+            "hourly_cost": np.random.gamma(2, 10, num_samples),
+            "efficiency_score": np.random.beta(5, 2, num_samples) * 100,
+        }
+    )
 
 
-def assert_valid_utilization(df: pl.DataFrame, cpu_col: str = "cpu_utilization",
-                            memory_col: str = "memory_utilization"):
+def assert_valid_utilization(
+    df: pl.DataFrame, cpu_col: str = "cpu_utilization", memory_col: str = "memory_utilization"
+):
     """Assert that utilization values are valid (0-100%)."""
     assert df[cpu_col].min() >= 0, "CPU utilization cannot be negative"
     assert df[cpu_col].max() <= 100, "CPU utilization cannot exceed 100%"
@@ -286,8 +302,9 @@ def assert_realistic_waste(df: pl.DataFrame, waste_col: str = "waste_percentage"
         assert 15 <= avg_waste <= 60, f"Average waste {avg_waste}% outside realistic range"
 
 
-def assert_time_series_continuity(df: pl.DataFrame, timestamp_col: str = "timestamp",
-                                 resource_col: str = "resource_id"):
+def assert_time_series_continuity(
+    df: pl.DataFrame, timestamp_col: str = "timestamp", resource_col: str = "resource_id"
+):
     """Assert that time series data is continuous for each resource."""
     for resource in df[resource_col].unique():
         resource_data = df.filter(pl.col(resource_col) == resource)
@@ -302,6 +319,7 @@ def assert_time_series_continuity(df: pl.DataFrame, timestamp_col: str = "timest
 
 
 # Performance Testing Utilities
+
 
 @pytest.fixture
 def benchmark_timer():
@@ -325,6 +343,7 @@ def benchmark_timer():
 
 # Parametrized Test Data
 
+
 def pytest_generate_tests(metafunc):
     """Generate parametrized test cases."""
     if "application_domain" in metafunc.fixturenames:
@@ -336,23 +355,18 @@ def pytest_generate_tests(metafunc):
 
 # Markers for Test Categories
 
+
 def pytest_configure(config):
     """Configure custom pytest markers."""
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "unit: marks tests as unit tests"
-    )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line("markers", "unit: marks tests as unit tests")
     config.addinivalue_line(
         "markers", "requires_hf: marks tests that require HuggingFace Hub access"
     )
-    config.addinivalue_line(
-        "markers", "requires_gpu: marks tests that require GPU"
-    )
+    config.addinivalue_line("markers", "requires_gpu: marks tests that require GPU")
 
 
 def pytest_collection_modifyitems(config, items):

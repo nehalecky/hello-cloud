@@ -6,8 +6,8 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.17.3
 kernelspec:
-  name: cloud-sim
-  display_name: cloud-sim
+  name: python3
+  display_name: Python 3 (ipykernel)
   language: python
 ---
 
@@ -23,7 +23,7 @@ This notebook supports exploratory analysis for CloudZero PiedPiper billing data
 - Entity persistence validation
 - Time series visualization for stable entities
 
-**Objectives**: 
+**Objectives**:
  * Create tidy data model containg high info gain variables to support downstream analysis
  * Identify the optimal compound key (grain) for the time series
  * Basic understanding of time series distributions.
@@ -137,7 +137,7 @@ date_stats = df.select(
 logger.info(f"Date range: {date_stats['min_date'].iloc[0]} to {date_stats['max_date'].iloc[0]}")
 ```
 
-**Noted** Max date spans into the future `2025-12-31`. 
+**Noted** Max date spans into the future `2025-12-31`.
 
 Let's inspect the temporal record density and plot.
 

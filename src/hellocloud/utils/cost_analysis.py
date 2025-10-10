@@ -9,22 +9,19 @@ Philosophy: Small, testable, composable building blocks. Notebooks demonstrate
 composition patterns.
 """
 
-import polars as pl
-import numpy as np
-from typing import Optional, Dict, List, Tuple
 from datetime import date
-from scipy.stats import pearsonr
 
+import polars as pl
+from scipy.stats import pearsonr
 
 # ============================================================================
 # Correlation & Redundancy Detection
 # ============================================================================
 
+
 def find_correlated_pairs(
-    corr_matrix: pl.DataFrame,
-    columns: List[str],
-    threshold: float = 0.90
-) -> List[Tuple[str, str, float]]:
+    corr_matrix: pl.DataFrame, columns: list[str], threshold: float = 0.90
+) -> list[tuple[str, str, float]]:
     """
     Find correlated column pairs above threshold.
 
@@ -53,10 +50,7 @@ def find_correlated_pairs(
     return pairs
 
 
-def select_from_pairs(
-    pairs: List[Tuple[str, str, float]],
-    score_map: Dict[str, float]
-) -> set[str]:
+def select_from_pairs(pairs: list[tuple[str, str, float]], score_map: dict[str, float]) -> set[str]:
     """
     Given correlated pairs and scores, select which columns to drop.
 
@@ -91,11 +85,8 @@ def select_from_pairs(
 # Temporal Quality Metrics
 # ============================================================================
 
-def temporal_quality_metrics(
-    df: pl.LazyFrame,
-    date_col: str,
-    metric_col: str
-) -> Dict:
+
+def temporal_quality_metrics(df: pl.LazyFrame, date_col: str, metric_col: str) -> dict:
     """
     Compute temporal quality indicators for time series data.
 
@@ -123,33 +114,32 @@ def temporal_quality_metrics(
         >>> quality['metric_lag1_autocorr']  # 0.85 (sticky infrastructure)
     """
     # Date coverage
-    date_stats = df.select([
-        pl.col(date_col).min().alias('min_date'),
-        pl.col(date_col).max().alias('max_date'),
-        pl.col(date_col).n_unique().alias('unique_dates')
-    ]).collect()
+    date_stats = df.select(
+        [
+            pl.col(date_col).min().alias("min_date"),
+            pl.col(date_col).max().alias("max_date"),
+            pl.col(date_col).n_unique().alias("unique_dates"),
+        ]
+    ).collect()
 
-    min_date = date_stats['min_date'][0]
-    max_date = date_stats['max_date'][0]
-    actual_days = date_stats['unique_dates'][0]
+    min_date = date_stats["min_date"][0]
+    max_date = date_stats["max_date"][0]
+    actual_days = date_stats["unique_dates"][0]
     expected_days = (max_date - min_date).days + 1
 
     # Daily aggregations for stability analysis
     daily_agg = (
         df.group_by(date_col)
-        .agg([
-            pl.len().alias('records'),
-            pl.col(metric_col).sum().alias('metric_sum')
-        ])
+        .agg([pl.len().alias("records"), pl.col(metric_col).sum().alias("metric_sum")])
         .sort(date_col)
         .collect()
     )
 
     # Record volume stability
-    record_cv = daily_agg['records'].std() / daily_agg['records'].mean()
+    record_cv = daily_agg["records"].std() / daily_agg["records"].mean()
 
     # Metric autocorrelation (lag-1)
-    metric_series = daily_agg['metric_sum'].to_numpy()
+    metric_series = daily_agg["metric_sum"].to_numpy()
     if len(metric_series) > 1:
         lag1_corr, _ = pearsonr(metric_series[:-1], metric_series[1:])
     else:
@@ -157,20 +147,20 @@ def temporal_quality_metrics(
 
     # Stability classification
     if record_cv < 0.15 and lag1_corr > 0.7:
-        stability = 'stable'
+        stability = "stable"
     elif record_cv < 0.30 and lag1_corr > 0.5:
-        stability = 'variable'
+        stability = "variable"
     else:
-        stability = 'volatile'
+        stability = "volatile"
 
     return {
-        'date_range': (min_date, max_date),
-        'coverage_days': actual_days,
-        'expected_days': expected_days,
-        'completeness_pct': round((actual_days / expected_days) * 100, 2),
-        'record_volume_cv': round(record_cv, 4),
-        'metric_lag1_autocorr': round(lag1_corr, 4),
-        'stability_class': stability
+        "date_range": (min_date, max_date),
+        "coverage_days": actual_days,
+        "expected_days": expected_days,
+        "completeness_pct": round((actual_days / expected_days) * 100, 2),
+        "record_volume_cv": round(record_cv, 4),
+        "metric_lag1_autocorr": round(lag1_corr, 4),
+        "stability_class": stability,
     }
 
 
@@ -178,10 +168,8 @@ def temporal_quality_metrics(
 # Cost Distribution Analysis
 # ============================================================================
 
-def cost_distribution_metrics(
-    df: pl.LazyFrame,
-    cost_col: str
-) -> Dict:
+
+def cost_distribution_metrics(df: pl.LazyFrame, cost_col: str) -> dict:
     """
     Characterize cost distribution for modeling decisions.
 
@@ -209,16 +197,13 @@ def cost_distribution_metrics(
 
     # Percentiles
     percentile_values = [0, 1, 10, 25, 50, 75, 90, 99, 100]
-    percentiles = {
-        p: cost_series.quantile(p / 100)
-        for p in percentile_values
-    }
+    percentiles = {p: cost_series.quantile(p / 100) for p in percentile_values}
 
     # Skewness (third moment)
     mean = cost_series.mean()
     std = cost_series.std()
     if std > 0:
-        skewness = ((cost_series - mean) ** 3).mean() / (std ** 3)
+        skewness = ((cost_series - mean) ** 3).mean() / (std**3)
     else:
         skewness = 0.0
 
@@ -232,18 +217,18 @@ def cost_distribution_metrics(
 
     # Modeling recommendation
     if skewness > 1:
-        modeling_rec = 'log_transform'
+        modeling_rec = "log_transform"
     elif outlier_pct > 10:
-        modeling_rec = 'robust'
+        modeling_rec = "robust"
     else:
-        modeling_rec = 'linear'
+        modeling_rec = "linear"
 
     return {
-        'percentiles': percentiles,
-        'skewness': round(skewness, 3),
-        'outlier_count_iqr': int(outliers),
-        'outlier_pct': round(outlier_pct, 2),
-        'modeling_rec': modeling_rec
+        "percentiles": percentiles,
+        "skewness": round(skewness, 3),
+        "outlier_count_iqr": int(outliers),
+        "outlier_pct": round(outlier_pct, 2),
+        "modeling_rec": modeling_rec,
     }
 
 
@@ -251,12 +236,13 @@ def cost_distribution_metrics(
 # Entity Anomaly Detection
 # ============================================================================
 
+
 def detect_entity_anomalies(
     df: pl.LazyFrame,
     entity_col: str,
-    date_col: str = 'usage_date',
+    date_col: str = "usage_date",
     min_days: int = 10,
-    top_n: int = 3
+    top_n: int = 3,
 ) -> pl.DataFrame:
     """
     Find entities with high temporal variability (anomaly candidates).
@@ -285,27 +271,24 @@ def detect_entity_anomalies(
     """
     # Daily entity contributions
     entity_daily = (
-        df.group_by([date_col, entity_col])
-        .agg(pl.len().alias('daily_records'))
-        .collect()
+        df.group_by([date_col, entity_col]).agg(pl.len().alias("daily_records")).collect()
     )
 
     # Compute CV per entity
     entity_stats = (
-        entity_daily
-        .group_by(entity_col)
-        .agg([
-            pl.col('daily_records').mean().alias('mean_daily_records'),
-            pl.col('daily_records').std().alias('std_daily_records'),
-            pl.len().alias('days_present')
-        ])
-        .with_columns(
-            (pl.col('std_daily_records') / pl.col('mean_daily_records')).alias('cv')
+        entity_daily.group_by(entity_col)
+        .agg(
+            [
+                pl.col("daily_records").mean().alias("mean_daily_records"),
+                pl.col("daily_records").std().alias("std_daily_records"),
+                pl.len().alias("days_present"),
+            ]
         )
-        .filter(pl.col('days_present') >= min_days)
-        .sort('cv', descending=True)
+        .with_columns((pl.col("std_daily_records") / pl.col("mean_daily_records")).alias("cv"))
+        .filter(pl.col("days_present") >= min_days)
+        .sort("cv", descending=True)
         .head(top_n)
-        .rename({entity_col: 'entity'})
+        .rename({entity_col: "entity"})
     )
 
     return entity_stats
@@ -315,12 +298,9 @@ def detect_entity_anomalies(
 # Entity Normalization
 # ============================================================================
 
+
 def normalize_by_period(
-    df: pl.LazyFrame,
-    entity_col: str,
-    metric_col: str,
-    time_col: str,
-    freq: str = '1d'
+    df: pl.LazyFrame, entity_col: str, metric_col: str, time_col: str, freq: str = "1d"
 ) -> pl.DataFrame:
     """
     Entity-normalized time series: x_e,t / Σ_e' x_e',t
@@ -350,29 +330,23 @@ def normalize_by_period(
         >>> # Each day, all accounts sum to 1.0
     """
     # Round time to frequency
-    time_expr = pl.col(time_col).dt.round(freq).alias('time')
+    time_expr = pl.col(time_col).dt.round(freq).alias("time")
 
     # Entity-period aggregation
-    entity_period = (
-        df.group_by([time_expr, entity_col])
-        .agg(pl.col(metric_col).sum().alias('metric_raw'))
+    entity_period = df.group_by([time_expr, entity_col]).agg(
+        pl.col(metric_col).sum().alias("metric_raw")
     )
 
     # Period totals
-    period_totals = (
-        entity_period
-        .group_by('time')
-        .agg(pl.col('metric_raw').sum().alias('period_total'))
+    period_totals = entity_period.group_by("time").agg(
+        pl.col("metric_raw").sum().alias("period_total")
     )
 
     # Join and normalize
     result = (
-        entity_period
-        .join(period_totals, on='time')
-        .with_columns(
-            (pl.col('metric_raw') / pl.col('period_total')).alias('metric_normalized')
-        )
-        .sort(['time', entity_col])
+        entity_period.join(period_totals, on="time")
+        .with_columns((pl.col("metric_raw") / pl.col("period_total")).alias("metric_normalized"))
+        .sort(["time", entity_col])
         .collect()
     )
 
@@ -383,11 +357,10 @@ def normalize_by_period(
 # Data Splitting (for analysis)
 # ============================================================================
 
+
 def split_at_date(
-    df: pl.LazyFrame,
-    date_col: str,
-    split_date: date
-) -> Tuple[pl.DataFrame, pl.DataFrame]:
+    df: pl.LazyFrame, date_col: str, split_date: date
+) -> tuple[pl.DataFrame, pl.DataFrame]:
     """
     Split dataset into pre/post at specified date.
 

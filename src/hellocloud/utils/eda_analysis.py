@@ -6,20 +6,18 @@ temporal normalization patterns, and outlier detection.
 Designed for Ibis Tables with DuckDB backend, focusing on cloud billing data.
 """
 
+import ibis
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import ibis
-from ibis import _
-import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Optional, Tuple, List
-from scipy.stats import zscore
+from ibis import _
 from sklearn.ensemble import IsolationForest
-
 
 # ============================================================================
 # Schema & Information Theory
 # ============================================================================
+
 
 def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> pd.DataFrame:
     """
@@ -54,15 +52,27 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> pd.DataFram
     df_sample = df_sample_table.execute()
 
     # Identify numeric columns for nonzero_density calculation
-    numeric_types = ('int8', 'int16', 'int32', 'int64',
-                     'uint8', 'uint16', 'uint32', 'uint64',
-                     'float32', 'float64', 'decimal')
+    numeric_types = (
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "uint8",
+        "uint16",
+        "uint32",
+        "uint64",
+        "float32",
+        "float64",
+        "decimal",
+    )
 
     # Compute per-column metrics
     results = []
     for col in schema.keys():
         # Null count
-        null_count = df.select((df[col].isnull()).sum().name('null_count')).execute()['null_count'].iloc[0]
+        null_count = (
+            df.select((df[col].isnull()).sum().name("null_count")).execute()["null_count"].iloc[0]
+        )
 
         # Unique count
         unique_count = df[col].nunique().execute()
@@ -80,7 +90,7 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> pd.DataFram
             try:
                 zero_result = df.select((df[col] == 0).sum()).execute()
                 # Get the value, handling various return formats
-                if hasattr(zero_result, 'iloc'):
+                if hasattr(zero_result, "iloc"):
                     val = zero_result.iloc[0, 0] if len(zero_result) > 0 else 0
                 else:
                     val = zero_result
@@ -102,28 +112,34 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> pd.DataFram
         # cardinality_ratio, entropy) - all metrics are "higher is better"
         epsilon = 1e-10
         information_score = 4.0 / (
-            1.0 / (value_density + epsilon) +
-            1.0 / (nonzero_density + epsilon) +
-            1.0 / (cardinality_ratio + epsilon) +
-            1.0 / (entropy + epsilon)
+            1.0 / (value_density + epsilon)
+            + 1.0 / (nonzero_density + epsilon)
+            + 1.0 / (cardinality_ratio + epsilon)
+            + 1.0 / (entropy + epsilon)
         )
 
         # Sample value - get first non-null value from sample
         sample_series = df_sample[col].dropna()
-        sample_val = str(sample_series.iloc[0])[:50] if len(sample_series) > 0 else '<null>'
+        sample_val = str(sample_series.iloc[0])[:50] if len(sample_series) > 0 else "<null>"
 
-        results.append({
-            'column': col,
-            'dtype': str(schema[col]),
-            'value_density': round(value_density, 6),
-            'nonzero_density': round(nonzero_density, 6),
-            'cardinality_ratio': round(cardinality_ratio, 6),
-            'entropy': round(entropy, 4),
-            'information_score': round(information_score, 6),
-            'sample_value': sample_val,
-        })
+        results.append(
+            {
+                "column": col,
+                "dtype": str(schema[col]),
+                "value_density": round(value_density, 6),
+                "nonzero_density": round(nonzero_density, 6),
+                "cardinality_ratio": round(cardinality_ratio, 6),
+                "entropy": round(entropy, 4),
+                "information_score": round(information_score, 6),
+                "sample_value": sample_val,
+            }
+        )
 
-    return pd.DataFrame(results).sort_values('information_score', ascending=False).reset_index(drop=True)
+    return (
+        pd.DataFrame(results)
+        .sort_values("information_score", ascending=False)
+        .reset_index(drop=True)
+    )
 
 
 # Backward compatibility alias
@@ -137,10 +153,7 @@ def comprehensive_schema_analysis(df: ibis.Table) -> pd.DataFrame:
     return attribute_analysis(df)
 
 
-def daily_observation_counts(
-    df: ibis.Table,
-    date_col: Optional[str] = None
-) -> pd.DataFrame:
+def daily_observation_counts(df: ibis.Table, date_col: str | None = None) -> pd.DataFrame:
     """
     Count records per day - simple groupby for distribution analysis.
 
@@ -161,26 +174,15 @@ def daily_observation_counts(
     # Auto-detect date column if not provided
     if date_col is None:
         schema = df.schema()
-        date_cols = [
-            name for name, dtype in schema.items()
-            if dtype.is_temporal()
-        ]
+        date_cols = [name for name, dtype in schema.items() if dtype.is_temporal()]
         if not date_cols:
             raise ValueError("No Date or Datetime columns found in schema")
         date_col = date_cols[0]  # Use first date column found
 
-    return (
-        df.group_by(date_col)
-        .agg(count=_.count())
-        .order_by(date_col)
-        .execute()
-    )
+    return df.group_by(date_col).agg(count=_.count()).order_by(date_col).execute()
 
 
-def numeric_column_summary(
-    df: ibis.Table,
-    null_threshold: float = 95.0
-) -> pd.DataFrame:
+def numeric_column_summary(df: ibis.Table, null_threshold: float = 95.0) -> pd.DataFrame:
     """
     Generate summary statistics for numeric columns, filtering high-null columns.
 
@@ -199,11 +201,22 @@ def numeric_column_summary(
     total_rows = df.count().execute()
 
     # Identify numeric columns
-    numeric_types = ('int8', 'int16', 'int32', 'int64',
-                     'uint8', 'uint16', 'uint32', 'uint64',
-                     'float32', 'float64', 'decimal')
+    numeric_types = (
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "uint8",
+        "uint16",
+        "uint32",
+        "uint64",
+        "float32",
+        "float64",
+        "decimal",
+    )
     numeric_cols = [
-        col for col, dtype in schema.items()
+        col
+        for col, dtype in schema.items()
         if any(nt in str(dtype).lower() for nt in numeric_types)
     ]
 
@@ -234,19 +247,21 @@ def numeric_column_summary(
         q25_val = col_expr.quantile(0.25).execute()
         q75_val = col_expr.quantile(0.75).execute()
 
-        results.append({
-            'column': col,
-            'dtype': str(schema[col]),
-            'null_pct': round(null_pct, 2),
-            'unique': unique_count,
-            'min': min_val,
-            'q25': q25_val,
-            'median': median_val,
-            'q75': q75_val,
-            'max': max_val,
-            'mean': mean_val,
-            'std': std_val,
-        })
+        results.append(
+            {
+                "column": col,
+                "dtype": str(schema[col]),
+                "null_pct": round(null_pct, 2),
+                "unique": unique_count,
+                "min": min_val,
+                "q25": q25_val,
+                "median": median_val,
+                "q75": q75_val,
+                "max": max_val,
+                "mean": mean_val,
+                "std": std_val,
+            }
+        )
 
     if not results:
         return pd.DataFrame()
@@ -255,9 +270,7 @@ def numeric_column_summary(
 
 
 def categorical_column_summary(
-    df: ibis.Table,
-    null_threshold: float = 95.0,
-    sample_size: int = 100_000
+    df: ibis.Table, null_threshold: float = 95.0, sample_size: int = 100_000
 ) -> pd.DataFrame:
     """
     Generate summary statistics for categorical (string) columns, filtering high-null columns.
@@ -279,8 +292,7 @@ def categorical_column_summary(
 
     # Identify categorical (string) columns
     categorical_cols = [
-        col for col, dtype in schema.items()
-        if str(dtype).lower() in ('string', 'category')
+        col for col, dtype in schema.items() if str(dtype).lower() in ("string", "category")
     ]
 
     if not categorical_cols:
@@ -311,23 +323,25 @@ def categorical_column_summary(
             top_count = value_counts.iloc[0]
             top_pct = round((top_count / len(df_sample)) * 100, 2)
         else:
-            top_value = '<null>'
+            top_value = "<null>"
             top_pct = 0.0
 
         # Compute entropy on sample
         entropy = shannon_entropy_pandas(df_sample[col])
 
-        results.append({
-            'column': col,
-            'dtype': str(schema[col]),
-            'null_pct': round(null_pct, 2),
-            'unique': unique_count,
-            'cardinality_ratio': round(cardinality_ratio, 6),
-            'card_class': cardinality_classification(cardinality_ratio),
-            'entropy': round(entropy, 4),
-            'top_value': str(top_value)[:30],
-            'top_value_pct': top_pct
-        })
+        results.append(
+            {
+                "column": col,
+                "dtype": str(schema[col]),
+                "null_pct": round(null_pct, 2),
+                "unique": unique_count,
+                "cardinality_ratio": round(cardinality_ratio, 6),
+                "card_class": cardinality_classification(cardinality_ratio),
+                "entropy": round(entropy, 4),
+                "top_value": str(top_value)[:30],
+                "top_value_pct": top_pct,
+            }
+        )
 
     if not results:
         return pd.DataFrame()
@@ -429,20 +443,28 @@ def calculate_attribute_scores(df: ibis.Table, sample_size: int = 100_000) -> pd
 
         # Harmonic mean (add small epsilon to avoid division by zero)
         epsilon = 1e-10
-        harmonic_mean = 3.0 / (1.0/(value_density + epsilon) +
-                                1.0/(cardinality_ratio + epsilon) +
-                                1.0/(entropy + epsilon))
+        harmonic_mean = 3.0 / (
+            1.0 / (value_density + epsilon)
+            + 1.0 / (cardinality_ratio + epsilon)
+            + 1.0 / (entropy + epsilon)
+        )
 
-        results.append({
-            'attribute': col,
-            'value_density': round(value_density, 6),
-            'cardinality_ratio': round(cardinality_ratio, 6),
-            'entropy': round(entropy, 4),
-            'information_score': round(harmonic_mean, 6),
-            'card_class': cardinality_classification(cardinality_ratio)
-        })
+        results.append(
+            {
+                "attribute": col,
+                "value_density": round(value_density, 6),
+                "cardinality_ratio": round(cardinality_ratio, 6),
+                "entropy": round(entropy, 4),
+                "information_score": round(harmonic_mean, 6),
+                "card_class": cardinality_classification(cardinality_ratio),
+            }
+        )
 
-    return pd.DataFrame(results).sort_values('information_score', ascending=False).reset_index(drop=True)
+    return (
+        pd.DataFrame(results)
+        .sort_values("information_score", ascending=False)
+        .reset_index(drop=True)
+    )
 
 
 def cardinality_classification(cardinality_ratio: float) -> str:
@@ -456,11 +478,11 @@ def cardinality_classification(cardinality_ratio: float) -> str:
         'High' (>0.01), 'Medium' (0.0001-0.01), or 'Low' (<0.0001)
     """
     if cardinality_ratio > 0.01:
-        return 'High'
+        return "High"
     elif cardinality_ratio > 0.0001:
-        return 'Medium'
+        return "Medium"
     else:
-        return 'Low'
+        return "Low"
 
 
 def infer_column_semantics(column_name: str) -> dict:
@@ -489,132 +511,132 @@ def infer_column_semantics(column_name: str) -> dict:
     col_lower = column_name.lower()
 
     # Financial metrics
-    if 'cost' in col_lower or 'price' in col_lower or 'charge' in col_lower:
-        subcategory = 'cost_unknown'
-        if 'discount' in col_lower:
-            subcategory = 'cost_discounted'
-        elif 'amortiz' in col_lower:
-            subcategory = 'cost_amortized'
-        elif 'invoice' in col_lower:
-            subcategory = 'cost_invoiced'
-        elif 'public' in col_lower or 'demand' in col_lower:
-            subcategory = 'cost_list_price'
+    if "cost" in col_lower or "price" in col_lower or "charge" in col_lower:
+        subcategory = "cost_unknown"
+        if "discount" in col_lower:
+            subcategory = "cost_discounted"
+        elif "amortiz" in col_lower:
+            subcategory = "cost_amortized"
+        elif "invoice" in col_lower:
+            subcategory = "cost_invoiced"
+        elif "public" in col_lower or "demand" in col_lower:
+            subcategory = "cost_list_price"
 
         return {
-            'category': 'financial',
-            'subcategory': subcategory,
-            'expected': 'non-negative numeric (or small negative for refunds), right-skewed',
-            'unit': 'currency',
-            'quality_checks': ['check for negative values', 'check for extreme outliers']
+            "category": "financial",
+            "subcategory": subcategory,
+            "expected": "non-negative numeric (or small negative for refunds), right-skewed",
+            "unit": "currency",
+            "quality_checks": ["check for negative values", "check for extreme outliers"],
         }
 
     # Usage/consumption metrics
-    if 'usage' in col_lower or 'consumption' in col_lower:
+    if "usage" in col_lower or "consumption" in col_lower:
         return {
-            'category': 'consumption',
-            'subcategory': 'usage_metric',
-            'expected': 'non-negative numeric, possibly zero',
-            'unit': 'varies (GB, hours, requests)',
-            'quality_checks': ['check for negative values', 'check zero prevalence']
+            "category": "consumption",
+            "subcategory": "usage_metric",
+            "expected": "non-negative numeric, possibly zero",
+            "unit": "varies (GB, hours, requests)",
+            "quality_checks": ["check for negative values", "check zero prevalence"],
         }
 
     # Identifiers
-    if any(x in col_lower for x in ['id', 'uuid', 'arn', 'key']):
+    if any(x in col_lower for x in ["id", "uuid", "arn", "key"]):
         return {
-            'category': 'identifier',
-            'subcategory': 'unique_key' if 'uuid' in col_lower else 'reference_key',
-            'expected': 'high cardinality string, minimal nulls',
-            'unit': 'none',
-            'quality_checks': ['check uniqueness', 'check null rate']
+            "category": "identifier",
+            "subcategory": "unique_key" if "uuid" in col_lower else "reference_key",
+            "expected": "high cardinality string, minimal nulls",
+            "unit": "none",
+            "quality_checks": ["check uniqueness", "check null rate"],
         }
 
     # Temporal
-    if any(x in col_lower for x in ['date', 'time', 'timestamp', 'period']):
+    if any(x in col_lower for x in ["date", "time", "timestamp", "period"]):
         return {
-            'category': 'temporal',
-            'subcategory': 'date' if 'date' in col_lower else 'timestamp',
-            'expected': 'datetime type, sequential, no gaps',
-            'unit': 'datetime',
-            'quality_checks': ['check for gaps', 'check range validity']
+            "category": "temporal",
+            "subcategory": "date" if "date" in col_lower else "timestamp",
+            "expected": "datetime type, sequential, no gaps",
+            "unit": "datetime",
+            "quality_checks": ["check for gaps", "check range validity"],
         }
 
     # Kubernetes/container
-    if col_lower.startswith('_k8s') or 'kubernetes' in col_lower:
+    if col_lower.startswith("_k8s") or "kubernetes" in col_lower:
         return {
-            'category': 'kubernetes',
-            'subcategory': 'container_metadata',
-            'expected': 'sparse (high nulls), categorical',
-            'unit': 'none',
-            'quality_checks': ['expect high null percentage', 'check cardinality']
+            "category": "kubernetes",
+            "subcategory": "container_metadata",
+            "expected": "sparse (high nulls), categorical",
+            "unit": "none",
+            "quality_checks": ["expect high null percentage", "check cardinality"],
         }
 
     # Cloud hierarchy - accounts
-    if 'account' in col_lower:
+    if "account" in col_lower:
         return {
-            'category': 'cloud_hierarchy',
-            'subcategory': 'account_identifier',
-            'expected': 'medium cardinality, categorical',
-            'unit': 'none',
-            'quality_checks': ['check cardinality matches expected accounts']
+            "category": "cloud_hierarchy",
+            "subcategory": "account_identifier",
+            "expected": "medium cardinality, categorical",
+            "unit": "none",
+            "quality_checks": ["check cardinality matches expected accounts"],
         }
 
     # Cloud hierarchy - products/services
-    if any(x in col_lower for x in ['product', 'service', 'family']):
+    if any(x in col_lower for x in ["product", "service", "family"]):
         return {
-            'category': 'cloud_hierarchy',
-            'subcategory': 'product_taxonomy',
-            'expected': 'low-medium cardinality, categorical',
-            'unit': 'none',
-            'quality_checks': ['check value set consistency']
+            "category": "cloud_hierarchy",
+            "subcategory": "product_taxonomy",
+            "expected": "low-medium cardinality, categorical",
+            "unit": "none",
+            "quality_checks": ["check value set consistency"],
         }
 
     # Cloud hierarchy - provider
-    if 'provider' in col_lower or 'cloud' in col_lower:
+    if "provider" in col_lower or "cloud" in col_lower:
         return {
-            'category': 'cloud_hierarchy',
-            'subcategory': 'provider',
-            'expected': 'low cardinality (AWS/Azure/GCP), categorical',
-            'unit': 'none',
-            'quality_checks': ['check for expected provider names']
+            "category": "cloud_hierarchy",
+            "subcategory": "provider",
+            "expected": "low cardinality (AWS/Azure/GCP), categorical",
+            "unit": "none",
+            "quality_checks": ["check for expected provider names"],
         }
 
     # Cloud hierarchy - region/zone
-    if 'region' in col_lower or 'zone' in col_lower or 'location' in col_lower:
+    if "region" in col_lower or "zone" in col_lower or "location" in col_lower:
         return {
-            'category': 'cloud_hierarchy',
-            'subcategory': 'geographic',
-            'expected': 'low-medium cardinality, categorical',
-            'unit': 'none',
-            'quality_checks': ['check for valid region codes']
+            "category": "cloud_hierarchy",
+            "subcategory": "geographic",
+            "expected": "low-medium cardinality, categorical",
+            "unit": "none",
+            "quality_checks": ["check for valid region codes"],
         }
 
     # Descriptive metadata
-    if any(x in col_lower for x in ['name', 'description', 'label', 'tag']):
+    if any(x in col_lower for x in ["name", "description", "label", "tag"]):
         return {
-            'category': 'metadata',
-            'subcategory': 'descriptive',
-            'expected': 'high cardinality string, possibly sparse',
-            'unit': 'none',
-            'quality_checks': ['check informativeness']
+            "category": "metadata",
+            "subcategory": "descriptive",
+            "expected": "high cardinality string, possibly sparse",
+            "unit": "none",
+            "quality_checks": ["check informativeness"],
         }
 
     # Aggregation indicators
-    if 'aggregat' in col_lower or 'count' in col_lower:
+    if "aggregat" in col_lower or "count" in col_lower:
         return {
-            'category': 'aggregation',
-            'subcategory': 'record_count',
-            'expected': 'positive integer',
-            'unit': 'count',
-            'quality_checks': ['check for zeros', 'check distribution']
+            "category": "aggregation",
+            "subcategory": "record_count",
+            "expected": "positive integer",
+            "unit": "count",
+            "quality_checks": ["check for zeros", "check distribution"],
         }
 
     # Default: unknown
     return {
-        'category': 'unknown',
-        'subcategory': 'unclassified',
-        'expected': 'requires investigation',
-        'unit': 'unknown',
-        'quality_checks': ['manual inspection needed']
+        "category": "unknown",
+        "subcategory": "unclassified",
+        "expected": "requires investigation",
+        "unit": "unknown",
+        "quality_checks": ["manual inspection needed"],
     }
 
 
@@ -638,15 +660,17 @@ def semantic_column_analysis(df: ibis.Table) -> pd.DataFrame:
     results = []
     for col in schema.keys():
         semantics = infer_column_semantics(col)
-        results.append({
-            'column': col,
-            'dtype': str(schema[col]),
-            'semantic_category': semantics['category'],
-            'semantic_subcategory': semantics['subcategory'],
-            'expected_characteristics': semantics['expected'],
-            'unit': semantics['unit'],
-            'quality_checks': ', '.join(semantics['quality_checks'])
-        })
+        results.append(
+            {
+                "column": col,
+                "dtype": str(schema[col]),
+                "semantic_category": semantics["category"],
+                "semantic_subcategory": semantics["subcategory"],
+                "expected_characteristics": semantics["expected"],
+                "unit": semantics["unit"],
+                "quality_checks": ", ".join(semantics["quality_checks"]),
+            }
+        )
 
     return pd.DataFrame(results)
 
@@ -655,11 +679,8 @@ def semantic_column_analysis(df: ibis.Table) -> pd.DataFrame:
 # Temporal Normalization
 # ============================================================================
 
-def time_normalized_size(
-    df: ibis.Table,
-    time_col: str,
-    freq: str
-) -> pd.DataFrame:
+
+def time_normalized_size(df: ibis.Table, time_col: str, freq: str) -> pd.DataFrame:
     """
     Create normalized time series of record counts by frequency.
 
@@ -683,20 +704,17 @@ def time_normalized_size(
     pdf = df.select([time_col]).execute()
 
     # Round timestamps using pandas
-    pdf['time'] = pdf[time_col].dt.floor(freq)
+    pdf["time"] = pdf[time_col].dt.floor(freq)
 
     # Count records per time bucket
-    result = pdf.groupby('time').size().reset_index(name='record_count')
-    result = result.sort_values('time').reset_index(drop=True)
+    result = pdf.groupby("time").size().reset_index(name="record_count")
+    result = result.sort_values("time").reset_index(drop=True)
 
     return result
 
 
 def entity_normalized_by_day(
-    df: ibis.Table,
-    entity_col: str,
-    metric_col: str,
-    date_col: str = 'usage_date'
+    df: ibis.Table, entity_col: str, metric_col: str, date_col: str = "usage_date"
 ) -> pd.DataFrame:
     """
     Normalize entity metrics by total daily activity.
@@ -726,23 +744,15 @@ def entity_normalized_by_day(
         ... )
     """
     # Aggregate by entity-day
-    entity_day = (
-        df.group_by([date_col, entity_col])
-        .agg(metric_raw=df[metric_col].sum())
-    )
+    entity_day = df.group_by([date_col, entity_col]).agg(metric_raw=df[metric_col].sum())
 
     # Compute daily totals
-    daily_totals = (
-        entity_day.group_by(date_col)
-        .agg(daily_total=entity_day['metric_raw'].sum())
-    )
+    daily_totals = entity_day.group_by(date_col).agg(daily_total=entity_day["metric_raw"].sum())
 
     # Join and normalize
     result = (
         entity_day.join(daily_totals, date_col)
-        .mutate(
-            metric_normalized=entity_day['metric_raw'] / daily_totals['daily_total']
-        )
+        .mutate(metric_normalized=entity_day["metric_raw"] / daily_totals["daily_total"])
         .order_by([date_col, entity_col])
         .execute()
     )
@@ -754,11 +764,9 @@ def entity_normalized_by_day(
 # Sampling
 # ============================================================================
 
+
 def smart_sample(
-    df: ibis.Table,
-    n: int,
-    stratify_col: Optional[str] = None,
-    seed: int = 42
+    df: ibis.Table, n: int, stratify_col: str | None = None, seed: int = 42
 ) -> pd.DataFrame:
     """
     Sample DataFrame with optional stratification.
@@ -802,10 +810,8 @@ def smart_sample(
 # Outlier Detection
 # ============================================================================
 
-def detect_outliers_iqr(
-    series: pd.Series,
-    multiplier: float = 1.5
-) -> pd.Series:
+
+def detect_outliers_iqr(series: pd.Series, multiplier: float = 1.5) -> pd.Series:
     """
     Detect outliers using Interquartile Range (IQR) method.
 
@@ -836,10 +842,7 @@ def detect_outliers_iqr(
     return outliers
 
 
-def detect_outliers_zscore(
-    series: pd.Series,
-    threshold: float = 3.0
-) -> pd.Series:
+def detect_outliers_zscore(series: pd.Series, threshold: float = 3.0) -> pd.Series:
     """
     Detect outliers using Z-score method.
 
@@ -871,10 +874,7 @@ def detect_outliers_zscore(
 
 
 def detect_outliers_isolation_forest(
-    df: pd.DataFrame,
-    columns: List[str],
-    contamination: float = 0.05,
-    random_state: int = 42
+    df: pd.DataFrame, columns: list[str], contamination: float = 0.05, random_state: int = 42
 ) -> np.ndarray:
     """
     Detect multivariate outliers using Isolation Forest.
@@ -913,13 +913,14 @@ def detect_outliers_isolation_forest(
 # Visualization Helpers
 # ============================================================================
 
+
 def plot_numeric_distributions(
     df: ibis.Table,
-    columns: Optional[List[str]] = None,
-    group_by: Optional[str] = None,
+    columns: list[str] | None = None,
+    group_by: str | None = None,
     sample_size: int = 50_000,
-    figsize: Tuple[int, int] = (14, 10),
-    cols_per_row: int = 2
+    figsize: tuple[int, int] = (14, 10),
+    cols_per_row: int = 2,
 ) -> plt.Figure:
     """
     Create grouped boxplots for numeric columns to visualize distributions.
@@ -951,7 +952,7 @@ def plot_numeric_distributions(
         if len(numeric_summary) == 0:
             raise ValueError("No numeric columns found after filtering")
         # Limit to first 6 for readability
-        columns = numeric_summary['column'].to_list()[:6]
+        columns = numeric_summary["column"].to_list()[:6]
 
     # Select columns for sampling
     select_cols = columns.copy()
@@ -982,32 +983,38 @@ def plot_numeric_distributions(
         if len(plot_data) > 0:
             if group_by:
                 # Grouped boxplot
-                sns.boxplot(data=plot_data, y=col, x=group_by, ax=ax,
-                           palette='Set2', fliersize=2)
-                ax.set_xlabel('')
-                ax.set_ylabel('Value', fontsize=10)
-                ax.set_title(f'{col} by {group_by}', fontsize=11, fontweight='bold')
+                sns.boxplot(data=plot_data, y=col, x=group_by, ax=ax, palette="Set2", fliersize=2)
+                ax.set_xlabel("")
+                ax.set_ylabel("Value", fontsize=10)
+                ax.set_title(f"{col} by {group_by}", fontsize=11, fontweight="bold")
                 # Rotate x labels if needed
-                ax.tick_params(axis='x', rotation=45)
+                ax.tick_params(axis="x", rotation=45)
             else:
                 # Single boxplot
-                sns.boxplot(y=plot_data[col], ax=ax, color='steelblue',
-                           width=0.5, fliersize=3)
-                ax.set_ylabel('Value', fontsize=10)
-                ax.set_title(col, fontsize=11, fontweight='bold')
+                sns.boxplot(y=plot_data[col], ax=ax, color="steelblue", width=0.5, fliersize=3)
+                ax.set_ylabel("Value", fontsize=10)
+                ax.set_title(col, fontsize=11, fontweight="bold")
 
                 # Add statistics annotation
                 q25, median, q75 = plot_data[col].quantile([0.25, 0.5, 0.75])
-                stats_text = f'Q1: {q25:.2e}\nMedian: {median:.2e}\nQ3: {q75:.2e}\nN: {len(plot_data):,}'
-                ax.text(0.98, 0.97, stats_text, transform=ax.transAxes,
-                       fontsize=8, verticalalignment='top', horizontalalignment='right',
-                       bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+                stats_text = (
+                    f"Q1: {q25:.2e}\nMedian: {median:.2e}\nQ3: {q75:.2e}\nN: {len(plot_data):,}"
+                )
+                ax.text(
+                    0.98,
+                    0.97,
+                    stats_text,
+                    transform=ax.transAxes,
+                    fontsize=8,
+                    verticalalignment="top",
+                    horizontalalignment="right",
+                    bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+                )
 
-            ax.grid(axis='y', alpha=0.3)
+            ax.grid(axis="y", alpha=0.3)
         else:
-            ax.text(0.5, 0.5, 'No data', transform=ax.transAxes,
-                   ha='center', va='center')
-            ax.set_title(col, fontsize=11, fontweight='bold')
+            ax.text(0.5, 0.5, "No data", transform=ax.transAxes, ha="center", va="center")
+            ax.set_title(col, fontsize=11, fontweight="bold")
 
     # Hide unused subplots
     for idx in range(n_cols, len(axes)):
@@ -1019,13 +1026,13 @@ def plot_numeric_distributions(
 
 def plot_categorical_frequencies(
     df: ibis.Table,
-    columns: Optional[List[str]] = None,
+    columns: list[str] | None = None,
     top_n: int = 10,
     sample_size: int = 100_000,
-    figsize: Tuple[int, int] = (14, 10),
+    figsize: tuple[int, int] = (14, 10),
     cols_per_row: int = 2,
     log_scale: bool = True,
-    shared_xaxis: bool = True
+    shared_xaxis: bool = True,
 ) -> plt.Figure:
     """
     Create horizontal bar charts for categorical columns showing top N values.
@@ -1055,7 +1062,7 @@ def plot_categorical_frequencies(
         categorical_summary = categorical_column_summary(df, null_threshold=95.0)
         if len(categorical_summary) == 0:
             raise ValueError("No categorical columns found after filtering")
-        columns = categorical_summary['column'].to_list()
+        columns = categorical_summary["column"].to_list()
 
     # Sample data - limit and execute to pandas
     sample_df = df.select(columns).limit(sample_size).execute()
@@ -1088,21 +1095,21 @@ def plot_categorical_frequencies(
             counts = value_counts.values.tolist()
 
             # Truncate long labels
-            labels = [str(v)[:30] + '...' if len(str(v)) > 30 else str(v) for v in values]
+            labels = [str(v)[:30] + "..." if len(str(v)) > 30 else str(v) for v in values]
 
             # Create horizontal bar chart
             y_pos = np.arange(len(labels))
-            ax.barh(y_pos, counts, color='steelblue', alpha=0.7)
+            ax.barh(y_pos, counts, color="steelblue", alpha=0.7)
             ax.set_yticks(y_pos)
             ax.set_yticklabels(labels, fontsize=9)
             ax.invert_yaxis()  # Top value at top
 
             # Apply log scale if requested
             if log_scale:
-                ax.set_xscale('log')
-                ax.set_xlabel('Frequency (log scale)', fontsize=10)
+                ax.set_xscale("log")
+                ax.set_xlabel("Frequency (log scale)", fontsize=10)
             else:
-                ax.set_xlabel('Frequency', fontsize=10)
+                ax.set_xlabel("Frequency", fontsize=10)
 
             # Apply shared x-axis limits
             if shared_xaxis:
@@ -1111,18 +1118,17 @@ def plot_categorical_frequencies(
                 else:
                     ax.set_xlim(0, global_max * 1.1)
 
-            ax.set_title(f'{col} (Top {min(top_n, len(values))})', fontsize=11, fontweight='bold')
-            ax.grid(axis='x', alpha=0.3)
+            ax.set_title(f"{col} (Top {min(top_n, len(values))})", fontsize=11, fontweight="bold")
+            ax.grid(axis="x", alpha=0.3)
 
             # Add percentage annotations
             total = sum(counts)
             for i, (label, count) in enumerate(zip(labels, counts)):
                 pct = (count / total) * 100
-                ax.text(count, i, f' {pct:.1f}%', va='center', fontsize=8)
+                ax.text(count, i, f" {pct:.1f}%", va="center", fontsize=8)
         else:
-            ax.text(0.5, 0.5, 'No data', transform=ax.transAxes,
-                   ha='center', va='center')
-            ax.set_title(col, fontsize=11, fontweight='bold')
+            ax.text(0.5, 0.5, "No data", transform=ax.transAxes, ha="center", va="center")
+            ax.set_title(col, fontsize=11, fontweight="bold")
 
     # Hide unused subplots
     for idx in range(n_cols, len(axes)):
@@ -1133,8 +1139,7 @@ def plot_categorical_frequencies(
 
 
 def create_info_score_chart(
-    attribute_scores: pd.DataFrame,
-    figsize: Tuple[int, int] = (12, 10)
+    attribute_scores: pd.DataFrame, figsize: tuple[int, int] = (12, 10)
 ) -> plt.Figure:
     """
     Create horizontal bar chart of attribute information scores.
@@ -1153,48 +1158,67 @@ def create_info_score_chart(
     """
     # Filter out zero scores (log scale can't handle zeros)
     # Zero information scores indicate completely null or invariant attributes
-    filtered_scores = attribute_scores[attribute_scores['information_score'] > 0].copy()
+    filtered_scores = attribute_scores[attribute_scores["information_score"] > 0].copy()
 
     if len(filtered_scores) == 0:
         raise ValueError("All attributes have zero information score - cannot visualize")
 
     # Sort by score
-    plot_data = filtered_scores.sort_values('information_score', ascending=True)
+    plot_data = filtered_scores.sort_values("information_score", ascending=True)
 
     # Calculate median for reference line
-    median_score = plot_data['information_score'].median()
+    median_score = plot_data["information_score"].median()
 
     # Create figure
     height = max(10, len(plot_data) * 0.4)
     fig, ax = plt.subplots(figsize=(figsize[0], height))
 
     # Create color palette based on cardinality class
-    card_class_colors = {'High': '#1f77b4', 'Medium': '#ff7f0e', 'Low': '#2ca02c'}
-    colors = [card_class_colors.get(cc, '#gray') for cc in plot_data['card_class']]
+    card_class_colors = {"High": "#1f77b4", "Medium": "#ff7f0e", "Low": "#2ca02c"}
+    colors = [card_class_colors.get(cc, "#gray") for cc in plot_data["card_class"]]
 
     # Horizontal bar chart
-    bars = ax.barh(plot_data['attribute'], plot_data['information_score'],
-                   color=colors, alpha=0.7, edgecolor='black', linewidth=0.5)
+    bars = ax.barh(
+        plot_data["attribute"],
+        plot_data["information_score"],
+        color=colors,
+        alpha=0.7,
+        edgecolor="black",
+        linewidth=0.5,
+    )
 
     # Add median reference line
-    ax.axvline(median_score, color='red', linestyle='--', linewidth=2,
-               label=f'Median: {median_score:.4f}', alpha=0.7)
+    ax.axvline(
+        median_score,
+        color="red",
+        linestyle="--",
+        linewidth=2,
+        label=f"Median: {median_score:.4f}",
+        alpha=0.7,
+    )
 
     # Log scale on x-axis
-    ax.set_xscale('log')
-    ax.set_xlabel('Information Score (Log Scale)', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Attribute', fontsize=12, fontweight='bold')
-    ax.set_title('Attribute Information Scores', fontsize=14, fontweight='bold', pad=15)
-    ax.grid(axis='x', alpha=0.3, linestyle='--')
+    ax.set_xscale("log")
+    ax.set_xlabel("Information Score (Log Scale)", fontsize=12, fontweight="bold")
+    ax.set_ylabel("Attribute", fontsize=12, fontweight="bold")
+    ax.set_title("Attribute Information Scores", fontsize=14, fontweight="bold", pad=15)
+    ax.grid(axis="x", alpha=0.3, linestyle="--")
     ax.legend(fontsize=10)
 
     # Create legend for cardinality classes
     from matplotlib.patches import Patch
-    legend_elements = [Patch(facecolor=card_class_colors[cc], label=cc, alpha=0.7)
-                      for cc in ['High', 'Medium', 'Low']]
-    ax.legend(handles=legend_elements + [plt.Line2D([0], [0], color='red', linestyle='--',
-              label=f'Median: {median_score:.4f}')],
-              title='Cardinality Class', loc='lower right', fontsize=9)
+
+    legend_elements = [
+        Patch(facecolor=card_class_colors[cc], label=cc, alpha=0.7)
+        for cc in ["High", "Medium", "Low"]
+    ]
+    ax.legend(
+        handles=legend_elements
+        + [plt.Line2D([0], [0], color="red", linestyle="--", label=f"Median: {median_score:.4f}")],
+        title="Cardinality Class",
+        loc="lower right",
+        fontsize=9,
+    )
 
     plt.tight_layout()
     return fig
@@ -1202,12 +1226,12 @@ def create_info_score_chart(
 
 def create_correlation_heatmap(
     corr_df: pd.DataFrame,
-    title: str = 'Correlation Matrix',
+    title: str = "Correlation Matrix",
     annotate: bool = True,
-    figsize: Tuple[int, int] = (10, 8),
-    cmap: str = 'RdBu_r',
+    figsize: tuple[int, int] = (10, 8),
+    cmap: str = "RdBu_r",
     vmin: float = -1.0,
-    vmax: float = 1.0
+    vmax: float = 1.0,
 ) -> plt.Figure:
     """
     Create Seaborn annotated correlation heatmap.
@@ -1240,18 +1264,18 @@ def create_correlation_heatmap(
     sns.heatmap(
         corr_pd,
         annot=annotate,
-        fmt='.3f' if annotate else None,
+        fmt=".3f" if annotate else None,
         cmap=cmap,
         vmin=vmin,
         vmax=vmax,
         center=0,
         square=True,
         linewidths=0.5,
-        cbar_kws={'label': 'Correlation Coefficient'},
-        ax=ax
+        cbar_kws={"label": "Correlation Coefficient"},
+        ax=ax,
     )
 
-    ax.set_title(title, fontsize=14, fontweight='bold', pad=15)
+    ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
     plt.tight_layout()
 
     return fig

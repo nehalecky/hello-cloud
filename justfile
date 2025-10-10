@@ -6,18 +6,29 @@
 default:
     @just --list
 
-# Install all dependencies
+# Install all dependencies (dev, research, docs)
 install:
-    uv sync --all-extras
-    uv sync --group docs
+    uv sync --extra dev --extra research --extra docs
+    uv run pre-commit install
 
 # Run tests with coverage
 test:
-    uv run pytest tests/ -v --cov=src/cloud_sim --cov-report=term-missing
+    uv run pytest tests/ -v --cov=src/hellocloud --cov-report=term-missing
 
 # Run tests without coverage (faster)
 test-fast:
     uv run pytest tests/ -v
+
+# Start Jupyter Lab for interactive development
+lab:
+    uv run jupyter lab notebooks/
+
+# Start Jupyter Lab (alias)
+jupyter-lab: lab
+
+# Start classic Jupyter Notebook
+notebook:
+    uv run jupyter notebook notebooks/
 
 # Run linter
 lint:
@@ -27,9 +38,26 @@ lint:
 lint-fix:
     uv run ruff check --fix src/ tests/
 
-# Format code
+# Format code with black
 format:
     uv run black src/ tests/
+
+# Format and fix linting (recommended before commits)
+fix:
+    uv run black src/ tests/
+    uv run ruff check --fix src/ tests/
+
+# Run pre-commit hooks on all files
+pre-commit:
+    uv run pre-commit run --all-files
+
+# Install pre-commit hooks (run once after clone)
+pre-commit-install:
+    uv run pre-commit install
+
+# Update pre-commit hook versions
+pre-commit-update:
+    uv run pre-commit autoupdate
 
 # Generate API reference documentation
 docs-api:

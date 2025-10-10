@@ -14,9 +14,9 @@ References:
 - HuggingFace Timeseries-PILE dataset: https://huggingface.co/datasets/AutonLab/Timeseries-PILE
 """
 
-import torch
 import gpytorch
-from gpytorch.kernels import ScaleKernel, PeriodicKernel, RBFKernel
+import torch
+from gpytorch.kernels import PeriodicKernel, RBFKernel, ScaleKernel
 
 
 class CompositePeriodicKernel(gpytorch.kernels.Kernel):
@@ -60,7 +60,7 @@ class CompositePeriodicKernel(gpytorch.kernels.Kernel):
         slow_period: float = 1.0,
         fast_period: float = 0.2,
         rbf_lengthscale: float = 0.1,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
 
@@ -95,7 +95,7 @@ class CompositePeriodicKernel(gpytorch.kernels.Kernel):
         x2: torch.Tensor,
         diag: bool = False,
         last_dim_is_batch: bool = False,
-        **params
+        **params,
     ) -> torch.Tensor:
         """
         Compute covariance matrix using additive kernel combination.
@@ -114,9 +114,9 @@ class CompositePeriodicKernel(gpytorch.kernels.Kernel):
         """
         # Additive combination for numerical stability (not multiplicative)
         return (
-            self.slow_periodic(x1, x2, diag=diag, last_dim_is_batch=last_dim_is_batch) +
-            self.fast_periodic(x1, x2, diag=diag, last_dim_is_batch=last_dim_is_batch) +
-            self.rbf(x1, x2, diag=diag, last_dim_is_batch=last_dim_is_batch)
+            self.slow_periodic(x1, x2, diag=diag, last_dim_is_batch=last_dim_is_batch)
+            + self.fast_periodic(x1, x2, diag=diag, last_dim_is_batch=last_dim_is_batch)
+            + self.rbf(x1, x2, diag=diag, last_dim_is_batch=last_dim_is_batch)
         )
 
     @property

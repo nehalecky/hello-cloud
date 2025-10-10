@@ -1,9 +1,10 @@
 """Tests for data generation modules."""
 
-import pytest
-import polars as pl
-import numpy as np
 from datetime import datetime, timedelta
+
+import numpy as np
+import polars as pl
+import pytest
 
 from hellocloud.data_generation import (
     CloudMetricsSimulator,
@@ -17,10 +18,7 @@ class TestCloudMetricsSimulator:
 
     def test_simulator_initialization(self):
         """Test simulator can be initialized with proper parameters."""
-        sim = CloudMetricsSimulator(
-            num_resources=10,
-            sampling_interval_minutes=60
-        )
+        sim = CloudMetricsSimulator(num_resources=10, sampling_interval_minutes=60)
         assert sim.num_resources == 10
         assert len(sim.resources) == 10
 
@@ -42,7 +40,7 @@ class TestCloudMetricsSimulator:
             num_resources=2,
             start_date=datetime.now() - timedelta(hours=2),
             end_date=datetime.now(),
-            sampling_interval_minutes=60
+            sampling_interval_minutes=60,
         )
 
         df = sim.generate_dataset(include_anomalies=False)
@@ -105,7 +103,7 @@ class TestWorkloadPatternGenerator:
             workload_type=WorkloadType.WEB_APP,
             start_time=start_time,
             end_time=end_time,
-            interval_minutes=60
+            interval_minutes=60,
         )
 
         assert isinstance(df, pl.DataFrame)
@@ -123,7 +121,7 @@ class TestWorkloadPatternGenerator:
             workload_type=WorkloadType.WEB_APP,
             start_time=datetime.now() - timedelta(days=7),
             end_time=datetime.now(),
-            interval_minutes=60
+            interval_minutes=60,
         )
 
         # Check average utilization is realistically low
@@ -147,7 +145,7 @@ class TestWorkloadPatternGenerator:
             workload_type=WorkloadType.BATCH_PROCESSING,
             start_time=datetime.now() - timedelta(hours=10),
             end_time=datetime.now(),
-            interval_minutes=5
+            interval_minutes=5,
         )
 
         # Inject anomalies
@@ -172,7 +170,7 @@ class TestIntegration:
                 WorkloadType.WEB_APP: 2,
                 WorkloadType.DATABASE_OLTP: 1,
                 WorkloadType.ML_TRAINING: 1,
-            }
+            },
         )
 
         assert isinstance(df, pl.DataFrame)
@@ -180,11 +178,18 @@ class TestIntegration:
 
         # Check all expected columns exist
         expected_columns = [
-            "timestamp", "workload_type", "resource_id",
-            "cpu_utilization", "memory_utilization",
-            "network_in_mbps", "network_out_mbps",
-            "disk_iops", "efficiency_score",
-            "is_idle", "is_overprovisioned", "waste_percentage"
+            "timestamp",
+            "workload_type",
+            "resource_id",
+            "cpu_utilization",
+            "memory_utilization",
+            "network_in_mbps",
+            "network_out_mbps",
+            "disk_iops",
+            "efficiency_score",
+            "is_idle",
+            "is_overprovisioned",
+            "waste_percentage",
         ]
 
         for col in expected_columns:
@@ -198,7 +203,7 @@ class TestIntegration:
             workload_type=WorkloadType.ML_TRAINING,
             start_time=datetime.now() - timedelta(hours=100),
             end_time=datetime.now(),
-            interval_minutes=60
+            interval_minutes=60,
         )
 
         # ML workloads should show correlation between CPU and memory
@@ -214,14 +219,16 @@ class TestIntegration:
 @pytest.fixture
 def sample_cloud_data():
     """Fixture providing sample cloud metrics data."""
-    return pl.DataFrame({
-        "timestamp": [datetime.now() - timedelta(hours=i) for i in range(100)],
-        "resource_id": ["res_001"] * 100,
-        "cpu_utilization": np.random.beta(2, 8, 100) * 100,
-        "memory_utilization": np.random.beta(3, 7, 100) * 100,
-        "hourly_cost": np.random.gamma(2, 50, 100),
-        "workload_type": ["web_app"] * 100,
-    })
+    return pl.DataFrame(
+        {
+            "timestamp": [datetime.now() - timedelta(hours=i) for i in range(100)],
+            "resource_id": ["res_001"] * 100,
+            "cpu_utilization": np.random.beta(2, 8, 100) * 100,
+            "memory_utilization": np.random.beta(3, 7, 100) * 100,
+            "hourly_cost": np.random.gamma(2, 50, 100),
+            "workload_type": ["web_app"] * 100,
+        }
+    )
 
 
 def test_data_statistics(sample_cloud_data):
@@ -231,8 +238,5 @@ def test_data_statistics(sample_cloud_data):
     assert 15 <= sample_cloud_data["memory_utilization"].mean() <= 40
 
     # Check cost variability
-    cost_cv = (
-        sample_cloud_data["hourly_cost"].std() /
-        sample_cloud_data["hourly_cost"].mean()
-    )
+    cost_cv = sample_cloud_data["hourly_cost"].std() / sample_cloud_data["hourly_cost"].mean()
     assert 0.2 <= cost_cv <= 1.5  # Reasonable variability

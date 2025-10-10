@@ -9,15 +9,14 @@ Provides comprehensive evaluation metrics for:
 Based on proper scoring rules for probabilistic forecasts.
 """
 
-from typing import Dict
 import numpy as np
 from sklearn.metrics import (
-    precision_score,
-    recall_score,
     f1_score,
-    mean_squared_error,
     mean_absolute_error,
+    mean_squared_error,
+    precision_score,
     r2_score,
+    recall_score,
 )
 
 
@@ -29,7 +28,7 @@ def compute_metrics(
     lower_99: np.ndarray,
     upper_99: np.ndarray,
     model_name: str = "GP Model",
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Compute comprehensive model evaluation metrics.
 
@@ -87,14 +86,14 @@ def compute_metrics(
     sharpness_99 = np.mean(upper_99 - lower_99)
 
     return {
-        'Model': model_name,
-        'RMSE': float(rmse),
-        'MAE': float(mae),
-        'R²': float(r2),
-        'Coverage 95%': float(coverage_95),
-        'Coverage 99%': float(coverage_99),
-        'Sharpness 95%': float(sharpness_95),
-        'Sharpness 99%': float(sharpness_99),
+        "Model": model_name,
+        "RMSE": float(rmse),
+        "MAE": float(mae),
+        "R²": float(r2),
+        "Coverage 95%": float(coverage_95),
+        "Coverage 99%": float(coverage_99),
+        "Sharpness 95%": float(sharpness_95),
+        "Sharpness 99%": float(sharpness_99),
     }
 
 
@@ -103,7 +102,7 @@ def compute_anomaly_metrics(
     y_pred_anomaly: np.ndarray,
     model_name: str = "GP Model",
     threshold_name: str = "95% Interval",
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Compute anomaly detection metrics.
 
@@ -145,11 +144,11 @@ def compute_anomaly_metrics(
     f1 = f1_score(y_true_anomaly, y_pred_anomaly, zero_division=0)
 
     return {
-        'Model': model_name,
-        'Threshold': threshold_name,
-        'Precision': float(precision),
-        'Recall': float(recall),
-        'F1-Score': float(f1),
+        "Model": model_name,
+        "Threshold": threshold_name,
+        "Precision": float(precision),
+        "Recall": float(recall),
+        "F1-Score": float(f1),
     }
 
 
@@ -159,7 +158,7 @@ def compute_prediction_intervals(
     confidence_levels: list = [0.95, 0.99],
     distribution: str = "gaussian",
     nu: float = 4.0,
-) -> Dict[str, tuple]:
+) -> dict[str, tuple]:
     """
     Compute prediction intervals from GP posterior.
 
@@ -203,7 +202,8 @@ def compute_prediction_intervals(
         - **Student-t**: Uses t-distribution quantiles (heavier tails for robustness)
         - Higher confidence → wider intervals
     """
-    from scipy.stats import norm, t as student_t
+    from scipy.stats import norm
+    from scipy.stats import t as student_t
 
     intervals = {}
 
@@ -218,8 +218,7 @@ def compute_prediction_intervals(
             quantile = student_t.ppf(quantile_prob, df=nu)
         else:
             raise ValueError(
-                f"Unknown distribution: {distribution}. "
-                f"Choose from: 'gaussian', 'student_t'"
+                f"Unknown distribution: {distribution}. " f"Choose from: 'gaussian', 'student_t'"
             )
 
         # Compute interval bounds
