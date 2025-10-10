@@ -1,0 +1,63 @@
+---
+title: "Tutorials"
+---
+
+# Getting Started Tutorials
+
+Learn Cloud Resource Simulator through hands-on, learning-oriented tutorials. These guides are designed to help you understand the core concepts and workflows through practical examples.
+
+## Available Tutorials
+
+### [Data Exploration](data-exploration.qmd)
+Learn how to explore and analyze cloud resource utilization data using the simulator's data generation capabilities.
+
+**What you'll learn:**
+- Loading and exploring synthetic cloud data
+- Understanding workload patterns
+- Visualizing resource utilization
+- Identifying inefficiencies
+
+**Duration:** ~15 minutes
+
+---
+
+### [Workload Signatures](workload-signatures.qmd)
+Understand the different workload archetypes and their characteristic resource usage patterns.
+
+**What you'll learn:**
+- 12+ workload types and their signatures
+- CPU, memory, and network patterns
+- Temporal autocorrelation
+- Application-specific behaviors
+
+**Duration:** ~20 minutes
+
+---
+
+### [Gaussian Process Modeling](gaussian-processes.qmd)
+Build robust time series forecasting models using Gaussian Processes with GPyTorch.
+
+**What you'll learn:**
+- Sparse variational GP models
+- Composite periodic kernels
+- Training on operational data
+- Prediction with uncertainty quantification
+
+**Duration:** ~30 minutes
+
+---
+
+## Learning Path
+
+We recommend following the tutorials in order:
+
+1. **Data Exploration** → Understand the data
+2. **Workload Signatures** → Learn workload patterns
+3. **Gaussian Process Modeling** → Build forecasting models
+
+## Next Steps
+
+After completing the tutorials:
+- Explore [How-To Guides](../how-to/index.qmd) for specific tasks
+- Read [Concepts](../concepts/index.qmd) for deeper understanding
+- Reference the [API Documentation](../reference/index.qmd) for detailed usage

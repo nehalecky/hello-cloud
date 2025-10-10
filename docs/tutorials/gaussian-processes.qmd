@@ -1,0 +1,530 @@
+---
+title: "Gaussian Process Modeling"
+subtitle: "Build robust time series forecasting models with uncertainty quantification"
+execute:
+  eval: false
+  echo: true
+---
+
+# Gaussian Process Time Series Modeling
+
+Learn to build **production-ready Gaussian Process models** for cloud resource forecasting and anomaly detection using GPyTorch's sparse variational approximations.
+
+## Learning Objectives
+
+- Understand sparse variational GPs for large datasets
+- Use composite periodic kernels for multi-scale patterns
+- Train robust models with Student-t likelihood
+- Evaluate both accuracy and calibration
+- Make predictions with uncertainty quantification
+
+::: {.callout-tip}
+## Estimated Time
+30 minutes
+:::
+
+::: {.callout-note}
+## Prerequisites
+
+- Basic understanding of Gaussian Processes ([see Rasmussen & Williams](http://gaussianprocess.org/gpml/))
+- Familiarity with PyTorch
+- Completed [Data Exploration Tutorial](data-exploration.qmd)
+
+**GPU recommended but not required** - CPU works well for this tutorial.
+:::
+
+---
+
+## Setup
+
+```{python}
+import numpy as np
+import polars as pl
+import torch
+import gpytorch
+
+from cloud_sim.ml_models.gaussian_process import (
+    CompositePeriodicKernel,
+    SparseGPModel,
+    train_gp_model,
+    compute_metrics,
+    compute_prediction_intervals
+)
+
+# Visualization
+import altair as alt
+from datetime import datetime, timedelta
+
+# Set random seeds for reproducibility
+torch.manual_seed(42)
+np.random.seed(42)
+
+# Device selection
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
+```
+
+---
+
+## Part 1: The Problem
+
+### Challenge: Operational Time Series Forecasting
+
+We need to forecast cloud resource metrics (CPU, IOPS, memory) that exhibit:
+
+1. **Multi-scale periodicity**: Daily cycles + weekly patterns
+2. **Anomalies**: Operational issues, spikes, outages
+3. **Uncertainty**: Need confidence intervals, not just point predictions
+4. **Scale**: Thousands to millions of data points
+
+**Gaussian Processes** are ideal because they provide:
+- ✅ Flexible modeling via kernel design
+- ✅ Principled uncertainty quantification
+- ✅ Non-parametric learning from data
+
+---
+
+## Part 2: Generate Sample Data
+
+Let's create a realistic IOPS (I/O operations per second) workload:
+
+```{python}
+from cloud_sim.data_generation import WorkloadPatternGenerator, WorkloadType
+
+# Generate 30 days of data
+generator = WorkloadPatternGenerator(seed=42)
+df = generator.generate_time_series(
+    workload_type=WorkloadType.DATABASE_OLTP,
+    start_time=datetime.now() - timedelta(days=30),
+    end_time=datetime.now(),
+    interval_minutes=1,  # Minute-level granularity
+    include_anomalies=True,
+    anomaly_rate=0.005  # 0.5% anomaly rate
+)
+
+# Use disk IOPS as our target metric
+print(f"Dataset size: {len(df):,} samples")
+print(f"Anomalies: {df['is_anomaly'].sum()} ({df['is_anomaly'].mean()*100:.2f}%)")
+```
+
+### Train/Test Split
+
+```{python}
+# Split: 70% train, 30% test
+train_size = int(0.7 * len(df))
+
+train_df = df[:train_size]
+test_df = df[train_size:]
+
+print(f"Train: {len(train_df):,} samples")
+print(f"Test: {len(test_df):,} samples")
+```
+
+---
+
+## Part 3: Understanding the Data
+
+### Visualize Temporal Patterns
+
+```{python}
+# Plot the data
+train_plot = train_df.to_pandas()
+
+chart = alt.Chart(train_plot.iloc[::60]).mark_line(size=1).encode(  # Subsample for visualization
+    x=alt.X('timestamp:T', title='Time'),
+    y=alt.Y('disk_iops:Q', title='IOPS'),
+    color=alt.condition(
+        alt.datum.is_anomaly == True,
+        alt.value('red'),
+        alt.value('steelblue')
+    )
+).properties(
+    width=800,
+    height=300,
+    title='Database OLTP: IOPS Over Time (Training Data)'
+).interactive()
+
+chart
+```
+
+::: {.callout-note}
+## Pattern Observations
+
+- **Daily periodicity**: Clear 24-hour cycles
+- **Weekly seasonality**: Weekday vs. weekend differences
+- **Anomalies**: Occasional spikes and dips (red points)
+- **Non-stationary**: Mean shifts over time
+:::
+
+---
+
+## Part 4: Model Architecture
+
+### Composite Periodic Kernel
+
+We use a **composite kernel** to capture multi-scale patterns:
+
+$$
+k(x, x') = k_{daily}(x, x') \times k_{weekly}(x, x') + k_{noise}(x, x')
+$$
+
+Where:
+- **Daily component**: `period_length=1440` (minutes per day)
+- **Weekly component**: `period_length=10080` (minutes per week)
+- **Noise component**: Handles residual variance
+
+```{python}
+# Initialize kernel
+kernel = CompositePeriodicKernel(
+    periods=[1440.0, 10080.0],  # Daily + weekly
+    lengthscales=[360.0, 2520.0],  # Quarter-day, half-week
+    add_noise=True
+)
+```
+
+### Sparse Variational GP
+
+For large datasets, we use **inducing points** to approximate the full GP:
+
+```{python}
+# Prepare tensors
+X_train = torch.arange(len(train_df), dtype=torch.float32).reshape(-1, 1)
+y_train = torch.tensor(train_df['disk_iops'].to_numpy(), dtype=torch.float32)
+
+# Initialize model with 100 inducing points
+model = SparseGPModel(
+    num_inducing=100,
+    likelihood_type='student_t',  # Robust to outliers
+    kernel=kernel
+)
+
+print(f"Model: {model.__class__.__name__}")
+print(f"Inducing points: 100")
+print(f"Likelihood: Student-t (robust to anomalies)")
+```
+
+::: {.callout-tip}
+## Why Student-t Likelihood?
+
+The Student-t distribution has **heavier tails** than Gaussian:
+
+- ✅ Robust to outliers and anomalies
+- ✅ Doesn't over-fit to spikes
+- ✅ Better calibrated uncertainty
+- ✅ Production-ready for operational data
+
+Train on **all data including anomalies** - the model learns to handle them!
+:::
+
+---
+
+## Part 5: Training
+
+```{python}
+# Train the model
+trained_model, losses = train_gp_model(
+    model=model,
+    train_x=X_train,
+    train_y=y_train,
+    num_epochs=100,
+    learning_rate=0.01,
+    verbose=True
+)
+
+# Plot training loss
+loss_df = pl.DataFrame({'epoch': range(len(losses)), 'loss': losses})
+
+chart = alt.Chart(loss_df.to_pandas()).mark_line().encode(
+    x='epoch:Q',
+    y=alt.Y('loss:Q', scale=alt.Scale(type='log')),
+).properties(
+    width=600,
+    height=300,
+    title='Training Loss (Log Scale)'
+)
+
+chart
+```
+
+**Expected behavior:**
+- Loss decreases rapidly in first 20 epochs
+- Convergence around epoch 50-80
+- Final loss stabilizes
+
+---
+
+## Part 6: Predictions with Uncertainty
+
+### Make Predictions
+
+```{python}
+# Prepare test data
+X_test = torch.arange(len(train_df), len(df), dtype=torch.float32).reshape(-1, 1)
+y_test = torch.tensor(test_df['disk_iops'].to_numpy(), dtype=torch.float32)
+
+# Get predictions
+trained_model.eval()
+with torch.no_grad(), gpytorch.settings.fast_pred_var():
+    pred_dist = trained_model(X_test)
+
+    # Extract mean and variance
+    pred_mean = pred_dist.mean.numpy()
+    pred_var = pred_dist.variance.numpy()
+    pred_std = np.sqrt(pred_var)
+
+# Add to test dataframe
+test_df = test_df.with_columns([
+    pl.Series('pred_mean', pred_mean),
+    pl.Series('pred_std', pred_std)
+])
+```
+
+### Visualize Predictions
+
+```{python}
+# Compute prediction intervals
+lower_95 = pred_mean - 1.96 * pred_std
+upper_95 = pred_mean + 1.96 * pred_std
+
+# Create visualization
+test_plot = test_df.to_pandas().iloc[::60]  # Subsample
+
+# Build multi-layer chart
+base = alt.Chart(test_plot).encode(x='timestamp:T')
+
+# Confidence band
+band = base.mark_area(opacity=0.2, color='steelblue').encode(
+    y='lower_95:Q',
+    y2='upper_95:Q'
+)
+
+# Predicted mean
+pred_line = base.mark_line(color='steelblue').encode(
+    y='pred_mean:Q'
+)
+
+# Actual values
+actual_points = base.mark_circle(size=20).encode(
+    y='disk_iops:Q',
+    color=alt.condition(
+        alt.datum.is_anomaly == True,
+        alt.value('red'),
+        alt.value('darkblue')
+    )
+)
+
+chart = (band + pred_line + actual_points).properties(
+    width=800,
+    height=400,
+    title='GP Predictions with 95% Confidence Intervals'
+).interactive()
+
+chart
+```
+
+::: {.callout-note}
+## Uncertainty Quantification
+
+Notice how:
+
+- **Confidence bands widen** during anomalies
+- **Normal periods** have tight, confident predictions
+- **Model uncertainty** increases for out-of-distribution events
+- **Most actual values** fall within the 95% interval
+
+This is **calibrated uncertainty** - essential for production systems!
+:::
+
+---
+
+## Part 7: Evaluation Metrics
+
+### Accuracy Metrics
+
+```{python}
+# Compute comprehensive metrics
+metrics = compute_metrics(
+    y_true=y_test.numpy(),
+    y_pred=pred_mean,
+    y_std=pred_std
+)
+
+print("Accuracy Metrics:")
+print(f"  RMSE: {metrics['rmse']:.3f}")
+print(f"  MAE: {metrics['mae']:.3f}")
+print(f"  R²: {metrics['r2']:.3f}")
+print(f"  MAPE: {metrics['mape']:.2f}%")
+
+print("\nUncertainty Calibration:")
+print(f"  Coverage@95: {metrics['coverage_95']:.1f}%")  # Should be ~95%
+print(f"  Calibration Error: {metrics['calibration_error']:.3f}")  # Should be ~0
+print(f"  Sharpness: {metrics['sharpness']:.3f}")  # Lower = tighter intervals
+```
+
+::: {.callout-tip}
+## Interpreting Metrics
+
+**Accuracy (Lower is better):**
+- **RMSE**: Root mean squared error - penalizes large errors
+- **MAE**: Mean absolute error - robust to outliers
+- **R²**: Variance explained (1.0 = perfect)
+
+**Calibration (Target values):**
+- **Coverage@95**: Should be ≈95% (well-calibrated)
+- **Calibration Error**: Should be ≈0 (perfectly calibrated)
+- **Sharpness**: Interval width (lower = more confident)
+
+**Good model**: High accuracy + good calibration + low sharpness
+:::
+
+---
+
+## Part 8: Anomaly Detection
+
+GPs can detect anomalies using **prediction errors**:
+
+```{python}
+# Compute standardized residuals
+residuals = y_test.numpy() - pred_mean
+standardized = residuals / pred_std
+
+# Flag anomalies (|z| > 3.0)
+detected_anomalies = np.abs(standardized) > 3.0
+
+# Compare to ground truth
+from sklearn.metrics import precision_score, recall_score, f1_score
+
+true_labels = test_df['is_anomaly'].to_numpy()
+
+print("Anomaly Detection Performance:")
+print(f"  Precision: {precision_score(true_labels, detected_anomalies):.3f}")
+print(f"  Recall: {recall_score(true_labels, detected_anomalies):.3f}")
+print(f"  F1-Score: {f1_score(true_labels, detected_anomalies):.3f}")
+
+# Confusion matrix
+from sklearn.metrics import confusion_matrix
+cm = confusion_matrix(true_labels, detected_anomalies)
+print(f"\nConfusion Matrix:")
+print(f"  True Negatives: {cm[0,0]}")
+print(f"  False Positives: {cm[0,1]}")
+print(f"  False Negatives: {cm[1,0]}")
+print(f"  True Positives: {cm[1,1]}")
+```
+
+---
+
+## Part 9: Production Considerations
+
+### Model Persistence
+
+```{python}
+from cloud_sim.ml_models.gaussian_process import save_model, load_model
+
+# Save trained model
+save_model(trained_model, "gp_iops_model.pt")
+
+# Load it back
+loaded_model = load_model("gp_iops_model.pt", device=device)
+print("✓ Model saved and loaded successfully")
+```
+
+### Batch Prediction
+
+For production, use batched prediction for efficiency:
+
+```{python}
+# Process data in batches
+batch_size = 1000
+predictions = []
+
+for i in range(0, len(X_test), batch_size):
+    X_batch = X_test[i:i+batch_size]
+
+    with torch.no_grad(), gpytorch.settings.fast_pred_var():
+        pred = trained_model(X_batch)
+        predictions.append(pred.mean.numpy())
+
+all_predictions = np.concatenate(predictions)
+print(f"✓ Processed {len(X_test):,} predictions in batches of {batch_size}")
+```
+
+### Online Learning
+
+For streaming data, retrain periodically:
+
+```{python}
+#| eval: false
+
+# Pseudo-code for online learning
+def online_update(model, new_data, window_size=10000):
+    """Retrain model on sliding window of recent data"""
+    recent_data = new_data[-window_size:]
+    updated_model = train_gp_model(
+        model=model,
+        train_x=recent_data['x'],
+        train_y=recent_data['y'],
+        num_epochs=20,  # Fewer epochs for updates
+        learning_rate=0.005  # Lower LR for fine-tuning
+    )
+    return updated_model
+
+# Update every hour with latest data
+# model = online_update(model, latest_data)
+```
+
+---
+
+## Summary
+
+In this tutorial, you learned:
+
+✅ **Sparse variational GPs** for large-scale time series
+✅ **Composite periodic kernels** for multi-scale patterns
+✅ **Student-t likelihood** for robustness to anomalies
+✅ **Uncertainty quantification** with calibrated confidence intervals
+✅ **Comprehensive evaluation** (accuracy + calibration)
+✅ **Anomaly detection** using prediction errors
+✅ **Production deployment** patterns
+
+## Next Steps
+
+- **[Concepts: GP Design](../concepts/design/gaussian-process-design.qmd)**: Architectural deep dive
+- **[How-To: Train GP Models](../how-to/train-gp-models.qmd)**: Production recipes
+- **[Research: Time Series Datasets](../concepts/research/timeseries-anomaly-datasets-review.qmd)**: More datasets to try
+
+---
+
+::: {.callout-tip}
+## Further Reading
+
+**Gaussian Processes:**
+- [Rasmussen & Williams (2006)](http://gaussianprocess.org/gpml/) - The GP Bible
+- [GPyTorch Documentation](https://docs.gpytorch.ai/) - Library docs
+- [Duvenaud (2014)](https://www.cs.toronto.edu/~duvenaud/thesis.pdf) - Kernel cookbook
+
+**Sparse GPs:**
+- [Titsias (2009)](http://proceedings.mlr.press/v5/titsias09a.html) - Variational inducing points
+- [Hensman et al. (2013)](https://arxiv.org/abs/1309.6835) - Scalable variational GPs
+
+**Cloud Forecasting:**
+- Our [Research Foundation](../concepts/research/cloud-resource-patterns-research.qmd)
+:::
+
+## Architecture Diagram
+
+```{mermaid}
+graph TB
+    A[Time Series Data] --> B[Sparse Variational GP]
+    B --> C[Composite Periodic Kernel]
+    B --> D[Student-t Likelihood]
+    C --> E[Daily Period Component]
+    C --> F[Weekly Period Component]
+    E --> G[Inducing Points]
+    F --> G
+    G --> H[Predictions + Uncertainty]
+    D --> H
+    H --> I[Anomaly Detection]
+    H --> J[Forecasting]
+```
+
+**Key insight**: Combine **flexible kernels**, **sparse approximations**, and **robust likelihoods** to build production-ready forecasting systems!
