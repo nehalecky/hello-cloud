@@ -11,12 +11,15 @@ uv sync --all-extras
 
 # Activate virtual environment
 source .venv/bin/activate
+
+# Install documentation dependencies
+uv sync --group docs
 ```
 
 ### Testing
 ```bash
 # Run all tests with coverage
-uv run pytest tests/ -v --cov=src/cloud_sim --cov-report=term-missing
+uv run pytest tests/ -v --cov=src/cloudlens --cov-report=term-missing
 
 # Run specific test file
 uv run pytest tests/test_data_generation.py -v
@@ -25,7 +28,7 @@ uv run pytest tests/test_data_generation.py -v
 uv run pytest tests/test_data_generation.py::TestWorkloadPatternGenerator::test_generate_time_series -v
 
 # Run tests with coverage threshold (CI requirement: 70%)
-uv run pytest tests/ -v --cov=src/cloud_sim --cov-fail-under=70
+uv run pytest tests/ -v --cov=src/cloudlens --cov-fail-under=70
 ```
 
 ### Code Quality
@@ -41,6 +44,20 @@ uv run ruff check --fix src/ tests/
 
 # Type checking (optional, many imports ignored)
 uv run mypy src/
+```
+
+### Documentation
+```bash
+# Quick commands with just (recommended)
+just docs-api      # Generate API reference
+just docs-preview  # Preview with auto-refresh
+just docs-build    # Build static site
+just docs          # API + build
+
+# Or use commands directly
+uv run quartodoc build --config docs/_quarto.yml  # Generate API reference
+quarto preview docs/                              # Preview (auto-refreshes)
+quarto render docs/                               # Build static site
 ```
 
 ### Jupyter Notebooks
@@ -89,12 +106,12 @@ All notebooks use **MyST format**:
 ### Core Design Principles
 - **Multi-Model Approach**: Gaussian Processes, Bayesian hierarchical models, and foundation model integration
 - **Empirical Foundation**: Based on research showing 12-15% average CPU utilization and 25-35% cloud waste
-- **Polars-First**: Uses Polars exclusively for data processing (no pandas)
+- **Ibis+DuckDB Stack**: Portable DataFrame API with DuckDB backend for local analytics, PySpark for scale
 - **Production-Ready**: 92% test coverage on GP library, comprehensive testing framework
 
 ### Module Structure
 ```
-src/cloud_sim/
+src/cloudlens/
 ├── data_generation/       # Synthetic data generation based on empirical patterns
 │   ├── workload_patterns.py     # 20+ workload archetypes with realistic utilization
 │   ├── cloud_metrics_simulator.py # Multivariate metric correlation simulation
@@ -144,11 +161,121 @@ These findings inform all synthetic data generation parameters.
 
 ## Development Patterns
 
-### Data Processing
-Always use Polars, never pandas:
+### Polars → Ibis Migration Patterns
+
+The project migrated from Polars to Ibis+DuckDB for better backend portability and analytical performance. Key conversion patterns:
+
+#### Execution
 ```python
-import polars as pl  # ✓ Correct
-# import pandas as pd  # ✗ Never use pandas in this codebase
+# Polars
+df.collect()  # Execute lazy operations
+
+# Ibis
+df.execute()  # Returns pandas DataFrame
+```
+
+#### Schema Access
+```python
+# Polars
+schema = df.collect_schema()
+col_names = df.columns
+
+# Ibis
+schema = df.schema()  # Returns ibis.Schema
+col_names = df.schema().names  # List of column names
+```
+
+#### Column References
+```python
+# Polars
+pl.col('cost')
+pl.len()
+
+# Ibis
+_.cost  or  _['cost']  # Column deference
+_.count()  # Row count aggregation
+```
+
+#### Aggregations
+```python
+# Polars
+df.agg([
+    pl.col('cost').sum().alias('total'),
+    pl.col('date').n_unique().alias('days')
+])
+
+# Ibis
+df.agg(
+    total=_.cost.sum(),
+    days=_.date.nunique()
+)  # No list wrapping, keyword args for aliases
+```
+
+#### Filtering
+```python
+# Polars
+df.filter(pl.col('cost') > 100)
+
+# Ibis
+df.filter(_.cost > 100)
+```
+
+#### Sorting & Renaming
+```python
+# Polars
+df.sort('date')
+df.rename({'old_name': 'new_name'})
+
+# Ibis
+df.order_by('date')
+df.rename(new_name='old_name')  # Reversed argument order!
+```
+
+#### Dtype Checks
+```python
+# Polars
+isinstance(dtype, (pl.Utf8, pl.Categorical))
+isinstance(dtype, (pl.Date, pl.Datetime))
+
+# Ibis
+dtype.is_string()
+dtype.is_temporal()
+```
+
+#### Count Operations
+```python
+# Polars (returns DataFrame)
+count_df = df.count()  # Returns single-row DataFrame
+count_val = count_df[0, 0]  # Extract scalar
+
+# Ibis (returns scalar directly)
+count_val = df.count().execute()  # Already a scalar int
+```
+
+### Data Processing
+Use Ibis for portable DataFrame operations with DuckDB backend:
+```python
+import ibis
+from ibis import _
+import pandas as pd  # Used for results after .execute()
+
+# Connect to DuckDB (in-memory analytics)
+con = ibis.duckdb.connect()
+
+# Read data
+df = con.read_parquet('data/file.parquet', table_name='data')
+
+# Query with Ibis (lazy evaluation)
+result = (
+    df.filter(_.cost > 0)
+    .group_by('region')
+    .agg(total=_.cost.sum())
+    .order_by(ibis.desc('total'))
+    .execute()  # Returns pandas DataFrame
+)
+
+# Backend portability: Same code works with PySpark
+# con = ibis.pyspark.connect(spark_session)
 ```
 
 ### Error Handling
@@ -172,7 +299,9 @@ from pydantic import BaseModel, Field, field_validator
 ## Important Dependencies
 
 ### Core Libraries
-- **polars**: Data processing (NOT pandas)
+- **ibis-framework[duckdb]**: Portable DataFrame API for analytics (local: DuckDB, scale: PySpark)
+- **duckdb**: In-memory OLAP database for fast analytical queries
+- **pandas**: Used for results after Ibis `.execute()` and visualization
 - **pymc**: Bayesian modeling
 - **chronos-forecasting**: Amazon's foundation model
 - **transformers**: HuggingFace integration
@@ -196,7 +325,7 @@ from pydantic import BaseModel, Field, field_validator
 
 ### Creating Synthetic Datasets
 ```python
-from cloud_sim.data_generation import WorkloadPatternGenerator, WorkloadType
+from cloudlens.data_generation import WorkloadPatternGenerator, WorkloadType
 generator = WorkloadPatternGenerator()
 data = generator.generate_time_series(
     workload_type=WorkloadType.WEB_APP,
@@ -207,7 +336,7 @@ data = generator.generate_time_series(
 
 ### Running Hierarchical Models
 ```python
-from cloud_sim.ml_models import CloudResourceHierarchicalModel
+from cloudlens.ml_models import CloudResourceHierarchicalModel
 model = CloudResourceHierarchicalModel()
 results = model.fit(data)
 ```

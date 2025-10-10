@@ -1,137 +1,114 @@
-# Cloud Resource Utilization Simulator
+# CloudLens
 
-A comprehensive framework for cloud workload pattern analysis and synthetic data generation using multiple modeling approaches.
+Analytics platform for cloud resource usage and cost optimization.
 
-## Overview
+Covers workload characterization, cost analysis, time series modeling, forecasting, and anomaly detection.
 
-This research project explores cloud resource utilization patterns through multiple modeling techniques, generating realistic synthetic data for optimization algorithm development. The framework combines Gaussian Processes, Bayesian hierarchical models, and foundation model integration, all grounded in [empirical research](docs/research/) showing 12-15% average CPU utilization and 25-35% resource waste across cloud infrastructure.
+Built on Ibis+DuckDB (local) with PySpark compatibility (scale).
 
-## Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- [uv](https://github.com/astral-sh/uv) package manager
-
-### Installation
+## Installation
 
 ```bash
-# Install uv if needed
+# Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Clone and setup
-git clone https://github.com/nehalecky/cloud-resource-simulator.git
-cd cloud-resource-simulator
+# Clone repository
+git clone https://github.com/nehalecky/cloudlens.git
+cd cloudlens
 
 # Install dependencies
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 uv sync --all-extras
 ```
 
-### Basic Usage
+## Usage
+
+### Basic Data Analysis
 
 ```python
-from cloud_sim.data_generation import WorkloadPatternGenerator, WorkloadType
-from datetime import datetime, timedelta
+import ibis
+from ibis import _
+from cloudlens.utils import attribute_analysis, grain_discovery
 
-# Generate synthetic workload data
-generator = WorkloadPatternGenerator()
-data = generator.generate_time_series(
-    workload_type=WorkloadType.WEB_APP,
-    start_time=datetime.now() - timedelta(days=7),
-    end_time=datetime.now()
+# Connect to billing data
+con = ibis.duckdb.connect()
+df = con.read_parquet('billing_data.parquet', table_name='billing')
+
+# Analyze attribute patterns
+attrs = attribute_analysis(df, sample_size=50_000)
+print(attrs[['column', 'cardinality', 'information_score']])
+
+# Discover optimal forecasting grain
+optimal_grain = grain_discovery(
+    df,
+    grain_cols=['provider', 'account', 'region', 'service'],
+    cost_col='cost',
+    min_days=30
+)
+```
+
+### Time Series Forecasting
+
+```python
+# Entity-level time series
+entity_ts = (
+    df
+    .filter((_.provider == 'aws') & (_.account == '123456'))
+    .group_by('date')
+    .agg(daily_cost=_.cost.sum())
+    .order_by('date')
+    .execute()
 )
 
-# Analyze patterns
-print(f"CPU Utilization: {data['cpu_utilization'].mean():.1f}%")
-print(f"Memory Utilization: {data['memory_utilization'].mean():.1f}%")
+# Forecast with GP model (requires GPU extras)
+from cloudlens.ml_models.gaussian_process import SparseGPModel
+model = SparseGPModel()
+predictions = model.forecast(entity_ts, horizon=30)
 ```
 
-## Key Features
+## Stack
 
-- **20+ Workload Archetypes** - Web apps, batch processing, ML training, databases, etc.
-- **Gaussian Process Models** - Time series forecasting with uncertainty quantification (GPyTorch)
-- **Bayesian Hierarchical Models** - Industry → Application → Resource modeling (PyMC)
-- **Foundation Model Integration** - Amazon Chronos, Google TimesFM for forecasting (stubs)
-- **Realistic Correlations** - Multivariate resource metric relationships
-- **Temporal Patterns** - Daily, weekly, and seasonal variations
-- **Research-Grounded** - All parameters derived from empirical studies
-
-## Research Foundation
-
-The simulation parameters are grounded in comprehensive empirical research:
-
-- **[Cloud Resource Patterns Research](docs/research/cloud-resource-patterns-research.md)** - Analysis of utilization statistics across industries
-- **[Resource Correlation Analysis](docs/research/cloud-resource-correlations-report.md)** - Multivariate correlation structures
-- **[Research Overview](docs/research/)** - Summary of key findings and references
-
-Key findings informing our models:
-- CPU utilization: 12-15% average
-- Memory utilization: 18-25% average
-- Resource waste: 25-35% of cloud spend
-- Development environments: 70% waste
-- Strong temporal autocorrelation: 0.7-0.8
-
-## Interactive Analysis with Jupyter
-
-### Quick Start
-```bash
-# Install all dependencies
-uv sync --all-extras
-
-# One-time setup: Install kernel for your uv environment
-uv run ipython kernel install --user --name=cloud-sim
-
-# Start Jupyter Lab
-uv run jupyter lab
-
-# In Jupyter Lab, select "cloud-sim" kernel for notebooks
-```
-
-### Notebook Testing
-```bash
-# Fast syntax/import tests (0.4s)
-uv run pytest tests/test_notebooks.py -m smoke -v
-
-# Full runbook execution tests (slower)
-uv run pytest tests/test_notebooks.py -k "execution_success" -v
-```
-
-### Notebook Architecture
-All notebooks use **MyST format**:
-- `notebooks/*.md` - Clean MyST markdown (git-friendly, documentation-ready)
-- `.ipynb` files auto-generated (not tracked in git)
-- Jupytext handles conversion automatically
+- **Ibis** + **DuckDB**: Data processing (local analytics)
+- **pandas**: Results and visualization
+- **GPyTorch**: Time series modeling (optional, GPU)
+- **PyMC**: Bayesian hierarchical models (optional)
+- **HuggingFace datasets**: Data storage
 
 ## Documentation
 
-### Core Documentation
-- **[Technical Documentation](docs/index.md)** - Comprehensive architecture and API reference
-- **[Research Papers](docs/research/)** - Empirical foundations and methodology
-- **[Example Notebooks](notebooks/)** - Analysis and visualization examples
-  - `01_data_exploration.md` - Basic data generation and validation
-  - `02_workload_signatures_guide.md` - Understanding why workloads have distinct patterns
-  - `04_gaussian_process_modeling.md` - GP library usage and anomaly detection
+See [`docs/`](docs/) for:
+- API reference
+- Tutorial notebooks
+- Development guides
 
-### Technical Design Documents
-- **[Design Documents Overview](docs/design/README.md)** - Index of technical design documents
+## Project Structure
 
-## The Workload Genome Initiative
+```
+cloudlens/
+├── src/cloudlens/          # Source code
+│   ├── utils/              # EDA and analysis utilities
+│   ├── etl/                # Data loaders (CloudZero, Alibaba traces)
+│   └── ml_models/          # Time series models (GP, PyMC)
+├── notebooks/              # Analysis notebooks (MyST format)
+├── tests/                  # Test suite
+└── docs/                   # Documentation (Quarto)
+```
 
-Contributing to a standardized taxonomy of cloud workload patterns for reproducible benchmarking and collaborative research.
+## Development
+
+```bash
+# Run tests
+uv run pytest tests/ -v --cov=src/cloudlens
+
+# Format code
+uv run black src/ tests/
+
+# Lint
+uv run ruff check --fix src/ tests/
+
+# Execute notebooks
+cd notebooks && uv run jupytext --execute 05_cloudzero_piedpiper_eda.md
+```
 
 ## License
 
-[MIT License](LICENSE) - Open for research and commercial use
-
-## Contributing
-
-Contributions welcome in:
-- Empirical correlation data
-- Additional workload patterns
-- ML model improvements (GP, PyMC, foundation models)
-- Optimization algorithms
-- Testing and validation
-
-See [technical documentation](docs/index.md) for development guidelines.
+MIT
