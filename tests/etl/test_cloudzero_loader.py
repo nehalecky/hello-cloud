@@ -1,7 +1,7 @@
 """Tests for CloudZero ETL stub."""
 
 import pytest
-from cloud_sim.etl import CloudZeroDataLoader, load_cloudzero_data
+from cloudlens.etl import CloudZeroDataLoader, load_cloudzero_data
 
 
 class TestCloudZeroDataLoaderStub:
@@ -19,7 +19,7 @@ class TestCloudZeroDataLoaderStub:
 
     def test_module_imports_work(self):
         """Test that module exports work correctly."""
-        from cloud_sim.etl import CloudZeroDataLoader, load_cloudzero_data
+        from cloudlens.etl import CloudZeroDataLoader, load_cloudzero_data
 
         assert CloudZeroDataLoader is not None
         assert load_cloudzero_data is not None

@@ -1,12 +1,12 @@
 [project]
-name = "cloud-resource-simulator"
+name = "cloudlens"
 version = "0.1.0"
-description = "Multi-model framework for cloud resource utilization patterns and synthetic data generation using Gaussian Processes, Bayesian models, and foundation models"
+description = "Analytics platform for cloud resource usage and cost optimization. Covers workload characterization, cost analysis, time series modeling, forecasting, and anomaly detection."
 authors = [{name = "Nicholaus Halecky", email = "your.email@example.com"}]
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
-keywords = ["cloud", "resource-optimization", "gaussian-processes", "bayesian-modeling", "synthetic-data", "time-series", "gpytorch"]
+keywords = ["cloud", "cost-optimization", "workload-characterization", "time-series", "forecasting", "anomaly-detection", "billing-analytics"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -37,6 +37,13 @@ dependencies = [
     "loguru>=0.7.0",
     # Visualization (for notebooks)
     "altair>=5.0.0",
+    "ibis-framework[duckdb]>=10.8.0",
+    "duckdb>=1.1.0,<1.2.0",
+    "nbconvert>=7.16.6",
+    "ipykernel>=6.30.1",
+    "seaborn>=0.13.2",
+    "scipy>=1.16.2",
+    "scikit-learn>=1.7.2",
 ]
 
 [project.optional-dependencies]
@@ -56,11 +63,15 @@ dev = [
 ]
 
 docs = [
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.4.0",
-    "mkdocstrings[python]>=0.24.0",
-    "mkdocs-jupyter>=0.24.0",
-    "myst-parser>=2.0.0",  # MyST for documentation too
+    # Quarto documentation system (replaces MkDocs)
+    "quartodoc>=0.7.0",     # API documentation generator
+    "griffe>=0.48.0",       # Python introspection for quartodoc
+    "jupyter-cache>=1.0.0", # Cache notebook execution
+    # Visualization for tutorials
+    "altair>=5.0.0",
+    "plotly>=5.14.0",
+    # Additional Quarto integrations
+    "myst-parser>=2.0.0",   # MyST markdown support (compatibility)
 ]
 
 research = [
@@ -92,21 +103,21 @@ foundation = [
 ]
 
 all = [
-    "cloud-resource-simulator[dev,docs,research,gpu,foundation]",
+    "cloudlens[dev,docs,research,gpu,foundation]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/nehalecky/cloud-resource-simulator"
-Documentation = "https://cloud-resource-simulator.readthedocs.io"
-Repository = "https://github.com/nehalecky/cloud-resource-simulator"
-Issues = "https://github.com/nehalecky/cloud-resource-simulator/issues"
+Homepage = "https://github.com/nehalecky/cloudlens"
+Documentation = "https://cloudlens.readthedocs.io"
+Repository = "https://github.com/nehalecky/cloudlens"
+Issues = "https://github.com/nehalecky/cloudlens/issues"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cloud_sim"]
+packages = ["src/cloudlens"]
 
 [dependency-groups]
 dev = [
@@ -116,6 +127,18 @@ dev = [
     "ruff>=0.1.0",
     "jupytext>=1.16.0",
     "toml>=0.10.2",  # For testing pyproject.toml validity
+]
+
+docs = [
+    # Quarto documentation system (replaces MkDocs)
+    "quartodoc>=0.7.0",     # API documentation generator
+    "griffe>=0.48.0",       # Python introspection for quartodoc
+    "jupyter-cache>=1.0.0", # Cache notebook execution
+    # Visualization for tutorials
+    "altair>=5.0.0",
+    "plotly>=5.14.0",
+    # Additional Quarto integrations
+    "myst-parser>=2.0.0",   # MyST markdown support (compatibility)
 ]
 
 [tool.jupytext]
@@ -163,7 +186,7 @@ minversion = "7.0"
 testpaths = ["tests"]
 addopts = [
     "--verbose",
-    "--cov=src/cloud_sim",
+    "--cov=src/cloudlens",
     "--cov-report=term-missing",
     "--cov-report=html",
 ]
@@ -177,7 +200,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src/cloud_sim"]
+source = ["src/cloudlens"]
 omit = ["*/tests/*", "*/test_*.py"]
 
 [tool.coverage.report]

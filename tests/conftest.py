@@ -13,8 +13,8 @@ from pathlib import Path
 import tempfile
 import shutil
 
-from cloud_sim.data_generation import WorkloadType
-from cloud_sim.ml_models.application_taxonomy import (
+from cloudlens.data_generation import WorkloadType
+from cloudlens.ml_models.application_taxonomy import (
     ApplicationDomain,
     ScalingBehavior,
     OptimizationPotential,
@@ -221,7 +221,7 @@ def sample_application_archetype(sample_resource_pattern, sample_cost_profile):
 @pytest.fixture
 def mock_forecast_result():
     """Create a mock forecast result."""
-    from cloud_sim.ml_models.advanced_forecasting import ForecastResult
+    from cloudlens.ml_models.advanced_forecasting import ForecastResult
 
     return ForecastResult(
         point_forecast=np.array([10.0, 11.0, 12.0, 13.0, 14.0]),

@@ -7,10 +7,10 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 import xarray as xr
 
-from cloud_sim.ml_models.pymc_cloud_model import (
+from cloudlens.ml_models.pymc_cloud_model import (
     CloudResourceHierarchicalModel,
 )
-from cloud_sim.ml_models.application_taxonomy import CloudResourceTaxonomy
+from cloudlens.ml_models.application_taxonomy import CloudResourceTaxonomy
 
 # Mark all tests in this file as optional since PyMC is deprioritized
 pytestmark = pytest.mark.optional

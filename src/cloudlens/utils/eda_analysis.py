@@ -3,11 +3,13 @@ Exploratory Data Analysis utilities for billing and time series data.
 
 Provides reusable functions for schema analysis, information theory calculations,
 temporal normalization patterns, and outlier detection.
-Designed for Polars DataFrames with focus on cloud billing data.
+Designed for Ibis Tables with DuckDB backend, focusing on cloud billing data.
 """
 
 import numpy as np
-import polars as pl
+import pandas as pd
+import ibis
+from ibis import _
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Optional, Tuple, List
@@ -19,7 +21,7 @@ from sklearn.ensemble import IsolationForest
 # Schema & Information Theory
 # ============================================================================
 
-def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFrame:
+def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> pd.DataFrame:
     """
     Comprehensive attribute analysis with information density metrics.
 
@@ -32,48 +34,60 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
                          cardinality_ratio, entropy) - all "higher is better"
 
     Args:
-        df: Input LazyFrame to analyze
+        df: Input Ibis Table to analyze
         sample_size: Sample size for entropy calculation (default 50k)
 
     Returns:
-        DataFrame with columns: column, dtype, value_density, nonzero_density,
+        pandas DataFrame with columns: column, dtype, value_density, nonzero_density,
         cardinality_ratio, entropy, information_score, sample_value
         Sorted by information_score descending.
 
     Example:
         >>> attrs = attribute_analysis(df)
-        >>> attrs.filter(pl.col('information_score') > 0.5)  # High-info columns
+        >>> attrs[attrs['information_score'] > 0.5]  # High-info columns
     """
-    schema = df.collect_schema()
-    total_rows = df.select(pl.len()).collect()[0, 0]
-
-    # Collect basic statistics in parallel
-    stats = df.select([
-        pl.all().null_count().name.suffix('_nulls'),
-        pl.all().n_unique().name.suffix('_unique'),
-        pl.all().drop_nulls().first().cast(pl.Utf8).name.suffix('_sample')
-    ]).collect()
+    schema = df.schema()  # Returns dict of {name: dtype}
+    total_rows = df.count().execute()
 
     # Sample for entropy calculation
-    df_sample = df.head(sample_size).collect()
+    df_sample_table = df.limit(sample_size)
+    df_sample = df_sample_table.execute()
 
     # Identify numeric columns for nonzero_density calculation
-    numeric_types = (pl.Int8, pl.Int16, pl.Int32, pl.Int64,
-                     pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64,
-                     pl.Float32, pl.Float64)
+    numeric_types = ('int8', 'int16', 'int32', 'int64',
+                     'uint8', 'uint16', 'uint32', 'uint64',
+                     'float32', 'float64', 'decimal')
 
     # Compute per-column metrics
     results = []
-    for col in schema.names():
-        null_count = stats[f'{col}_nulls'][0]
-        unique_count = stats[f'{col}_unique'][0]
+    for col in schema.keys():
+        # Null count
+        null_count = df.select((df[col].isnull()).sum().name('null_count')).execute()['null_count'].iloc[0]
+
+        # Unique count
+        unique_count = df[col].nunique().execute()
 
         # Value density (complement of null ratio, "higher is better")
         value_density = (total_rows - null_count) / total_rows
 
         # Nonzero density (numeric columns only) - higher is better
-        if isinstance(schema[col], numeric_types):
-            zero_count = df.select((pl.col(col) == 0).sum()).collect()[0, 0]
+        dtype_str = str(schema[col])
+        is_numeric = any(nt in dtype_str.lower() for nt in numeric_types)
+
+        if is_numeric:
+            # Count zeros - use pandas to count after executing
+            # Some columns might have all nulls, handle gracefully
+            try:
+                zero_result = df.select((df[col] == 0).sum()).execute()
+                # Get the value, handling various return formats
+                if hasattr(zero_result, 'iloc'):
+                    val = zero_result.iloc[0, 0] if len(zero_result) > 0 else 0
+                else:
+                    val = zero_result
+                zero_count = int(val) if val is not None else 0
+            except Exception:
+                # If comparison fails (e.g., all nulls), treat as all nonzero
+                zero_count = 0
             nonzero_density = (total_rows - zero_count) / total_rows
         else:
             nonzero_density = 1.0  # Non-numeric: treat as "all nonzero" for scoring
@@ -81,8 +95,8 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
         # Cardinality ratio
         cardinality_ratio = unique_count / total_rows
 
-        # Shannon entropy (on sample)
-        entropy = shannon_entropy(df_sample[col])
+        # Shannon entropy (on sample) - using pandas Series
+        entropy = shannon_entropy_pandas(df_sample[col])
 
         # Information score: harmonic mean of (value_density, nonzero_density,
         # cardinality_ratio, entropy) - all metrics are "higher is better"
@@ -94,8 +108,9 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
             1.0 / (entropy + epsilon)
         )
 
-        # Sample value
-        sample_val = str(stats[f'{col}_sample'][0])[:50] if stats[f'{col}_sample'][0] is not None else '<null>'
+        # Sample value - get first non-null value from sample
+        sample_series = df_sample[col].dropna()
+        sample_val = str(sample_series.iloc[0])[:50] if len(sample_series) > 0 else '<null>'
 
         results.append({
             'column': col,
@@ -108,11 +123,11 @@ def attribute_analysis(df: pl.LazyFrame, sample_size: int = 50_000) -> pl.DataFr
             'sample_value': sample_val,
         })
 
-    return pl.DataFrame(results).sort('information_score', descending=True)
+    return pd.DataFrame(results).sort_values('information_score', ascending=False).reset_index(drop=True)
 
 
 # Backward compatibility alias
-def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
+def comprehensive_schema_analysis(df: ibis.Table) -> pd.DataFrame:
     """
     Deprecated: Use attribute_analysis() instead.
 
@@ -123,20 +138,20 @@ def comprehensive_schema_analysis(df: pl.LazyFrame) -> pl.DataFrame:
 
 
 def daily_observation_counts(
-    df: pl.LazyFrame,
+    df: ibis.Table,
     date_col: Optional[str] = None
-) -> pl.DataFrame:
+) -> pd.DataFrame:
     """
     Count records per day - simple groupby for distribution analysis.
 
     Auto-detects date column if not specified (looks for Date/Datetime types).
 
     Args:
-        df: Input LazyFrame
+        df: Input Ibis Table
         date_col: Name of date column to group by (None = auto-detect)
 
     Returns:
-        DataFrame with columns: date, count
+        pandas DataFrame with columns: date, count
         Sorted by date ascending.
 
     Example:
@@ -145,10 +160,10 @@ def daily_observation_counts(
     """
     # Auto-detect date column if not provided
     if date_col is None:
-        schema = df.collect_schema()
+        schema = df.schema()
         date_cols = [
             name for name, dtype in schema.items()
-            if isinstance(dtype, (pl.Date, pl.Datetime))
+            if dtype.is_temporal()
         ]
         if not date_cols:
             raise ValueError("No Date or Datetime columns found in schema")
@@ -156,154 +171,151 @@ def daily_observation_counts(
 
     return (
         df.group_by(date_col)
-        .agg(pl.len().alias('count'))
-        .sort(date_col)
-        .collect()
+        .agg(count=_.count())
+        .order_by(date_col)
+        .execute()
     )
 
 
 def numeric_column_summary(
-    df: pl.LazyFrame,
+    df: ibis.Table,
     null_threshold: float = 95.0
-) -> pl.DataFrame:
+) -> pd.DataFrame:
     """
     Generate summary statistics for numeric columns, filtering high-null columns.
 
     Args:
-        df: Input LazyFrame
+        df: Input Ibis Table
         null_threshold: Exclude columns with null percentage > this value
 
     Returns:
-        DataFrame with numeric columns and their distribution statistics
+        pandas DataFrame with numeric columns and their distribution statistics
 
     Example:
         >>> numeric_summary = numeric_column_summary(df, null_threshold=95.0)
         >>> display(numeric_summary)
     """
-    schema = df.collect_schema()
-    total_rows = df.select(pl.len()).collect()[0, 0]
+    schema = df.schema()
+    total_rows = df.count().execute()
 
     # Identify numeric columns
-    numeric_types = (pl.Int8, pl.Int16, pl.Int32, pl.Int64,
-                     pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64,
-                     pl.Float32, pl.Float64)
-    numeric_cols = [col for col, dtype in schema.items() if isinstance(dtype, numeric_types)]
+    numeric_types = ('int8', 'int16', 'int32', 'int64',
+                     'uint8', 'uint16', 'uint32', 'uint64',
+                     'float32', 'float64', 'decimal')
+    numeric_cols = [
+        col for col, dtype in schema.items()
+        if any(nt in str(dtype).lower() for nt in numeric_types)
+    ]
 
     if not numeric_cols:
-        return pl.DataFrame()
-
-    # Compute statistics for numeric columns
-    stats = df.select([
-        pl.col(col).null_count().alias(f'{col}_nulls') for col in numeric_cols
-    ] + [
-        pl.col(col).n_unique().alias(f'{col}_unique') for col in numeric_cols
-    ] + [
-        pl.col(col).min().alias(f'{col}_min') for col in numeric_cols
-    ] + [
-        pl.col(col).max().alias(f'{col}_max') for col in numeric_cols
-    ] + [
-        pl.col(col).mean().alias(f'{col}_mean') for col in numeric_cols
-    ] + [
-        pl.col(col).std().alias(f'{col}_std') for col in numeric_cols
-    ] + [
-        pl.col(col).median().alias(f'{col}_median') for col in numeric_cols
-    ] + [
-        pl.col(col).quantile(0.25).alias(f'{col}_q25') for col in numeric_cols
-    ] + [
-        pl.col(col).quantile(0.75).alias(f'{col}_q75') for col in numeric_cols
-    ]).collect()
+        return pd.DataFrame()
 
     # Build summary DataFrame
     results = []
     for col in numeric_cols:
-        null_pct = (stats[f'{col}_nulls'][0] / total_rows) * 100
+        # Compute statistics for this column
+        col_expr = df[col]
+
+        # Null count
+        null_count = col_expr.isnull().sum().execute()
+        null_pct = (null_count / total_rows) * 100
 
         # Filter by null threshold
         if null_pct > null_threshold:
             continue
+
+        # Compute all statistics
+        unique_count = col_expr.nunique().execute()
+        min_val = col_expr.min().execute()
+        max_val = col_expr.max().execute()
+        mean_val = col_expr.mean().execute()
+        std_val = col_expr.std().execute()
+        median_val = col_expr.median().execute()
+        q25_val = col_expr.quantile(0.25).execute()
+        q75_val = col_expr.quantile(0.75).execute()
 
         results.append({
             'column': col,
             'dtype': str(schema[col]),
             'null_pct': round(null_pct, 2),
-            'unique': stats[f'{col}_unique'][0],
-            'min': stats[f'{col}_min'][0],
-            'q25': stats[f'{col}_q25'][0],
-            'median': stats[f'{col}_median'][0],
-            'q75': stats[f'{col}_q75'][0],
-            'max': stats[f'{col}_max'][0],
-            'mean': stats[f'{col}_mean'][0],
-            'std': stats[f'{col}_std'][0],
+            'unique': unique_count,
+            'min': min_val,
+            'q25': q25_val,
+            'median': median_val,
+            'q75': q75_val,
+            'max': max_val,
+            'mean': mean_val,
+            'std': std_val,
         })
 
     if not results:
-        return pl.DataFrame()
+        return pd.DataFrame()
 
-    return pl.DataFrame(results)
+    return pd.DataFrame(results)
 
 
 def categorical_column_summary(
-    df: pl.LazyFrame,
+    df: ibis.Table,
     null_threshold: float = 95.0,
     sample_size: int = 100_000
-) -> pl.DataFrame:
+) -> pd.DataFrame:
     """
     Generate summary statistics for categorical (string) columns, filtering high-null columns.
 
     Args:
-        df: Input LazyFrame
+        df: Input Ibis Table
         null_threshold: Exclude columns with null percentage > this value
         sample_size: Sample size for top value calculation
 
     Returns:
-        DataFrame with categorical columns and their characteristics
+        pandas DataFrame with categorical columns and their characteristics
 
     Example:
         >>> cat_summary = categorical_column_summary(df, null_threshold=95.0)
         >>> display(cat_summary)
     """
-    schema = df.collect_schema()
-    total_rows = df.select(pl.len()).collect()[0, 0]
+    schema = df.schema()
+    total_rows = df.count().execute()
 
     # Identify categorical (string) columns
-    categorical_cols = [col for col, dtype in schema.items() if isinstance(dtype, (pl.String, pl.Categorical))]
+    categorical_cols = [
+        col for col, dtype in schema.items()
+        if str(dtype).lower() in ('string', 'category')
+    ]
 
     if not categorical_cols:
-        return pl.DataFrame()
+        return pd.DataFrame()
 
     # Sample for top value calculation
-    df_sample = df.head(sample_size).collect()
-
-    # Compute statistics
-    stats = df.select([
-        pl.col(col).null_count().alias(f'{col}_nulls') for col in categorical_cols
-    ] + [
-        pl.col(col).n_unique().alias(f'{col}_unique') for col in categorical_cols
-    ]).collect()
+    df_sample = df.select(categorical_cols).limit(sample_size).execute()
 
     # Build summary DataFrame
     results = []
     for col in categorical_cols:
-        null_pct = (stats[f'{col}_nulls'][0] / total_rows) * 100
+        # Null count from full table
+        null_count = df[col].isnull().sum().execute()
+        null_pct = (null_count / total_rows) * 100
 
         # Filter by null threshold
         if null_pct > null_threshold:
             continue
 
+        # Unique count from full table
+        unique_count = df[col].nunique().execute()
+        cardinality_ratio = unique_count / total_rows
+
         # Get top value from sample
-        value_counts = df_sample[col].value_counts().sort('count', descending=True)
+        value_counts = df_sample[col].value_counts()
         if len(value_counts) > 0:
-            top_value = value_counts[0, col]
-            top_count = value_counts[0, 'count']
+            top_value = value_counts.index[0]
+            top_count = value_counts.iloc[0]
             top_pct = round((top_count / len(df_sample)) * 100, 2)
         else:
             top_value = '<null>'
             top_pct = 0.0
 
         # Compute entropy on sample
-        entropy = shannon_entropy(df_sample[col])
-        unique_count = stats[f'{col}_unique'][0]
-        cardinality_ratio = unique_count / total_rows
+        entropy = shannon_entropy_pandas(df_sample[col])
 
         results.append({
             'column': col,
@@ -318,14 +330,14 @@ def categorical_column_summary(
         })
 
     if not results:
-        return pl.DataFrame()
+        return pd.DataFrame()
 
-    return pl.DataFrame(results)
+    return pd.DataFrame(results)
 
 
-def shannon_entropy(series: pl.Series) -> float:
+def shannon_entropy_pandas(series: pd.Series) -> float:
     """
-    Compute Shannon entropy for a Polars Series.
+    Compute Shannon entropy for a pandas Series.
 
     Shannon entropy measures the information content or "confusion" in a distribution.
     Higher entropy indicates more uniform distribution (more information).
@@ -334,29 +346,42 @@ def shannon_entropy(series: pl.Series) -> float:
     Formula: H(X) = -∑ p_i * log(p_i)
 
     Args:
-        series: Input Polars Series
+        series: Input pandas Series
 
     Returns:
         Shannon entropy (non-negative float, 0 = no entropy)
 
     Example:
-        >>> entropy = shannon_entropy(df['cloud_provider'])
+        >>> entropy = shannon_entropy_pandas(df['cloud_provider'])
         >>> print(f"Entropy: {entropy:.3f}")
     """
     # Get value counts as probabilities
     vc = series.value_counts()
-    total = vc.select(pl.col('count').sum())[0, 0]
-    probs = vc.select(pl.col('count') / total).to_series()
+    total = vc.sum()
+
+    if total == 0:
+        return 0.0
+
+    probs = vc / total
 
     # Compute -∑ p * log(p), filtering out zeros
-    log_probs = probs.log()
+    log_probs = np.log(probs)
     entropy_val = -(probs * log_probs).sum()
 
     # Handle NaN (can occur if all values are null)
     return float(entropy_val) if not np.isnan(entropy_val) else 0.0
 
 
-def calculate_attribute_scores(df: pl.LazyFrame, sample_size: int = 100_000) -> pl.DataFrame:
+# Backward compatibility alias for Polars (deprecated)
+def shannon_entropy(series: pd.Series) -> float:
+    """
+    Deprecated: Use shannon_entropy_pandas() instead.
+    Maintained for backward compatibility.
+    """
+    return shannon_entropy_pandas(series)
+
+
+def calculate_attribute_scores(df: ibis.Table, sample_size: int = 100_000) -> pd.DataFrame:
     """
     Calculate information scores for all attributes using harmonic mean.
 
@@ -371,36 +396,36 @@ def calculate_attribute_scores(df: pl.LazyFrame, sample_size: int = 100_000) -> 
     Harmonic mean ensures attributes must score well on ALL dimensions.
 
     Args:
-        df: Input LazyFrame
+        df: Input Ibis Table
         sample_size: Sample size for entropy calculation (expensive on full dataset)
 
     Returns:
-        DataFrame with columns: attribute, value_density, cardinality_ratio,
+        pandas DataFrame with columns: attribute, value_density, cardinality_ratio,
         entropy, information_score, card_class (sorted by score descending)
 
     Example:
         >>> scores = calculate_attribute_scores(df, sample_size=100_000)
         >>> scores.head(10)  # Top 10 most informative attributes
     """
-    schema = df.collect_schema()
-    total_rows = df.select(pl.len()).collect()[0, 0]
+    schema = df.schema()
+    total_rows = df.count().execute()
 
     # Sample for entropy calculation
-    df_sample = df.head(sample_size).collect()
+    df_sample = df.limit(sample_size).execute()
 
     # Compute metrics for each attribute
     results = []
-    for col in schema.names():
+    for col in schema.keys():
         # Value density
-        non_null_count = df.select(pl.col(col).drop_nulls().len()).collect()[0, 0]
+        non_null_count = total_rows - df[col].isnull().sum().execute()
         value_density = non_null_count / total_rows
 
         # Cardinality ratio
-        unique_count = df.select(pl.col(col).n_unique()).collect()[0, 0]
+        unique_count = df[col].nunique().execute()
         cardinality_ratio = unique_count / total_rows
 
         # Shannon entropy (on sample)
-        entropy = shannon_entropy(df_sample[col])
+        entropy = shannon_entropy_pandas(df_sample[col])
 
         # Harmonic mean (add small epsilon to avoid division by zero)
         epsilon = 1e-10
@@ -417,7 +442,7 @@ def calculate_attribute_scores(df: pl.LazyFrame, sample_size: int = 100_000) -> 
             'card_class': cardinality_classification(cardinality_ratio)
         })
 
-    return pl.DataFrame(results).sort('information_score', descending=True)
+    return pd.DataFrame(results).sort_values('information_score', ascending=False).reset_index(drop=True)
 
 
 def cardinality_classification(cardinality_ratio: float) -> str:
@@ -593,25 +618,25 @@ def infer_column_semantics(column_name: str) -> dict:
     }
 
 
-def semantic_column_analysis(df: pl.LazyFrame) -> pl.DataFrame:
+def semantic_column_analysis(df: ibis.Table) -> pd.DataFrame:
     """
     Analyze all columns to infer semantic meaning from names.
 
     Args:
-        df: Input LazyFrame
+        df: Input Ibis Table
 
     Returns:
-        DataFrame with columns: column, semantic_category, semantic_subcategory,
+        pandas DataFrame with columns: column, semantic_category, semantic_subcategory,
         expected_characteristics, quality_checks
 
     Example:
         >>> semantic_analysis = semantic_column_analysis(df)
         >>> display(semantic_analysis)
     """
-    schema = df.collect_schema()
+    schema = df.schema()
 
     results = []
-    for col in schema.names():
+    for col in schema.keys():
         semantics = infer_column_semantics(col)
         results.append({
             'column': col,
@@ -623,7 +648,7 @@ def semantic_column_analysis(df: pl.LazyFrame) -> pl.DataFrame:
             'quality_checks': ', '.join(semantics['quality_checks'])
         })
 
-    return pl.DataFrame(results)
+    return pd.DataFrame(results)
 
 
 # ============================================================================
@@ -631,43 +656,48 @@ def semantic_column_analysis(df: pl.LazyFrame) -> pl.DataFrame:
 # ============================================================================
 
 def time_normalized_size(
-    df: pl.LazyFrame,
+    df: ibis.Table,
     time_col: str,
     freq: str
-) -> pl.DataFrame:
+) -> pd.DataFrame:
     """
     Create normalized time series of record counts by frequency.
 
     Aggregate record counts by time period to understand data collection patterns.
 
     Args:
-        df: Input LazyFrame with temporal data
+        df: Input Ibis Table with temporal data
         time_col: Name of datetime column
-        freq: Frequency string (e.g., '1d', '1w', '4h')
+        freq: Frequency string for pandas (e.g., '1D', '1W', '4h')
+            Note: Uses pandas frequency strings after execution
 
     Returns:
-        DataFrame with time index and record counts
+        pandas DataFrame with time index and record counts
 
     Example:
-        >>> daily_counts = time_normalized_size(df, 'usage_date', '1d')
-        >>> weekly_counts = time_normalized_size(df, 'usage_date', '1w')
+        >>> daily_counts = time_normalized_size(df, 'usage_date', '1D')
+        >>> weekly_counts = time_normalized_size(df, 'usage_date', '1W')
     """
-    result = (df
-        .group_by(pl.col(time_col).dt.round(freq).alias('time'))
-        .agg(pl.len().alias('record_count'))
-        .sort('time')
-        .collect()
-    )
+    # Execute to pandas and use pandas time operations
+    # Ibis doesn't have a direct equivalent to Polars' dt.round
+    pdf = df.select([time_col]).execute()
+
+    # Round timestamps using pandas
+    pdf['time'] = pdf[time_col].dt.floor(freq)
+
+    # Count records per time bucket
+    result = pdf.groupby('time').size().reset_index(name='record_count')
+    result = result.sort_values('time').reset_index(drop=True)
 
     return result
 
 
 def entity_normalized_by_day(
-    df: pl.LazyFrame,
+    df: ibis.Table,
     entity_col: str,
     metric_col: str,
     date_col: str = 'usage_date'
-) -> pl.DataFrame:
+) -> pd.DataFrame:
     """
     Normalize entity metrics by total daily activity.
 
@@ -680,13 +710,13 @@ def entity_normalized_by_day(
     3. Stabilizes time series for forecasting
 
     Args:
-        df: Input LazyFrame
+        df: Input Ibis Table
         entity_col: Column to group by (e.g., 'account_id', 'product_family')
         metric_col: Column to normalize (e.g., 'materialized_discounted_cost')
         date_col: Date column for daily aggregation
 
     Returns:
-        DataFrame with: date, entity, metric_raw, metric_normalized, daily_total
+        pandas DataFrame with: date, entity, metric_raw, metric_normalized, daily_total
 
     Example:
         >>> normalized = entity_normalized_by_day(
@@ -696,25 +726,25 @@ def entity_normalized_by_day(
         ... )
     """
     # Aggregate by entity-day
-    entity_day = (df
-        .group_by([date_col, entity_col])
-        .agg(pl.col(metric_col).sum().alias('metric_raw'))
+    entity_day = (
+        df.group_by([date_col, entity_col])
+        .agg(metric_raw=df[metric_col].sum())
     )
 
     # Compute daily totals
-    daily_totals = (entity_day
-        .group_by(date_col)
-        .agg(pl.col('metric_raw').sum().alias('daily_total'))
+    daily_totals = (
+        entity_day.group_by(date_col)
+        .agg(daily_total=entity_day['metric_raw'].sum())
     )
 
     # Join and normalize
-    result = (entity_day
-        .join(daily_totals, on=date_col)
-        .with_columns([
-            (pl.col('metric_raw') / pl.col('daily_total')).alias('metric_normalized')
-        ])
-        .sort([date_col, entity_col])
-        .collect()
+    result = (
+        entity_day.join(daily_totals, date_col)
+        .mutate(
+            metric_normalized=entity_day['metric_raw'] / daily_totals['daily_total']
+        )
+        .order_by([date_col, entity_col])
+        .execute()
     )
 
     return result
@@ -725,11 +755,11 @@ def entity_normalized_by_day(
 # ============================================================================
 
 def smart_sample(
-    df: pl.LazyFrame,
+    df: ibis.Table,
     n: int,
     stratify_col: Optional[str] = None,
     seed: int = 42
-) -> pl.DataFrame:
+) -> pd.DataFrame:
     """
     Sample DataFrame with optional stratification.
 
@@ -737,13 +767,13 @@ def smart_sample(
     Stratified sampling (proportional within groups) when stratify_col is provided.
 
     Args:
-        df: Input LazyFrame
+        df: Input Ibis Table
         n: Target sample size
         stratify_col: Optional column for stratified sampling
         seed: Random seed for reproducibility
 
     Returns:
-        Sampled DataFrame
+        Sampled pandas DataFrame
 
     Example:
         >>> # Simple random sample
@@ -752,23 +782,20 @@ def smart_sample(
         >>> # Stratified by cloud provider
         >>> sample = smart_sample(df, n=100_000, stratify_col='cloud_provider')
     """
+    # Execute to pandas for sampling operations
+    total_count = df.count().execute()
+    pdf = df.execute()
+
     if stratify_col:
         # Stratified sampling - proportional within groups
-        total_count = df.select(pl.len()).collect()[0, 0]
         fraction = min(n / total_count, 1.0)
-
-        result = (df
-            .with_columns(pl.lit(seed).alias('_seed'))
-            .collect()
-            .sample(fraction=fraction, seed=seed)
-        )
-
-        return result
+        result = pdf.sample(frac=fraction, random_state=seed)
     else:
-        # Simple random sampling via head (deterministic for reproducibility)
-        # Note: Polars doesn't have built-in random sampling in LazyFrame
-        # For true random sampling, collect first
-        return df.collect().sample(n=min(n, df.select(pl.len()).collect()[0, 0]), seed=seed)
+        # Simple random sampling
+        sample_size = min(n, total_count)
+        result = pdf.sample(n=sample_size, random_state=seed)
+
+    return result.reset_index(drop=True)
 
 
 # ============================================================================
@@ -776,9 +803,9 @@ def smart_sample(
 # ============================================================================
 
 def detect_outliers_iqr(
-    series: pl.Series,
+    series: pd.Series,
     multiplier: float = 1.5
-) -> pl.Series:
+) -> pd.Series:
     """
     Detect outliers using Interquartile Range (IQR) method.
 
@@ -788,7 +815,7 @@ def detect_outliers_iqr(
     where IQR = Q3 - Q1
 
     Args:
-        series: Input Polars Series (numeric)
+        series: Input pandas Series (numeric)
         multiplier: IQR multiplier (1.5 = standard, 3.0 = extreme outliers)
 
     Returns:
@@ -796,7 +823,7 @@ def detect_outliers_iqr(
 
     Example:
         >>> outliers = detect_outliers_iqr(df['materialized_discounted_cost'])
-        >>> df_with_outliers = df.with_columns(outliers.alias('is_outlier'))
+        >>> df['is_outlier'] = outliers
     """
     q1 = series.quantile(0.25)
     q3 = series.quantile(0.75)
@@ -810,9 +837,9 @@ def detect_outliers_iqr(
 
 
 def detect_outliers_zscore(
-    series: pl.Series,
+    series: pd.Series,
     threshold: float = 3.0
-) -> pl.Series:
+) -> pd.Series:
     """
     Detect outliers using Z-score method.
 
@@ -820,7 +847,7 @@ def detect_outliers_zscore(
     z = (x - μ) / σ
 
     Args:
-        series: Input Polars Series (numeric)
+        series: Input pandas Series (numeric)
         threshold: Z-score threshold (3.0 = standard, 2.0 = more sensitive)
 
     Returns:
@@ -835,7 +862,7 @@ def detect_outliers_zscore(
 
     if std == 0:
         # All values are identical, no outliers
-        return pl.Series([False] * len(series))
+        return pd.Series([False] * len(series), index=series.index)
 
     z_scores = ((series - mean) / std).abs()
     outliers = z_scores > threshold
@@ -844,7 +871,7 @@ def detect_outliers_zscore(
 
 
 def detect_outliers_isolation_forest(
-    df: pl.DataFrame,
+    df: pd.DataFrame,
     columns: List[str],
     contamination: float = 0.05,
     random_state: int = 42
@@ -856,7 +883,7 @@ def detect_outliers_isolation_forest(
     It isolates observations by randomly selecting features and split values.
 
     Args:
-        df: Input Polars DataFrame
+        df: Input pandas DataFrame
         columns: List of columns to use for outlier detection
         contamination: Expected proportion of outliers (0.05 = 5%)
         random_state: Random seed for reproducibility
@@ -867,10 +894,10 @@ def detect_outliers_isolation_forest(
     Example:
         >>> cost_cols = ['materialized_discounted_cost', 'materialized_usage_amount']
         >>> outliers = detect_outliers_isolation_forest(df, cost_cols, contamination=0.05)
-        >>> df = df.with_columns(pl.Series('is_outlier', outliers))
+        >>> df['is_outlier'] = outliers
     """
     # Extract columns as numpy array
-    X = df.select(columns).to_numpy()
+    X = df[columns].to_numpy()
 
     # Fit Isolation Forest
     clf = IsolationForest(contamination=contamination, random_state=random_state)
@@ -887,7 +914,7 @@ def detect_outliers_isolation_forest(
 # ============================================================================
 
 def plot_numeric_distributions(
-    df: pl.LazyFrame,
+    df: ibis.Table,
     columns: Optional[List[str]] = None,
     group_by: Optional[str] = None,
     sample_size: int = 50_000,
@@ -901,7 +928,7 @@ def plot_numeric_distributions(
     Can group by a categorical variable (e.g., cloud_provider) to compare distributions.
 
     Args:
-        df: Input LazyFrame
+        df: Input Ibis Table
         columns: List of numeric columns to plot (None = auto-detect, max 6)
         group_by: Optional categorical column to group by (e.g., 'cloud_provider')
         sample_size: Sample size for plotting (reduces rendering time)
@@ -931,8 +958,8 @@ def plot_numeric_distributions(
     if group_by and group_by not in select_cols:
         select_cols.append(group_by)
 
-    # Sample data and convert to pandas for seaborn
-    sample_df = df.select(select_cols).head(sample_size).collect().to_pandas()
+    # Sample data - execute to pandas
+    sample_df = df.select(select_cols).limit(sample_size).execute()
 
     # Calculate grid dimensions
     n_cols = len(columns)
@@ -991,7 +1018,7 @@ def plot_numeric_distributions(
 
 
 def plot_categorical_frequencies(
-    df: pl.LazyFrame,
+    df: ibis.Table,
     columns: Optional[List[str]] = None,
     top_n: int = 10,
     sample_size: int = 100_000,
@@ -1007,7 +1034,7 @@ def plot_categorical_frequencies(
     of values by showing frequency of top categories.
 
     Args:
-        df: Input LazyFrame
+        df: Input Ibis Table
         columns: List of categorical columns to plot (None = auto-detect)
         top_n: Number of top values to display per column
         sample_size: Sample size for value counting
@@ -1030,8 +1057,8 @@ def plot_categorical_frequencies(
             raise ValueError("No categorical columns found after filtering")
         columns = categorical_summary['column'].to_list()
 
-    # Sample data
-    sample_df = df.select(columns).head(sample_size).collect()
+    # Sample data - limit and execute to pandas
+    sample_df = df.select(columns).limit(sample_size).execute()
 
     # Calculate grid dimensions
     n_cols = len(columns)
@@ -1045,13 +1072,10 @@ def plot_categorical_frequencies(
     all_value_counts = {}
     global_max = 0
     for col in columns:
-        value_counts = (sample_df[col]
-                       .value_counts()
-                       .sort('count', descending=True)
-                       .head(top_n))
+        value_counts = sample_df[col].value_counts().nlargest(top_n)
         all_value_counts[col] = value_counts
         if len(value_counts) > 0:
-            col_max = value_counts['count'].max()
+            col_max = value_counts.max()
             global_max = max(global_max, col_max)
 
     # Plot each column
@@ -1060,8 +1084,8 @@ def plot_categorical_frequencies(
         value_counts = all_value_counts[col]
 
         if len(value_counts) > 0:
-            values = value_counts[col].to_list()
-            counts = value_counts['count'].to_list()
+            values = value_counts.index.to_list()
+            counts = value_counts.values.tolist()
 
             # Truncate long labels
             labels = [str(v)[:30] + '...' if len(str(v)) > 30 else str(v) for v in values]
@@ -1109,14 +1133,14 @@ def plot_categorical_frequencies(
 
 
 def create_info_score_chart(
-    attribute_scores: pl.DataFrame,
+    attribute_scores: pd.DataFrame,
     figsize: Tuple[int, int] = (12, 10)
 ) -> plt.Figure:
     """
     Create horizontal bar chart of attribute information scores.
 
     Args:
-        attribute_scores: Output from calculate_attribute_scores()
+        attribute_scores: Output from calculate_attribute_scores() (pandas DataFrame)
         figsize: Figure size (width, height)
 
     Returns:
@@ -1129,13 +1153,13 @@ def create_info_score_chart(
     """
     # Filter out zero scores (log scale can't handle zeros)
     # Zero information scores indicate completely null or invariant attributes
-    filtered_scores = attribute_scores.filter(pl.col('information_score') > 0)
+    filtered_scores = attribute_scores[attribute_scores['information_score'] > 0].copy()
 
     if len(filtered_scores) == 0:
         raise ValueError("All attributes have zero information score - cannot visualize")
 
-    # Convert to pandas and sort by score
-    plot_data = filtered_scores.to_pandas().sort_values('information_score', ascending=True)
+    # Sort by score
+    plot_data = filtered_scores.sort_values('information_score', ascending=True)
 
     # Calculate median for reference line
     median_score = plot_data['information_score'].median()
@@ -1177,7 +1201,7 @@ def create_info_score_chart(
 
 
 def create_correlation_heatmap(
-    corr_df: pl.DataFrame,
+    corr_df: pd.DataFrame,
     title: str = 'Correlation Matrix',
     annotate: bool = True,
     figsize: Tuple[int, int] = (10, 8),
@@ -1189,7 +1213,7 @@ def create_correlation_heatmap(
     Create Seaborn annotated correlation heatmap.
 
     Args:
-        corr_df: Correlation matrix as Polars DataFrame
+        corr_df: Correlation matrix as pandas DataFrame
         title: Plot title
         annotate: If True, show correlation values in cells
         figsize: Figure size (width, height)
@@ -1201,15 +1225,16 @@ def create_correlation_heatmap(
         Matplotlib Figure object
 
     Example:
+        >>> # Using pandas DataFrame
         >>> cost_cols = [col for col in df.columns if 'cost' in col.lower()]
-        >>> corr = df.select(cost_cols).corr()
+        >>> corr = df[cost_cols].corr()
         >>> fig = create_correlation_heatmap(corr, title='Cost Metrics Correlation')
         >>> plt.show()
     """
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Convert to pandas for seaborn
-    corr_pd = corr_df.to_pandas()
+    # Use pandas DataFrame directly
+    corr_pd = corr_df
 
     # Create heatmap
     sns.heatmap(

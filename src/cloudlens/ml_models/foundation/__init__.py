@@ -26,7 +26,7 @@ Available Models (Stubs):
       * Paper: https://arxiv.org/abs/2403.07815
 
 Usage:
-    >>> from cloud_sim.ml_models.foundation import TimesFMForecaster
+    >>> from cloudlens.ml_models.foundation import TimesFMForecaster
     >>> # This will raise NotImplementedError:
     >>> model = TimesFMForecaster()
     NotImplementedError: TimesFM integration not yet implemented...

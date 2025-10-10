@@ -26,7 +26,7 @@ Add this cell **at the top** of your notebook:
 %autoreload 2
 
 # Optional: Show what's being reloaded
-# %aimport cloud_sim
+# %aimport cloudlens
 ```
 
 ### How It Works

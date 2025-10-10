@@ -1,25 +1,27 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.17.3
-kernelspec:
-  display_name: cloud-sim
-  language: python
-  name: cloud-sim
----
+# ---
+# jupyter:
+#   jupytext:
+#     default_lexer: ipython3
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.17.3
+#   kernelspec:
+#     display_name: cloud-sim
+#     language: python
+#     name: cloud-sim
+# ---
 
-# CloudZero Data Exploration
+# %% [markdown]
+# # CloudZero Data Exploration
 
-```{code-cell} ipython3
+# %%
 # Auto-reload: Picks up library changes without kernel restart
-%load_ext autoreload
-%autoreload 2
-```
+# %load_ext autoreload
+# %autoreload 2
 
-```{code-cell} ipython3
+# %%
 import polars as pl
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,14 +31,14 @@ from datetime import datetime, timedelta
 # Set style
 plt.style.use('seaborn-v0_8-darkgrid')
 sns.set_palette("husl")
-```
 
-## 1. Generate Realistic Cloud Workload Data
+# %% [markdown]
+# ## 1. Generate Realistic Cloud Workload Data
+#
+# Based on research showing 13% CPU and 20% memory utilization averages.
 
-Based on research showing 13% CPU and 20% memory utilization averages.
-
-```{code-cell} ipython3
-from cloudlens.data_generation import WorkloadPatternGenerator, WorkloadType
+# %%
+from cloud_sim.data_generation import WorkloadPatternGenerator, WorkloadType
 
 # Initialize generator
 generator = WorkloadPatternGenerator(seed=42)
@@ -65,16 +67,16 @@ for workload_type, name in workloads.items():
     print(f"  CPU Utilization: {df['cpu_utilization'].mean():.1f}%")
     print(f"  Memory Utilization: {df['memory_utilization'].mean():.1f}%")
     print(f"  Waste Percentage: {df['waste_percentage'].mean():.1f}%")
-```
 
-## 2. Validate Against Research
+# %% [markdown]
+# ## 2. Validate Against Research
+#
+# The research shows:
+# - Average CPU: 13%
+# - Average Memory: 20%
+# - Waste: 30-32%
 
-The research shows:
-- Average CPU: 13%
-- Average Memory: 20%
-- Waste: 30-32%
-
-```{code-cell} ipython3
+# %%
 # Aggregate statistics across all workloads
 all_data = pl.concat(list(data_frames.values()))
 
@@ -110,11 +112,11 @@ for i, metric in enumerate(metrics):
 
 plt.tight_layout()
 plt.show()
-```
 
-## 3. Workload-Specific Patterns
+# %% [markdown]
+# ## 3. Workload-Specific Patterns
 
-```{code-cell} ipython3
+# %%
 # Create comparison plot of different workload types
 fig, axes = plt.subplots(2, 2, figsize=(15, 10))
 
@@ -161,11 +163,11 @@ ax.legend()
 
 plt.tight_layout()
 plt.show()
-```
 
-## 4. Daily and Weekly Patterns
+# %% [markdown]
+# ## 4. Daily and Weekly Patterns
 
-```{code-cell} ipython3
+# %%
 # Analyze temporal patterns
 web_app_df = data_frames["Web Application"]
 
@@ -216,11 +218,11 @@ ax2.grid(True)
 
 plt.tight_layout()
 plt.show()
-```
 
-## 5. Waste Analysis
+# %% [markdown]
+# ## 5. Waste Analysis
 
-```{code-cell} ipython3
+# %%
 # Analyze waste by workload type
 waste_stats = []
 
@@ -262,16 +264,16 @@ ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.show()
-```
 
-## Conclusions
-
-Our simulation successfully replicates the shocking reality of cloud resource utilization:
-
-1. **Low Utilization**: Average CPU ~15% and memory ~35% match research findings
-2. **High Waste**: 30-40% waste across workloads aligns with industry data
-3. **Workload Patterns**: Different applications show distinct usage signatures
-4. **Temporal Patterns**: Clear business hours and weekend effects
-5. **Development Waste**: Dev environments show highest waste (70%+), matching research
-
-This synthetic data provides a realistic foundation for training ML models for cloud cost optimization.
+# %% [markdown]
+# ## Conclusions
+#
+# Our simulation successfully replicates the shocking reality of cloud resource utilization:
+#
+# 1. **Low Utilization**: Average CPU ~15% and memory ~35% match research findings
+# 2. **High Waste**: 30-40% waste across workloads aligns with industry data
+# 3. **Workload Patterns**: Different applications show distinct usage signatures
+# 4. **Temporal Patterns**: Clear business hours and weekend effects
+# 5. **Development Waste**: Dev environments show highest waste (70%+), matching research
+#
+# This synthetic data provides a realistic foundation for training ML models for cloud cost optimization.

@@ -6,7 +6,7 @@ and raise appropriate NotImplementedError messages when instantiated.
 
 import pytest
 
-from cloud_sim.ml_models.foundation import (
+from cloudlens.ml_models.foundation import (
     ChronosForecaster,
     FoundationModelBase,
     TimesFMForecaster,
@@ -109,7 +109,7 @@ class TestModuleExports:
 
     def test_all_exports_available(self):
         """Test that all expected classes are exported from the module."""
-        from cloud_sim.ml_models import foundation
+        from cloudlens.ml_models import foundation
 
         expected_exports = [
             "FoundationModelBase",
@@ -122,7 +122,7 @@ class TestModuleExports:
 
     def test_module_has_docstring(self):
         """Test that the module has a comprehensive docstring."""
-        from cloud_sim.ml_models import foundation
+        from cloudlens.ml_models import foundation
 
         assert foundation.__doc__ is not None
         assert len(foundation.__doc__) > 100

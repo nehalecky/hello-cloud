@@ -12,7 +12,7 @@ Validates SparseGPModel behavior including:
 import pytest
 import torch
 import gpytorch
-from cloud_sim.ml_models.gaussian_process.models import (
+from cloudlens.ml_models.gaussian_process.models import (
     SparseGPModel,
     initialize_inducing_points
 )

@@ -22,7 +22,7 @@ def configure_notebook_logging(level: str = "INFO", show_time: bool = False):
 
     Example:
         ```python
-        from cloud_sim.utils import configure_notebook_logging
+        from cloudlens.utils import configure_notebook_logging
 
         # At the top of your notebook
         configure_notebook_logging(level="INFO")
@@ -60,7 +60,7 @@ def quiet_library_logging():
 
     Example:
         ```python
-        from cloud_sim.utils import quiet_library_logging
+        from cloudlens.utils import quiet_library_logging
 
         # Suppress INFO/DEBUG messages
         quiet_library_logging()
@@ -78,7 +78,7 @@ def verbose_library_logging():
 
     Example:
         ```python
-        from cloud_sim.utils import verbose_library_logging
+        from cloudlens.utils import verbose_library_logging
 
         # See all debug messages
         verbose_library_logging()

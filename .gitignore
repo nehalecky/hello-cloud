@@ -97,6 +97,9 @@ site/
 docs/_build/
 .mkdocs_cache/
 
+# Unversioned modules (legacy Polars code, to be reimplemented)
+src/cloud_sim/data_generation/
+
 # Streamlit
 .streamlit/cache/
 *.pyc.streamlit/
