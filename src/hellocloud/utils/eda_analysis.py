@@ -19,9 +19,11 @@ from sklearn.ensemble import IsolationForest
 # ============================================================================
 
 
-def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> pd.DataFrame:
+def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> ibis.Table:
     """
     Comprehensive attribute analysis with information density metrics.
+
+    Fully Ibis-native implementation - takes Ibis Table, returns Ibis Table.
 
     Computes metrics for grain discovery and feature selection:
     - Value density: proportion of non-null values (completeness)
@@ -36,20 +38,19 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> pd.DataFram
         sample_size: Sample size for entropy calculation (default 50k)
 
     Returns:
-        pandas DataFrame with columns: column, dtype, value_density, nonzero_density,
+        Ibis Table with columns: column, dtype, value_density, nonzero_density,
         cardinality_ratio, entropy, information_score, sample_value
         Sorted by information_score descending.
 
     Example:
-        >>> attrs = attribute_analysis(df)
-        >>> attrs[attrs['information_score'] > 0.5]  # High-info columns
+        >>> attrs = hc.utils.attribute_analysis(df)
+        >>> attrs  # Beautiful Ibis table rendering
     """
     schema = df.schema()  # Returns dict of {name: dtype}
     total_rows = df.count().execute()
 
-    # Sample for entropy calculation
+    # Sample for entropy calculation - keep as Ibis Table
     df_sample_table = df.limit(sample_size)
-    df_sample = df_sample_table.execute()
 
     # Identify numeric columns for nonzero_density calculation
     numeric_types = (
@@ -105,8 +106,8 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> pd.DataFram
         # Cardinality ratio
         cardinality_ratio = unique_count / total_rows
 
-        # Shannon entropy (on sample) - using pandas Series
-        entropy = shannon_entropy_pandas(df_sample[col])
+        # Shannon entropy (on sample) - using Ibis Table
+        entropy = shannon_entropy_ibis(df_sample_table, col)
 
         # Information score: harmonic mean of (value_density, nonzero_density,
         # cardinality_ratio, entropy) - all metrics are "higher is better"
@@ -119,8 +120,10 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> pd.DataFram
         )
 
         # Sample value - get first non-null value from sample
-        sample_series = df_sample[col].dropna()
-        sample_val = str(sample_series.iloc[0])[:50] if len(sample_series) > 0 else "<null>"
+        sample_result = (
+            df_sample_table.select(col).filter(df_sample_table[col].notnull()).limit(1).execute()
+        )
+        sample_val = str(sample_result[col].iloc[0])[:50] if len(sample_result) > 0 else "<null>"
 
         results.append(
             {
@@ -135,15 +138,19 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> pd.DataFram
             }
         )
 
-    return (
+    # Build pandas DataFrame, sort, then convert to Ibis Table for return
+    results_df = (
         pd.DataFrame(results)
         .sort_values("information_score", ascending=False)
         .reset_index(drop=True)
     )
 
+    # Return as Ibis Table for beautiful rendering and composability
+    return ibis.memtable(results_df)
+
 
 # Backward compatibility alias
-def comprehensive_schema_analysis(df: ibis.Table) -> pd.DataFrame:
+def comprehensive_schema_analysis(df: ibis.Table) -> ibis.Table:
     """
     Deprecated: Use attribute_analysis() instead.
 
@@ -349,6 +356,52 @@ def categorical_column_summary(
     return pd.DataFrame(results)
 
 
+def shannon_entropy_ibis(table: ibis.Table, column: str) -> float:
+    """
+    Compute Shannon entropy for an Ibis Table column using Ibis operations.
+
+    Shannon entropy measures the information content or "confusion" in a distribution.
+    Higher entropy indicates more uniform distribution (more information).
+    Lower entropy indicates concentration in few values (less information).
+
+    Formula: H(X) = -∑ p_i * log(p_i)
+
+    Args:
+        table: Input Ibis Table
+        column: Column name to analyze
+
+    Returns:
+        Shannon entropy (non-negative float, 0 = no entropy)
+
+    Example:
+        >>> entropy = shannon_entropy_ibis(df, 'cloud_provider')
+        >>> print(f"Entropy: {entropy:.3f}")
+    """
+    # Get value counts using Ibis aggregation
+    value_counts = (
+        table.group_by(column)
+        .agg(count=ibis._.count())
+        .execute()  # Small result (unique values), OK to materialize
+    )
+
+    if len(value_counts) == 0:
+        return 0.0
+
+    # Calculate probabilities and entropy
+    total = value_counts["count"].sum()
+    if total == 0:
+        return 0.0
+
+    probs = value_counts["count"] / total
+
+    # Compute -∑ p * log(p), filtering out zeros
+    log_probs = np.log(probs)
+    entropy_val = -(probs * log_probs).sum()
+
+    # Handle NaN (can occur if all values are null)
+    return float(entropy_val) if not np.isnan(entropy_val) else 0.0
+
+
 def shannon_entropy_pandas(series: pd.Series) -> float:
     """
     Compute Shannon entropy for a pandas Series.
@@ -485,7 +538,7 @@ def cardinality_classification(cardinality_ratio: float) -> str:
         return "Low"
 
 
-def infer_column_semantics(column_name: str) -> dict:
+def infer_column_semantics(column_name: str) -> dict:  # noqa: C901
     """
     Infer semantic meaning from column name patterns.
 
@@ -713,6 +766,69 @@ def time_normalized_size(df: ibis.Table, time_col: str, freq: str) -> pd.DataFra
     return result
 
 
+def align_entity_timeseries(
+    df: ibis.Table,
+    entity_filter: dict[str, any],
+    date_col: str,
+    metric_col: str,
+    cost_col_name: str = "cost",
+) -> pd.DataFrame:
+    """
+    Align entity time series to complete date range, filling zeros only within entity's active period.
+
+    Args:
+        df: Input Ibis Table
+        entity_filter: Dict mapping column names to values for filtering (e.g., {'account': '123', 'region': 'us-east-1'})
+        date_col: Name of date column
+        metric_col: Name of metric column to aggregate
+        cost_col_name: Name for output cost column
+
+    Returns:
+        pandas DataFrame with columns: date, <cost_col_name>
+        Only includes dates within entity's first→last observation range
+
+    Example:
+        >>> aligned = align_entity_timeseries(
+        ...     df,
+        ...     entity_filter={'cloud_provider': 'AWS', 'account': '123'},
+        ...     date_col='date',
+        ...     metric_col='cost'
+        ... )
+    """
+    # Build filter condition
+    filter_cond = ibis.literal(True)
+    for col, val in entity_filter.items():
+        filter_cond = filter_cond & (df[col] == val)
+
+    # Get entity time series
+    entity_ts = (
+        df.filter(filter_cond).group_by(date_col).agg(entity_cost=df[metric_col].sum()).execute()
+    )
+
+    # Get entity's actual date range
+    if len(entity_ts) == 0:
+        return pd.DataFrame({date_col: [], cost_col_name: []})
+
+    min_date = entity_ts[date_col].min()
+    max_date = entity_ts[date_col].max()
+
+    # Get all dates in dataset and filter to entity's active period
+    all_dates = (
+        df.select(date_col)
+        .distinct()
+        .filter((df[date_col] >= min_date) & (df[date_col] <= max_date))
+        .order_by(date_col)
+        .execute()
+    )
+
+    # Merge and fill zeros only within active range
+    aligned = all_dates.merge(entity_ts, on=date_col, how="left")
+    aligned[cost_col_name] = aligned["entity_cost"].fillna(0)
+    aligned = aligned[[date_col, cost_col_name]].sort_values(date_col)
+
+    return aligned
+
+
 def entity_normalized_by_day(
     df: ibis.Table, entity_col: str, metric_col: str, date_col: str = "usage_date"
 ) -> pd.DataFrame:
@@ -914,6 +1030,54 @@ def detect_outliers_isolation_forest(
 # ============================================================================
 
 
+def setup_seaborn_style(
+    style: str = "whitegrid",
+    palette: str = "husl",
+    context: str = "notebook",
+    font_scale: float = 1.0,
+) -> None:
+    """
+    Configure seaborn styling for consistent, professional visualizations.
+
+    Sets up theme, color palette, and context for all subsequent plots.
+    Call this once at the beginning of a notebook or script.
+
+    Args:
+        style: Seaborn style preset ('whitegrid', 'darkgrid', 'white', 'dark', 'ticks')
+        palette: Color palette name (e.g., 'husl', 'Set2', 'deep', 'muted', 'bright', 'pastel')
+        context: Plot context sizing ('paper', 'notebook', 'talk', 'poster')
+        font_scale: Scaling factor for font sizes
+
+    Example:
+        >>> setup_seaborn_style()  # Use defaults
+        >>> setup_seaborn_style(style='darkgrid', palette='Set2', context='talk')
+    """
+    sns.set_style(style)
+    sns.set_palette(palette)
+    sns.set_context(context, font_scale=font_scale)
+
+
+def get_categorical_palette(n_colors: int, palette: str = "husl") -> list:
+    """
+    Get a categorical color palette with specified number of colors.
+
+    Ensures consistent, visually distinct colors across all categorical plots.
+    Uses perceptually uniform color spaces for better accessibility.
+
+    Args:
+        n_colors: Number of colors needed
+        palette: Palette name ('husl', 'Set2', 'Set3', 'tab10', 'tab20')
+
+    Returns:
+        List of RGB color tuples
+
+    Example:
+        >>> colors = get_categorical_palette(5)
+        >>> colors = get_categorical_palette(12, palette='tab20')
+    """
+    return sns.color_palette(palette, n_colors=n_colors)
+
+
 def plot_numeric_distributions(
     df: ibis.Table,
     columns: list[str] | None = None,
@@ -1024,11 +1188,10 @@ def plot_numeric_distributions(
     return fig
 
 
-def plot_categorical_frequencies(
+def plot_categorical_frequencies(  # noqa: C901
     df: ibis.Table,
     columns: list[str] | None = None,
     top_n: int = 10,
-    sample_size: int = 100_000,
     figsize: tuple[int, int] = (14, 10),
     cols_per_row: int = 2,
     log_scale: bool = True,
@@ -1044,7 +1207,6 @@ def plot_categorical_frequencies(
         df: Input Ibis Table
         columns: List of categorical columns to plot (None = auto-detect)
         top_n: Number of top values to display per column
-        sample_size: Sample size for value counting
         figsize: Figure size (width, height)
         cols_per_row: Number of subplots per row
         log_scale: Use logarithmic scale for x-axis (default True)
@@ -1064,9 +1226,6 @@ def plot_categorical_frequencies(
             raise ValueError("No categorical columns found after filtering")
         columns = categorical_summary["column"].to_list()
 
-    # Sample data - limit and execute to pandas
-    sample_df = df.select(columns).limit(sample_size).execute()
-
     # Calculate grid dimensions
     n_cols = len(columns)
     n_rows = (n_cols + cols_per_row - 1) // cols_per_row
@@ -1075,34 +1234,49 @@ def plot_categorical_frequencies(
     fig, axes = plt.subplots(n_rows, cols_per_row, figsize=figsize)
     axes = axes.flatten() if n_cols > 1 else [axes]
 
-    # First pass: collect all counts to determine global max for shared axis
+    # Compute value counts using Ibis groupby on full dataset
     all_value_counts = {}
     global_max = 0
     for col in columns:
-        value_counts = sample_df[col].value_counts().nlargest(top_n)
-        all_value_counts[col] = value_counts
-        if len(value_counts) > 0:
-            col_max = value_counts.max()
+        # Group by column and count, then get top N
+        value_counts_df = (
+            df.group_by(col)
+            .agg(count=df.count())
+            .order_by(ibis.desc("count"))
+            .limit(top_n)
+            .execute()
+        )
+        all_value_counts[col] = value_counts_df
+        if len(value_counts_df) > 0:
+            col_max = value_counts_df["count"].max()
             global_max = max(global_max, col_max)
 
     # Plot each column
     for idx, col in enumerate(columns):
         ax = axes[idx]
-        value_counts = all_value_counts[col]
+        value_counts_df = all_value_counts[col]
 
-        if len(value_counts) > 0:
-            values = value_counts.index.to_list()
-            counts = value_counts.values.tolist()
+        if len(value_counts_df) > 0:
+            # Prepare data for seaborn
+            values = value_counts_df[col].tolist()
+            counts = value_counts_df["count"].tolist()
 
             # Truncate long labels
             labels = [str(v)[:30] + "..." if len(str(v)) > 30 else str(v) for v in values]
 
-            # Create horizontal bar chart
-            y_pos = np.arange(len(labels))
-            ax.barh(y_pos, counts, color="steelblue", alpha=0.7)
-            ax.set_yticks(y_pos)
-            ax.set_yticklabels(labels, fontsize=9)
-            ax.invert_yaxis()  # Top value at top
+            # Create DataFrame for seaborn
+            plot_df = pd.DataFrame({"category": labels, "count": counts})
+
+            # Create horizontal bar chart with seaborn
+            sns.barplot(
+                data=plot_df,
+                y="category",
+                x="count",
+                ax=ax,
+                color="steelblue",
+                alpha=0.8,
+                orient="h",
+            )
 
             # Apply log scale if requested
             if log_scale:
@@ -1118,12 +1292,13 @@ def plot_categorical_frequencies(
                 else:
                     ax.set_xlim(0, global_max * 1.1)
 
+            ax.set_ylabel("")  # Remove y-label (category name is in labels)
             ax.set_title(f"{col} (Top {min(top_n, len(values))})", fontsize=11, fontweight="bold")
             ax.grid(axis="x", alpha=0.3)
 
             # Add percentage annotations
             total = sum(counts)
-            for i, (label, count) in enumerate(zip(labels, counts)):
+            for i, count in enumerate(counts):
                 pct = (count / total) * 100
                 ax.text(count, i, f" {pct:.1f}%", va="center", fontsize=8)
         else:
@@ -1175,16 +1350,18 @@ def create_info_score_chart(
 
     # Create color palette based on cardinality class
     card_class_colors = {"High": "#1f77b4", "Medium": "#ff7f0e", "Low": "#2ca02c"}
-    colors = [card_class_colors.get(cc, "#gray") for cc in plot_data["card_class"]]
 
-    # Horizontal bar chart
-    bars = ax.barh(
-        plot_data["attribute"],
-        plot_data["information_score"],
-        color=colors,
-        alpha=0.7,
-        edgecolor="black",
-        linewidth=0.5,
+    # Horizontal bar chart with seaborn
+    sns.barplot(
+        data=plot_data,
+        y="attribute",
+        x="information_score",
+        hue="card_class",
+        palette=card_class_colors,
+        ax=ax,
+        alpha=0.8,
+        orient="h",
+        legend=False,  # We'll create custom legend below
     )
 
     # Add median reference line
@@ -1200,24 +1377,29 @@ def create_info_score_chart(
     # Log scale on x-axis
     ax.set_xscale("log")
     ax.set_xlabel("Information Score (Log Scale)", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Attribute", fontsize=12, fontweight="bold")
+    ax.set_ylabel("")  # Remove y-label (attribute names are on axis)
     ax.set_title("Attribute Information Scores", fontsize=14, fontweight="bold", pad=15)
     ax.grid(axis="x", alpha=0.3, linestyle="--")
-    ax.legend(fontsize=10)
 
-    # Create legend for cardinality classes
+    # Create legend for cardinality classes and median line
     from matplotlib.patches import Patch
 
     legend_elements = [
-        Patch(facecolor=card_class_colors[cc], label=cc, alpha=0.7)
+        Patch(facecolor=card_class_colors[cc], label=cc, alpha=0.8)
         for cc in ["High", "Medium", "Low"]
     ]
+    legend_elements.append(
+        plt.Line2D(
+            [0], [0], color="red", linestyle="--", linewidth=2, label=f"Median: {median_score:.4f}"
+        )
+    )
+
     ax.legend(
-        handles=legend_elements
-        + [plt.Line2D([0], [0], color="red", linestyle="--", label=f"Median: {median_score:.4f}")],
+        handles=legend_elements,
         title="Cardinality Class",
         loc="lower right",
         fontsize=9,
+        framealpha=0.9,
     )
 
     plt.tight_layout()
@@ -1278,4 +1460,548 @@ def create_correlation_heatmap(
     ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
     plt.tight_layout()
 
+    return fig
+
+
+def plot_temporal_density(
+    df: ibis.Table,
+    date_col: str,
+    metric_col: str | None = None,
+    log_scale: bool = False,
+    title: str | None = None,
+    figsize: tuple[int, int] = (14, 5),
+) -> plt.Figure:
+    """
+    Plot temporal observation density or metric trends over time using seaborn.
+
+    Creates a time series line plot showing either record counts (if metric_col=None)
+    or aggregated metrics over time. Uses seaborn for professional styling.
+
+    Args:
+        df: Input Ibis Table
+        date_col: Name of date column
+        metric_col: Optional metric column to aggregate (None = count records)
+        log_scale: Use logarithmic scale for y-axis
+        title: Plot title (None = auto-generate)
+        figsize: Figure size (width, height)
+
+    Returns:
+        Matplotlib Figure object
+
+    Example:
+        >>> # Plot record counts over time
+        >>> fig = plot_temporal_density(df, 'usage_date', log_scale=True)
+        >>> # Plot cost trends
+        >>> fig = plot_temporal_density(df, 'usage_date', metric_col='cost')
+        >>> plt.show()
+    """
+    # Aggregate by date
+    if metric_col:
+        daily = df.group_by(date_col).agg(value=df[metric_col].sum()).order_by(date_col).execute()
+        y_col = "value"
+        auto_title = f"{metric_col.replace('_', ' ').title()} Over Time"
+        y_label = metric_col.replace("_", " ").title()
+    else:
+        daily = df.group_by(date_col).agg(value=_.count()).order_by(date_col).execute()
+        y_col = "value"
+        auto_title = "Temporal Observation Density"
+        y_label = "Record Count"
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Plot with seaborn
+    sns.lineplot(
+        data=daily,
+        x=date_col,
+        y=y_col,
+        ax=ax,
+        linewidth=2.5,
+        color="steelblue",
+        marker="o",
+        markersize=4,
+    )
+
+    # Apply log scale if requested
+    if log_scale:
+        ax.set_yscale("log")
+        y_label += " (log scale)"
+
+    # Styling
+    ax.set_xlabel("Date", fontsize=12, fontweight="bold")
+    ax.set_ylabel(y_label, fontsize=12, fontweight="bold")
+    ax.set_title(title or auto_title, fontsize=14, fontweight="bold", pad=15)
+    ax.grid(True, alpha=0.3, linestyle="--")
+
+    # Rotate x-axis labels for better readability
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha="right")
+
+    plt.tight_layout()
+    return fig
+
+
+def plot_daily_change_analysis(
+    df: ibis.Table,
+    date_col: str,
+    metric_col: str | None = None,
+    highlight_threshold: float | None = None,
+    figsize: tuple[int, int] = (14, 5),
+) -> plt.Figure:
+    """
+    Plot day-over-day percent changes with anomaly highlighting using seaborn.
+
+    Useful for identifying pipeline issues, data quality problems, or significant
+    business events through sharp changes in daily patterns.
+
+    Args:
+        df: Input Ibis Table
+        date_col: Name of date column
+        metric_col: Optional metric column to analyze (None = count records)
+        highlight_threshold: Percent change threshold to highlight (e.g., 0.30 = 30% drop/gain)
+        figsize: Figure size (width, height)
+
+    Returns:
+        Matplotlib Figure object
+
+    Example:
+        >>> # Detect anomalies with >30% day-over-day change
+        >>> fig = plot_daily_change_analysis(df, 'usage_date', highlight_threshold=0.30)
+        >>> plt.show()
+    """
+    # Aggregate by date
+    if metric_col:
+        daily = df.group_by(date_col).agg(value=df[metric_col].sum()).order_by(date_col).execute()
+        metric_name = metric_col.replace("_", " ").title()
+    else:
+        daily = df.group_by(date_col).agg(value=_.count()).order_by(date_col).execute()
+        metric_name = "Record Count"
+
+    # Compute day-over-day percent change
+    daily["pct_change"] = daily["value"].pct_change()
+
+    # Remove first row (no prior day)
+    daily = daily.iloc[1:]
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Determine threshold legend label
+    if highlight_threshold:
+        legend_label = f"|Change| ≥ {highlight_threshold*100:.0f}%"
+    else:
+        legend_label = None
+
+    # Plot with seaborn scatter plot (better for highlighting individual points)
+    sns.scatterplot(
+        data=daily,
+        x=date_col,
+        y="pct_change",
+        ax=ax,
+        color="steelblue",
+        s=80,
+        alpha=0.7,
+    )
+
+    # Connect with lines
+    ax.plot(
+        daily[date_col],
+        daily["pct_change"],
+        linewidth=1.5,
+        color="steelblue",
+        alpha=0.5,
+    )
+
+    # Highlight anomalies if threshold set
+    if highlight_threshold:
+        anomalies = daily[daily["pct_change"].abs() >= highlight_threshold]
+        if len(anomalies) > 0:
+            ax.scatter(
+                anomalies[date_col],
+                anomalies["pct_change"],
+                color="red",
+                s=120,
+                alpha=0.8,
+                zorder=5,
+                label=legend_label,
+                marker="D",
+            )
+
+    # Add reference line at 0
+    ax.axhline(0, color="gray", linestyle="--", linewidth=1, alpha=0.5)
+
+    # Styling
+    ax.set_xlabel("Date", fontsize=12, fontweight="bold")
+    ax.set_ylabel("Day-over-Day % Change", fontsize=12, fontweight="bold")
+    ax.set_title(f"{metric_name} - Day-over-Day Changes", fontsize=14, fontweight="bold", pad=15)
+    ax.grid(True, alpha=0.3, linestyle="--")
+
+    # Format y-axis as percentage
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y*100:.0f}%"))
+
+    # Rotate x-axis labels
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha="right")
+
+    if legend_label:
+        ax.legend(fontsize=10, loc="best")
+
+    plt.tight_layout()
+    return fig
+
+
+def plot_dimension_cost_summary(
+    df: ibis.Table,
+    dimensions: list[str],
+    cost_col: str,
+    top_n: int = 10,
+    figsize: tuple[int, int] | None = None,
+    cols_per_row: int = 2,
+) -> plt.Figure:
+    """
+    Create multi-panel horizontal bar charts showing cost distribution across dimensions.
+
+    Shows top N values for each dimension with their total cost contribution.
+    Uses seaborn for consistent styling and automatic color palettes.
+
+    Args:
+        df: Input Ibis Table
+        dimensions: List of dimensional columns to analyze (e.g., ['provider', 'region', 'product'])
+        cost_col: Cost column name
+        top_n: Number of top values to show per dimension
+        figsize: Figure size (None = auto-calculate based on dimensions)
+        cols_per_row: Number of subplots per row
+
+    Returns:
+        Matplotlib Figure object
+
+    Example:
+        >>> fig = plot_dimension_cost_summary(
+        ...     df,
+        ...     dimensions=['cloud_provider', 'region', 'product_family'],
+        ...     cost_col='cost',
+        ...     top_n=10
+        ... )
+        >>> plt.show()
+    """
+    # Auto-calculate figsize if not provided
+    if figsize is None:
+        n_dims = len(dimensions)
+        n_rows = (n_dims + cols_per_row - 1) // cols_per_row
+        figsize = (14, max(4, n_rows * 4))
+
+    # Calculate grid dimensions
+    n_dims = len(dimensions)
+    n_rows = (n_dims + cols_per_row - 1) // cols_per_row
+
+    # Create figure
+    fig, axes = plt.subplots(n_rows, cols_per_row, figsize=figsize)
+    axes = axes.flatten() if n_dims > 1 else [axes]
+
+    # Get color palette
+    colors = get_categorical_palette(top_n, palette="husl")
+
+    # Plot each dimension
+    for idx, dim in enumerate(dimensions):
+        ax = axes[idx]
+
+        # Compute top N by cost
+        dim_summary = (
+            df.group_by(dim)
+            .agg(total_cost=df[cost_col].sum())
+            .order_by(ibis.desc("total_cost"))
+            .limit(top_n)
+            .execute()
+        )
+
+        if len(dim_summary) > 0:
+            # Create horizontal bar chart with seaborn
+            sns.barplot(
+                data=dim_summary,
+                y=dim,
+                x="total_cost",
+                ax=ax,
+                palette=colors[: len(dim_summary)],
+                orient="h",
+            )
+
+            # Styling
+            ax.set_xlabel("Total Cost ($)", fontsize=11, fontweight="bold")
+            ax.set_ylabel("")
+            ax.set_title(
+                f"{dim.replace('_', ' ').title()} (Top {len(dim_summary)})",
+                fontsize=12,
+                fontweight="bold",
+            )
+            ax.grid(axis="x", alpha=0.3, linestyle="--")
+
+            # Add cost labels
+            for i, (_, row) in enumerate(dim_summary.iterrows()):
+                cost = row["total_cost"]
+                ax.text(cost, i, f" ${cost:,.0f}", va="center", fontsize=9, fontweight="bold")
+        else:
+            ax.text(0.5, 0.5, "No data", transform=ax.transAxes, ha="center", va="center")
+            ax.set_title(dim.replace("_", " ").title(), fontsize=12, fontweight="bold")
+
+    # Hide unused subplots
+    for idx in range(n_dims, len(axes)):
+        axes[idx].set_visible(False)
+
+    plt.tight_layout()
+    return fig
+
+
+def plot_entity_timeseries(
+    df: ibis.Table,
+    entity_filters: list[dict[str, any]],
+    date_col: str,
+    metric_col: str,
+    entity_labels: list[str] | None = None,
+    mode: str = "line",
+    figsize: tuple[int, int] = (14, 10),
+) -> plt.Figure:
+    """
+    Plot time series for multiple entities with seaborn styling.
+
+    Supports both line plots (individual entities) and stacked area plots (cumulative contribution).
+    Uses entity filters to select specific entities and plots their metric over time.
+
+    Args:
+        df: Input Ibis Table
+        entity_filters: List of dicts mapping column names to values for filtering
+                       Example: [{'provider': 'AWS', 'account': '123'}, {'provider': 'Azure', 'account': '456'}]
+        date_col: Name of date column
+        metric_col: Name of metric column to plot
+        entity_labels: Optional custom labels for entities (None = use "Entity 1", "Entity 2", ...)
+        mode: Plot mode - 'line' for individual trajectories, 'area' for stacked contribution
+        figsize: Figure size (width, height)
+
+    Returns:
+        Matplotlib Figure object
+
+    Example:
+        >>> # Plot top 5 entities as individual lines
+        >>> filters = [
+        ...     {'cloud_provider': 'AWS', 'account': '12345'},
+        ...     {'cloud_provider': 'AWS', 'account': '67890'},
+        ... ]
+        >>> fig = plot_entity_timeseries(df, filters, 'date', 'cost', mode='line')
+        >>> plt.show()
+    """
+    # Get labels
+    if entity_labels is None:
+        entity_labels = [f"Entity {i+1}" for i in range(len(entity_filters))]
+
+    # Collect aligned timeseries for all entities
+    all_timeseries = []
+    for i, entity_filter in enumerate(entity_filters):
+        aligned = align_entity_timeseries(
+            df,
+            entity_filter=entity_filter,
+            date_col=date_col,
+            metric_col=metric_col,
+            cost_col_name=metric_col,
+        )
+        aligned["entity"] = entity_labels[i]
+        all_timeseries.append(aligned)
+
+    # Combine into single DataFrame
+    combined = pd.concat(all_timeseries, ignore_index=True)
+
+    # Create figure with one or two subplots depending on mode
+    if mode == "line":
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
+        axes = [ax]
+    else:  # mode == 'area'
+        fig, axes = plt.subplots(2, 1, figsize=figsize)
+
+    # Get color palette
+    colors = get_categorical_palette(len(entity_filters), palette="husl")
+
+    # Plot 1: Individual trajectories (line mode) or top panel (area mode)
+    ax1 = axes[0]
+
+    if mode == "line":
+        # Line plot with seaborn
+        sns.lineplot(
+            data=combined,
+            x=date_col,
+            y=metric_col,
+            hue="entity",
+            ax=ax1,
+            linewidth=2.5,
+            marker="o",
+            markersize=5,
+            palette=colors,
+        )
+
+        # Styling
+        ax1.set_xlabel("Date", fontsize=12, fontweight="bold")
+        ax1.set_ylabel(metric_col.replace("_", " ").title(), fontsize=12, fontweight="bold")
+        ax1.set_title(
+            f"Entity Time Series - {metric_col.replace('_', ' ').title()}",
+            fontsize=14,
+            fontweight="bold",
+            pad=15,
+        )
+        ax1.grid(True, alpha=0.3, linestyle="--")
+        ax1.legend(title="", fontsize=10, loc="best")
+
+        # Rotate x-axis labels
+        plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha="right")
+
+    else:  # mode == 'area'
+        # Same line plot for top panel
+        sns.lineplot(
+            data=combined,
+            x=date_col,
+            y=metric_col,
+            hue="entity",
+            ax=ax1,
+            linewidth=2.5,
+            marker="o",
+            markersize=5,
+            palette=colors,
+        )
+
+        # Styling for top panel
+        ax1.set_xlabel("")  # No x-label on top panel
+        ax1.set_ylabel(metric_col.replace("_", " ").title(), fontsize=12, fontweight="bold")
+        ax1.set_title(
+            "Entity Time Series - Individual Trajectories", fontsize=14, fontweight="bold", pad=15
+        )
+        ax1.grid(True, alpha=0.3, linestyle="--")
+        ax1.legend(title="", fontsize=10, loc="best")
+
+        # Bottom panel: Stacked area plot
+        ax2 = axes[1]
+
+        # Pivot data for stacking
+        pivot = combined.pivot(index=date_col, columns="entity", values=metric_col).fillna(0)
+
+        # Create stacked area
+        ax2.stackplot(
+            pivot.index,
+            *[pivot[entity] for entity in entity_labels],
+            labels=entity_labels,
+            colors=colors,
+            alpha=0.8,
+        )
+
+        # Styling for bottom panel
+        ax2.set_xlabel("Date", fontsize=12, fontweight="bold")
+        ax2.set_ylabel(metric_col.replace("_", " ").title(), fontsize=12, fontweight="bold")
+        ax2.set_title(
+            "Entity Time Series - Cumulative Contribution", fontsize=14, fontweight="bold", pad=15
+        )
+        ax2.grid(True, alpha=0.3, linestyle="--")
+        ax2.legend(title="", fontsize=10, loc="upper left")
+
+        # Rotate x-axis labels
+        plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45, ha="right")
+
+    plt.tight_layout()
+    return fig
+
+
+def plot_grain_persistence_comparison(
+    grain_results_df: pd.DataFrame,
+    stability_threshold: float = 70.0,
+    figsize: tuple[int, int] = (14, 8),
+) -> plt.Figure:
+    """
+    Visualize grain persistence comparison results with seaborn.
+
+    Creates side-by-side bar charts showing:
+    1. Entity count per grain (granularity)
+    2. Stability percentage per grain (quality)
+
+    Highlights grains meeting the stability threshold for optimal grain selection.
+
+    Args:
+        grain_results_df: DataFrame with columns: Grain, entities, stable_pct, median_days
+        stability_threshold: Minimum stability percentage to highlight (default 70%)
+        figsize: Figure size (width, height)
+
+    Returns:
+        Matplotlib Figure object
+
+    Example:
+        >>> grain_results = pd.DataFrame({
+        ...     'Grain': ['Provider', 'Provider + Account', 'Account + Region'],
+        ...     'entities': [5, 127, 453],
+        ...     'stable_pct': [100.0, 95.3, 72.4],
+        ...     'median_days': [37, 37, 35]
+        ... })
+        >>> fig = plot_grain_persistence_comparison(grain_results, stability_threshold=70.0)
+        >>> plt.show()
+    """
+    # Create figure with two subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+
+    # Determine colors based on stability threshold
+    colors = [
+        "steelblue" if stable >= stability_threshold else "lightcoral"
+        for stable in grain_results_df["stable_pct"]
+    ]
+
+    # Plot 1: Entity counts (granularity)
+    sns.barplot(
+        data=grain_results_df,
+        x="entities",
+        y="Grain",
+        ax=ax1,
+        palette=colors,
+        orient="h",
+    )
+
+    ax1.set_xlabel("Number of Entities", fontsize=12, fontweight="bold")
+    ax1.set_ylabel("")
+    ax1.set_title("Grain Granularity\n(Entity Count)", fontsize=13, fontweight="bold", pad=15)
+    ax1.grid(axis="x", alpha=0.3, linestyle="--")
+
+    # Add entity count labels
+    for i, row in grain_results_df.iterrows():
+        count = row["entities"]
+        ax1.text(count, i, f" {count:,}", va="center", fontsize=10, fontweight="bold")
+
+    # Plot 2: Stability percentages (quality)
+    sns.barplot(
+        data=grain_results_df,
+        x="stable_pct",
+        y="Grain",
+        ax=ax2,
+        palette=colors,
+        orient="h",
+    )
+
+    ax2.set_xlabel("Stability (%)", fontsize=12, fontweight="bold")
+    ax2.set_ylabel("")
+    ax2.set_title("Grain Stability\n(% Entities ≥30 days)", fontsize=13, fontweight="bold", pad=15)
+    ax2.grid(axis="x", alpha=0.3, linestyle="--")
+    ax2.set_xlim(0, 100)
+
+    # Add stability labels and highlight threshold
+    for i, row in grain_results_df.iterrows():
+        stable = row["stable_pct"]
+        ax2.text(stable, i, f" {stable:.1f}%", va="center", fontsize=10, fontweight="bold")
+
+    # Add threshold reference line
+    ax2.axvline(
+        stability_threshold,
+        color="green",
+        linestyle="--",
+        linewidth=2,
+        alpha=0.7,
+        label=f"Threshold: {stability_threshold:.0f}%",
+    )
+    ax2.legend(fontsize=10, loc="lower right")
+
+    # Add overall title
+    fig.suptitle(
+        "Grain Persistence Analysis - Granularity vs. Stability Tradeoff",
+        fontsize=15,
+        fontweight="bold",
+        y=1.00,
+    )
+
+    plt.tight_layout()
     return fig

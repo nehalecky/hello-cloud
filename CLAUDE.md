@@ -71,14 +71,18 @@ quarto render docs/                               # Build static site
 **👉 See [notebooks/WORKFLOW.md](notebooks/WORKFLOW.md) for the complete hot reload workflow!**
 
 ```bash
-# One-time setup: Install kernel pointing to your uv environment
-uv run ipython kernel install --user --name=cloud-sim
+# Quick commands with just (recommended)
+just lab              # Start Jupyter Lab
+just notebook         # Start classic Jupyter Notebook
 
-# Start Jupyter Lab with workflow helper
-./scripts/notebook-workflow.sh lab
-
-# Or start directly
+# Or use commands directly
 uv run jupyter lab notebooks/
+uv run jupyter notebook notebooks/
+
+# Kernel Setup (automatic!)
+# The "Python 3 (ipykernel)" kernel is automatically created in .venv/
+# when ipykernel is installed. Select it in Jupyter Lab's kernel picker.
+# It's project-local and portable - no manual installation needed!
 
 # Hot Reload Pattern (avoids kernel restarts)
 # Add this to the top of your notebook:
@@ -91,13 +95,6 @@ uv run pytest tests/test_notebooks.py -m smoke -v
 
 # Test full notebook execution (slow but thorough)
 uv run pytest tests/test_notebooks.py -k "execution_success" -v
-
-# Workflow helper commands
-./scripts/notebook-workflow.sh open 04_gaussian_process_modeling  # Open notebook
-./scripts/notebook-workflow.sh convert 04_gaussian_process_modeling  # Convert to .ipynb
-./scripts/notebook-workflow.sh execute 04_gaussian_process_modeling  # Execute notebook
-./scripts/notebook-workflow.sh clean  # Remove generated .ipynb files
-./scripts/notebook-workflow.sh publish  # Execute all for publishing
 ```
 
 ### Notebook Architecture

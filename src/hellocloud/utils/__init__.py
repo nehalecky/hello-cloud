@@ -19,6 +19,8 @@ from .cost_analysis import (
     temporal_quality_metrics,
 )
 from .eda_analysis import (
+    # Time Series
+    align_entity_timeseries,
     # Schema & Information Theory
     attribute_analysis,
     calculate_attribute_scores,
@@ -33,12 +35,19 @@ from .eda_analysis import (
     detect_outliers_isolation_forest,
     detect_outliers_zscore,
     entity_normalized_by_day,
+    get_categorical_palette,
     infer_column_semantics,
     numeric_column_summary,
     plot_categorical_frequencies,
+    plot_daily_change_analysis,
+    plot_dimension_cost_summary,
+    plot_entity_timeseries,
+    plot_grain_persistence_comparison,
     # Visualization
     plot_numeric_distributions,
+    plot_temporal_density,
     semantic_column_analysis,
+    setup_seaborn_style,
     shannon_entropy,
     # Sampling
     smart_sample,
@@ -56,6 +65,8 @@ __all__ = [
     "configure_notebook_logging",
     "quiet_library_logging",
     "verbose_library_logging",
+    # EDA - Time Series
+    "align_entity_timeseries",
     # EDA - Schema & Information Theory
     "attribute_analysis",
     "comprehensive_schema_analysis",  # Deprecated
@@ -76,9 +87,17 @@ __all__ = [
     "detect_outliers_iqr",
     "detect_outliers_zscore",
     "detect_outliers_isolation_forest",
+    # EDA - Visualization Config
+    "setup_seaborn_style",
+    "get_categorical_palette",
     # EDA - Visualization
     "plot_numeric_distributions",
     "plot_categorical_frequencies",
+    "plot_temporal_density",
+    "plot_daily_change_analysis",
+    "plot_dimension_cost_summary",
+    "plot_entity_timeseries",
+    "plot_grain_persistence_comparison",
     "create_info_score_chart",
     "create_correlation_heatmap",
     # Cost Analysis - Correlation & Redundancy

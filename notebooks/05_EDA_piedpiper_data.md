@@ -24,7 +24,7 @@ This notebook supports exploratory analysis for CloudZero PiedPiper billing data
 - Time series visualization for stable entities
 
 **Objectives**:
- * Create tidy data model containg high info gain variables to support downstream analysis
+ * Create data model containg high info gain variables to support downstream analysis and modeling
  * Identify the optimal compound key (grain) for the time series
  * Basic understanding of time series distributions.
 
@@ -68,25 +68,23 @@ import ibis
 from ibis import _
 import ibis.selectors as s
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 from loguru import logger
 
-from hellocloud.utils import (
-    configure_notebook_logging,
-    attribute_analysis,
-    daily_observation_counts,
-    plot_categorical_frequencies,
-    calculate_attribute_scores,
-    find_correlated_pairs,
-    select_from_pairs
-)
+# Import hellocloud with namespace access
+import hellocloud as hc
 
 # Configure Ibis
 ibis.options.interactive = True  # Auto-execute for repr
 ibis.options.repr.interactive.max_rows = 10
 
-configure_notebook_logging()
-logger.info("PiedPiper EDA - Notebook initialized (Ibis + DuckDB)")
+# Configure visualization style
+hc.utils.setup_seaborn_style(style='whitegrid', palette='husl', context='notebook')
+
+hc.configure_notebook_logging()
+logger.info("PiedPiper EDA - Notebook initialized (Ibis + DuckDB + Seaborn)")
 ```
 
 ### 1.2 Load Dataset
@@ -96,7 +94,7 @@ logger.info("PiedPiper EDA - Notebook initialized (Ibis + DuckDB)")
 con = ibis.duckdb.connect()
 
 # Load Parquet file
-DATA_PATH = Path('~/Projects/cloudzero/cloud-resource-simulator/data/piedpiper_optimized_daily.parquet').expanduser()
+DATA_PATH = Path('~/Projects/cloudzero/hello-cloud/data/piedpiper_optimized_daily.parquet').expanduser()
 df = con.read_parquet(DATA_PATH, table_name='piedpiper')
 
 # Basic shape
@@ -142,46 +140,58 @@ logger.info(f"Date range: {date_stats['min_date'].iloc[0]} to {date_stats['max_d
 Let's inspect the temporal record density and plot.
 
 ```{code-cell} ipython3
-# Daily counts
-daily = (
-    df.group_by('date')
-    .agg(count=_.count())
-    .order_by('date')
-    .execute()
+# Plot temporal observation density with seaborn
+fig = hc.utils.plot_temporal_density(
+    df,
+    date_col='date',
+    log_scale=True,
+    title='Temporal Observation Density'
 )
-
-# Simple log-scale time series
-fig, ax = plt.subplots(figsize=(14, 4))
-ax.plot(daily['date'], daily['count'], linewidth=2, color='steelblue')
-ax.set_yscale('log')
-ax.set_ylabel('Daily Record Count (log scale)')
-ax.set_xlabel('Date')
-ax.set_title('Temporal Observation Density')
-ax.grid(True, alpha=0.3)
-plt.xticks(rotation=45)
-plt.tight_layout()
 plt.show()
 ```
 
 **Observation**: The time series shows a sharp drop at a specific date, with data continuing into the future. Something is off—let's investigate the magnitude of day-over-day changes to identify the anomaly.
 
 ```{code-cell} ipython3
-# Compute percent change to quantify anomaly
-# Note: daily is already a pandas DataFrame from .execute()
-daily['pct_change'] = daily['count'].pct_change()
+# Compute day-over-day percent change using window functions
+daily_with_change = (
+    df
+    .group_by('date')
+    .agg(count=_.count())
+    .order_by('date')
+    .mutate(
+        prev_count=_['count'].lag(),
+        pct_change=(_['count'] - _['count'].lag()) / _['count'].lag()
+    )
+)
 
-# Find largest drops
+# Find largest drops (most negative percent changes)
+largest_drops = (
+    daily_with_change
+    .filter(_.pct_change.notnull())
+    .order_by('pct_change')
+    .limit(5)
+    .select('date', 'count', 'pct_change')
+)
+
 logger.info("Largest day-over-day drops:")
-daily.nsmallest(5, 'pct_change')[['date', 'count', 'pct_change']]
+largest_drops
 ```
 
 The data shows a significant drop (>30%) on a specific date. We'll filter to the period before this anomaly for clean analysis.
 
 ```{code-cell} ipython3
-# Find earliest date with >30% drop (pct_change < -0.30)
-cutoff_row = daily[daily['pct_change'] < -0.30].sort_values('date').iloc[0]
-CUTOFF_DATE = cutoff_row['date']
+# Find earliest date with >30% drop
+cutoff_date_result = (
+    daily_with_change
+    .filter(_.pct_change < -0.30)
+    .order_by('date')
+    .limit(1)
+    .select('date')
+    .execute()
+)
 
+CUTOFF_DATE = cutoff_date_result['date'].iloc[0]
 logger.info(f"Cutoff date detected: {CUTOFF_DATE}")
 
 # Apply filter to Ibis table
@@ -223,14 +233,11 @@ Harmonic mean of **four** metrics: value density, nonzero density, cardinality r
 These size-normalized metrics help identify attributes with little discriminatory information, which can be filtered to simplify analysis and modeling tasks.
 
 ```{code-cell} ipython3
-# Compute comprehensive attribute analysis
-# attribute_analysis now works directly with Ibis Tables
-attrs = attribute_analysis(df, sample_size=50_000)
+# Compute comprehensive attribute analysis (Ibis in, Ibis out!)
+attrs = hc.utils.attribute_analysis(df, sample_size=50_000)
 
-# Display all columns sorted by information score
-import pandas as pd
-with pd.option_context('display.max_rows', None):
-    display(attrs)
+# Display with beautiful Ibis table rendering
+attrs
 ```
 
 The table above is sorted by **information score** (highest first), which ranks attributes by their combined utility across completeness, uniqueness, and distributional richness. High-scoring attributes are the most informative for grain discovery and modeling.
@@ -241,31 +248,9 @@ The table above is sorted by **information score** (highest first), which ranks 
 
 Now we classify attributes by cardinality to guide composite key construction:
 
-```{code-cell} ipython3
-# Classify columns by cardinality for grain discovery
-# primary_keys = attrs.filter(pl.col('cardinality_ratio') > 0.9)['column'].to_list()
-# high_card = attrs.filter((pl.col('cardinality_ratio') > 0.5) & (pl.col('cardinality_ratio') <= 0.9))['column'].to_list()
-# medium_card = attrs.filter((pl.col('cardinality_ratio') > 0.1) & (pl.col('cardinality_ratio') <= 0.5))['column'].to_list()
-# grouping_dims = attrs.filter(pl.col('cardinality_ratio') <= 0.1)['column'].to_list()
++++
 
-# logger.info(f"\n🎯 Grain Discovery Classification:")
-# logger.info(f"\n🔴 Primary Keys ({len(primary_keys)}):")
-# logger.info(f"   {primary_keys}")
-# logger.info(f"   → Drop these (record IDs, not analytical dimensions)")
-# if high_card:
-#     logger.info(f"\n🟠 High Cardinality ({len(high_card)}):")
-#     logger.info(f"   {high_card}")
-#     logger.info(f"   → Potential resource-level identifiers (investigate persistence)")
-# if medium_card:
-#     logger.info(f"\n🟡 Medium Cardinality ({len(medium_card)}):")
-#     logger.info(f"   {medium_card}")
-#     logger.info(f"   → Good candidates for composite keys")
-# logger.info(f"\n🟢 Grouping Dimensions ({len(grouping_dims)}):")
-# logger.info(f"   {grouping_dims}")
-# logger.info(f"   → Standard dimensions for aggregation")
-```
-
-**Filtering Strategy**: We cannot filter solely on `information_score` because harmonic mean is dominated by the lowest input. Low-cardinality grouping dimensions (like `cloud_provider`, `region`) score poorly due to cardinality ratio ≈ 0, yet they're critical for hierarchical analysis. Instead, we use **cardinality-stratified filtering**—different criteria for different column roles:
+**Filtering Strategy**: We use **cardinality-stratified filtering**—different criteria for different column roles:
 
 - **Primary keys (>90%)**: Always drop (no analytical value)
 - **High cardinality (50-90%)**: Keep if complete (potential resource IDs like `cloud_id`)
@@ -277,31 +262,33 @@ This preserves valuable low-cardinality columns while removing noise.
 
 ```{code-cell} ipython3
 # Stratified filtering: different criteria by cardinality class
+# Convert Ibis table to pandas for filtering operations
+attrs_pd = attrs.execute()
 
 # DROP: Primary keys (>90% cardinality, no grouping utility)
-drop_primary_keys = attrs[attrs['cardinality_ratio'] > 0.9]['column'].tolist()
+drop_primary_keys = attrs_pd[attrs_pd['cardinality_ratio'] > 0.9]['column'].tolist()
 
 # DROP: Sparse columns (value_density < 60%, too many nulls)
-drop_sparse = attrs[attrs['value_density'] < 0.6]['column'].tolist()
+drop_sparse = attrs_pd[attrs_pd['value_density'] < 0.6]['column'].tolist()
 
 # KEEP: Grouping dimensions (<10% cardinality) if highly complete
-keep_grouping = attrs[
-    (attrs['cardinality_ratio'] <= 0.1) &
-    (attrs['value_density'] > 0.95)  # Must be highly complete
+keep_grouping = attrs_pd[
+    (attrs_pd['cardinality_ratio'] <= 0.1) &
+    (attrs_pd['value_density'] > 0.95)  # Must be highly complete
 ]['column'].tolist()
 
 # KEEP: High cardinality (50-90%) if complete (potential resource IDs)
-keep_resource_ids = attrs[
-    (attrs['cardinality_ratio'] > 0.5) &
-    (attrs['cardinality_ratio'] <= 0.9) &
-    (attrs['value_density'] > 0.95)  # Must be highly complete
+keep_resource_ids = attrs_pd[
+    (attrs_pd['cardinality_ratio'] > 0.5) &
+    (attrs_pd['cardinality_ratio'] <= 0.9) &
+    (attrs_pd['value_density'] > 0.95)  # Must be highly complete
 ]['column'].tolist()
 
 # KEEP: Medium cardinality (10-50%) if info score is decent
-keep_composite_candidates = attrs[
-    (attrs['cardinality_ratio'] > 0.1) &
-    (attrs['cardinality_ratio'] <= 0.5) &
-    (attrs['information_score'] > 0.3)  # Balanced across dimensions
+keep_composite_candidates = attrs_pd[
+    (attrs_pd['cardinality_ratio'] > 0.1) &
+    (attrs_pd['cardinality_ratio'] <= 0.5) &
+    (attrs_pd['information_score'] > 0.3)  # Balanced across dimensions
 ]['column'].tolist()
 
 # Combine filters
@@ -331,7 +318,7 @@ Visualize value distributions for all categorical (grouping) columns to understa
 
 ```{code-cell} ipython3
 # Identify categorical columns directly from current dataframe (string/categorical dtypes)
-schema = df_filtered.schema()
+schema = df.schema()
 categorical_cols = [
     col for col, dtype in schema.items()
     if dtype.is_string()
@@ -342,9 +329,8 @@ logger.info(f"   {categorical_cols}")
 
 # Plot top 10 values for each categorical with log scale
 if categorical_cols:
-    # plot_categorical_frequencies now works directly with Ibis Tables
-    fig = plot_categorical_frequencies(
-        df_filtered,
+    fig = hc.utils.plot_categorical_frequencies(
+        df,
         columns=categorical_cols,
         top_n=10,
         log_scale=True,           # Logarithmic scale for wide frequency ranges
@@ -378,22 +364,40 @@ logger.info(f"   {cost_columns}")
 ```
 
 ```{code-cell} ipython3
-# Compute correlation matrix for cost columns
-cost_corr = df.select(cost_columns).execute().corr()
+# Compute pairwise correlations for all cost column pairs
+from itertools import combinations
+import pandas as pd
 
-logger.info(f"\n📊 Cost Column Correlation Matrix:")
-cost_corr
+# Compute correlations using Ibis (DuckDB supports population correlation)
+corr_results = []
+for col1, col2 in combinations(cost_columns, 2):
+    corr_val = (
+        df
+        .select(col1=_[col1], col2=_[col2])
+        .agg(correlation=_.col1.corr(_.col2, how='pop'))
+        .execute()
+        ['correlation']
+        .iloc[0]
+    )
+    corr_results.append({
+        'pair': f"{col1} ↔ {col2}",
+        'col1': col1,
+        'col2': col2,
+        'correlation': corr_val,
+        'abs_correlation': abs(corr_val)
+    })
+
+corr_df = pd.DataFrame(corr_results).sort_values('abs_correlation', ascending=False)
+
+logger.info(f"\n📊 Cost Column Pairwise Correlations:")
+corr_df[['pair', 'correlation', 'abs_correlation']]
 ```
 
 ```{code-cell} ipython3
-# Analyze pairwise correlations
-import numpy as np
-
-corr_np = cost_corr.to_numpy()
-np.fill_diagonal(corr_np, np.nan)  # Exclude diagonal (self-correlation = 1.0)
-min_corr = np.nanmin(np.abs(corr_np))
-max_corr = np.nanmax(np.abs(corr_np))
-mean_corr = np.nanmean(np.abs(corr_np))
+# Analyze correlation statistics
+min_corr = corr_df['abs_correlation'].min()
+max_corr = corr_df['abs_correlation'].max()
+mean_corr = corr_df['abs_correlation'].mean()
 
 logger.info(f"\n📈 Pairwise Correlation Statistics:")
 logger.info(f"   Min |r|: {min_corr:.4f}")
@@ -403,7 +407,7 @@ logger.info(f"   Mean |r|: {mean_corr:.4f}")
 if min_corr > 0.95:
     logger.info(f"\n✅ All pairwise correlations |r| > 0.95")
     logger.info(f"   → Cost columns are redundant representations")
-    logger.info(f"   → Safe to keep only one: materialized_discounted_cost")
+    logger.info(f"   → Safe to keep only one: materialized_cost")
 else:
     logger.warning(f"\n⚠️  Some correlations |r| < 0.95")
     logger.warning(f"   → Review which cost columns differ significantly")
@@ -416,19 +420,14 @@ else:
 ### 1.7 Remove High Correlation cost values
 
 ```{code-cell} ipython3
-# Define primary cost metric
-PRIMARY_COST = 'materialized_cost'
-redundant_cost_cols = [c for c in cost_columns if c != PRIMARY_COST]
+# Keep only materialized_cost and rename to 'cost'
+redundant_cost_cols = [c for c in cost_columns if c != 'materialized_cost']
 
 # Execute single-pass filtering & track reduction
 cols_before = len(df.schema())
-df = df.drop(redundant_cost_cols)
+df = df.drop(redundant_cost_cols).rename(cost='materialized_cost')
 cols_after = len(df.schema())
 reduction_ratio = (cols_before - cols_after) / cols_before
-
-# Rename PRIMARY_COST to 'cost' for simplicity
-df = df.rename(cost=PRIMARY_COST)
-PRIMARY_COST = 'cost'
 
 logger.info(f"\n📉 Column Reduction: {cols_before} → {cols_after} ({reduction_ratio:.1%} reduction)")
 logger.info(f"✅ Tidy schema ready: {cols_after} informative columns")
@@ -452,85 +451,30 @@ logger.info(f"\n   Other: {[c for c in remaining_cols if c not in ['usage_date',
 ```
 
 ```{code-cell} ipython3
-# Dimensional analysis: boxplots by key attributes
-fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-
-# Collect data for plotting
-df_plot = df.select([
-    'cloud_provider',
-    'cloud_account_id',
-    'region',
-    'product_family',
-    'cost'
-]).execute()
-
-# Provider distribution
-ax1 = axes[0, 0]
-provider_summary = (
-    df_plot.groupby('cloud_provider')
-    .agg(records=('cost', 'count'), total_cost=('cost', 'sum'))
-    .reset_index()
-    .sort_values('total_cost', ascending=False)
+# Dimensional analysis: cost by key attributes with seaborn
+dimensions = ['cloud_provider', 'cloud_account_id', 'region', 'product_family']
+fig = hc.utils.plot_dimension_cost_summary(
+    df,
+    dimensions=dimensions,
+    cost_col='cost',
+    top_n=10,
+    cols_per_row=2
 )
-
-ax1.barh(provider_summary['cloud_provider'], provider_summary['total_cost'])
-ax1.set_xlabel(f'Total Cost')
-ax1.set_title('Cost by Cloud Provider')
-ax1.grid(True, alpha=0.3)
-
-# Account distribution (top 10)
-ax2 = axes[0, 1]
-account_summary = (
-    df_plot.groupby('cloud_account_id')
-    .agg(records=('cost', 'count'), total_cost=('cost', 'sum'))
-    .reset_index()
-    .sort_values('total_cost', ascending=False)
-    .head(10)
-)
-
-ax2.barh(account_summary['cloud_account_id'], account_summary['total_cost'])
-ax2.set_xlabel(f'Total Cost')
-ax2.set_title('Top 10 Accounts by Cost')
-ax2.grid(True, alpha=0.3)
-
-# Region distribution (top 10)
-ax3 = axes[1, 0]
-region_summary = (
-    df_plot.groupby('region')
-    .agg(records=('cost', 'count'), total_cost=('cost', 'sum'))
-    .reset_index()
-    .sort_values('total_cost', ascending=False)
-    .head(10)
-)
-
-ax3.barh(region_summary['region'], region_summary['total_cost'])
-ax3.set_xlabel(f'Total Cost')
-ax3.set_title('Top 10 Regions by Cost')
-ax3.grid(True, alpha=0.3)
-
-# Product family distribution (top 10)
-ax4 = axes[1, 1]
-product_summary = (
-    df_plot.groupby('product_family')
-    .agg(records=('cost', 'count'), total_cost=('cost', 'sum'))
-    .reset_index()
-    .sort_values('total_cost', ascending=False)
-    .head(10)
-)
-
-ax4.barh(product_summary['product_family'], product_summary['total_cost'])
-ax4.set_xlabel(f'Total Cost')
-ax4.set_title('Top 10 Product Families by Cost')
-ax4.grid(True, alpha=0.3)
-
-plt.tight_layout()
 plt.show()
 
+# Compute cardinalities in single query
+dim_stats = df.agg(
+    providers=_.cloud_provider.nunique(),
+    accounts=_.cloud_account_id.nunique(),
+    regions=_.region.nunique(),
+    products=_.product_family.nunique()
+).execute().iloc[0]
+
 logger.info(f"\n📊 Dimensional Summary:")
-logger.info(f"   Providers: {df_plot['cloud_provider'].nunique()}")
-logger.info(f"   Accounts: {df_plot['cloud_account_id'].nunique()}")
-logger.info(f"   Regions: {df_plot['region'].nunique()}")
-logger.info(f"   Products: {df_plot['product_family'].nunique()}")
+logger.info(f"   Providers: {dim_stats['providers']}")
+logger.info(f"   Accounts: {dim_stats['accounts']}")
+logger.info(f"   Regions: {dim_stats['regions']}")
+logger.info(f"   Products: {dim_stats['products']}")
 ```
 
 ---
@@ -546,8 +490,8 @@ daily_summary = (
     .group_by('date')
     .agg(
         record_count=_.count(),
-        total_cost=_[PRIMARY_COST].sum(),
-        cost_std=_[PRIMARY_COST].std()
+        total_cost=_.cost.sum(),
+        cost_std=_.cost.std()
     )
     .order_by('date')
     .execute()
@@ -584,14 +528,9 @@ def grain_persistence_stats(df, grain_cols, cost_col, min_days=30):
     Compute persistence metrics for a compound key grain.
 
     Returns:
-        dict: {
-            'entities': Total unique entities,
-            'stable_count': Entities present >= min_days,
-            'stable_pct': Percentage stable,
-            'median_days': Median persistence,
-            'mean_days': Mean persistence
-        }
+        dict: Entity count, stability percentage, median/mean persistence days
     """
+    # Compute entity-level persistence
     entity_stats = (
         df
         .group_by(grain_cols)
@@ -599,17 +538,30 @@ def grain_persistence_stats(df, grain_cols, cost_col, min_days=30):
             days_present=_.date.nunique(),
             total_cost=_[cost_col].sum()
         )
+    )
+
+    # Compute summary statistics
+    summary = (
+        entity_stats
+        .agg(
+            total_entities=_.count(),
+            stable_entities=(_.days_present >= min_days).sum().cast('int64'),
+            median_days=_.days_present.median().cast('int64'),
+            mean_days=_.days_present.mean()
+        )
         .execute()
     )
 
-    stable_count = len(entity_stats[entity_stats['days_present'] >= min_days])
+    # Extract scalars and compute derived metrics
+    total = summary['total_entities'].iloc[0]
+    stable = summary['stable_entities'].iloc[0]
 
     return {
-        'entities': len(entity_stats),
-        'stable_count': stable_count,
-        'stable_pct': round(stable_count / len(entity_stats) * 100, 1),
-        'median_days': int(entity_stats['days_present'].median()),
-        'mean_days': round(entity_stats['days_present'].mean(), 1)
+        'entities': total,
+        'stable_count': stable,
+        'stable_pct': round(100.0 * stable / total, 1) if total > 0 else 0.0,
+        'median_days': summary['median_days'].iloc[0],
+        'mean_days': round(summary['mean_days'].iloc[0], 1)
     }
 
 
@@ -661,15 +613,22 @@ grain_candidates = [
 
 # Compute persistence for all candidates (functional composition)
 grain_results = [
-    {'Grain': name, **grain_persistence_stats(df, cols, PRIMARY_COST)}
+    {'Grain': name, **grain_persistence_stats(df, cols, 'cost')}
     for name, cols in grain_candidates
 ]
 
-import pandas as pd
 grain_comparison = pd.DataFrame(grain_results)
 
 logger.info(f"\n📊 Grain Persistence Comparison (37 days, ≥30 day threshold):")
 logger.info(f"\n{grain_comparison[['Grain', 'entities', 'stable_pct', 'median_days']]}")
+
+# Visualize grain tradeoffs with seaborn
+fig = hc.utils.plot_grain_persistence_comparison(
+    grain_comparison,
+    stability_threshold=70.0,
+    figsize=(14, 8)
+)
+plt.show()
 ```
 
 ---
@@ -714,7 +673,7 @@ top_entities = (
     .group_by(OPTIMAL_COLS)
     .agg(
         days_present=_.date.nunique(),
-        total_cost=_[PRIMARY_COST].sum()
+        total_cost=_.cost.sum()
     )
     .filter(_.days_present >= 30)
     .order_by(ibis.desc('total_cost'))
@@ -723,7 +682,7 @@ top_entities = (
 )
 
 # Pareto analysis
-total_cost = df.agg(total=_[PRIMARY_COST].sum()).execute()['total'].iloc[0]
+total_cost = df.agg(total=_.cost.sum()).execute()['total'].iloc[0]
 top_10_cost = top_entities['total_cost'].sum()
 
 logger.info(f"\n💰 Top 10 Entities at {OPTIMAL_GRAIN}:")
@@ -736,86 +695,22 @@ logger.info(f"\n{top_entities}")
 ### 3.2 Time Series Visualization
 
 ```{code-cell} ipython3
-fig, axes = plt.subplots(2, 1, figsize=(14, 10))
-PRIMARY_COST = 'cost'
+# Prepare entity filters for top 5 entities
+entity_filters = [
+    {col: top_entities.iloc[i][col] for col in OPTIMAL_COLS}
+    for i in range(min(5, len(top_entities)))
+]
 
-# Get full date range for alignment
-all_dates_df = df.select('date').distinct().order_by('date').execute()
-
-# Plot 1: Absolute daily spend
-ax1 = axes[0]
-for i, row_idx in enumerate(range(min(5, len(top_entities)))):
-    entity_row = top_entities.iloc[row_idx]
-
-    # Build filter condition for this entity
-    filter_cond = ibis.literal(True)
-    for col in OPTIMAL_COLS:
-        filter_cond = filter_cond & (_[col] == entity_row[col])
-
-    entity_ts = (
-        df
-        .filter(filter_cond)
-        .group_by('date')
-        .agg(daily_cost=_[PRIMARY_COST].sum())
-        .execute()
-    )
-
-    # Align to full date range (missing dates = 0)
-    aligned = (
-        all_dates_df
-        .merge(entity_ts, on='date', how='left')
-        .fillna({'daily_cost': 0})
-        .sort_values('date')
-    )
-
-    ax1.plot(aligned['date'], aligned['daily_cost'],
-             label=f"Entity {i+1}", marker='o', linewidth=2)
-
-ax1.set_xlabel('Date')
-ax1.set_ylabel(f'Daily {PRIMARY_COST}')
-ax1.set_title(f'Top 5 Entities - Daily Spend Trajectory ({OPTIMAL_GRAIN})')
-ax1.legend()
-ax1.grid(True, alpha=0.3)
-
-# Plot 2: Stacked area showing cumulative contribution
-ax2 = axes[1]
-
-stack_data = []
-for i, row_idx in enumerate(range(min(5, len(top_entities)))):
-    entity_row = top_entities.iloc[row_idx]
-
-    # Build filter condition for this entity
-    filter_cond = ibis.literal(True)
-    for col in OPTIMAL_COLS:
-        filter_cond = filter_cond & (_[col] == entity_row[col])
-
-    entity_ts = (
-        df
-        .filter(filter_cond)
-        .group_by('date')
-        .agg(cost=_[PRIMARY_COST].sum())
-        .execute()
-    )
-
-    # Align to full date range (missing dates = 0)
-    aligned = (
-        all_dates_df
-        .merge(entity_ts, on='date', how='left')
-        .fillna({'cost': 0})
-        .sort_values('date')
-    )
-
-    stack_data.append(aligned['cost'].values)
-
-dates = all_dates_df['date'].values
-ax2.stackplot(dates, *stack_data, labels=[f'Entity {i+1}' for i in range(5)], alpha=0.8)
-ax2.set_xlabel('Date')
-ax2.set_ylabel(f'Daily {PRIMARY_COST}')
-ax2.set_title(f'Top 5 Entities - Cumulative Spend Contribution ({OPTIMAL_GRAIN})')
-ax2.legend(loc='upper left')
-ax2.grid(True, alpha=0.3)
-
-plt.tight_layout()
+# Plot with seaborn - includes both line and stacked area views
+fig = hc.utils.plot_entity_timeseries(
+    df,
+    entity_filters=entity_filters,
+    date_col='date',
+    metric_col='cost',
+    entity_labels=[f'Entity {i+1}' for i in range(len(entity_filters))],
+    mode='area',  # Shows both individual trajectories and cumulative contribution
+    figsize=(14, 10)
+)
 plt.show()
 
 logger.info(f"\n📈 Time series validation complete")
