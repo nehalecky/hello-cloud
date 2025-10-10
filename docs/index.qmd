@@ -1,0 +1,291 @@
+---
+title: "Cloud Resource Simulator"
+subtitle: "Multi-model framework for cloud resource utilization patterns and synthetic data generation"
+---
+
+# Welcome to Cloud Resource Simulator
+
+A **research-grounded framework** for modeling cloud resource utilization patterns using Gaussian Processes, Bayesian hierarchical models, and foundation model integrations.
+
+::: {.callout-note}
+## Built on Real Research
+
+Our models are based on extensive empirical analysis showing:
+
+- **13% average CPU utilization** across cloud infrastructure
+- **30-32% waste** in cloud spending
+- **Strong temporal patterns** (0.7-0.8 autocorrelation)
+
+[See Research Foundation →](concepts/research/cloud-resource-patterns-research.qmd)
+:::
+
+## Why Cloud Resource Simulator?
+
+### 🎯 Realistic Synthetic Data
+Generate cloud resource time series data with **empirically-grounded patterns**, not assumptions.
+
+### 📊 Multiple Modeling Approaches
+- **Gaussian Processes** (GPyTorch): Time series forecasting with uncertainty
+- **Bayesian Hierarchical Models** (PyMC): Industry→Application→Resource hierarchy
+- **Foundation Models**: Zero-shot forecasting (Chronos, TimesFM)
+
+### 🧬 12+ Workload Archetypes
+Pre-configured patterns for web apps, databases, ML training, microservices, and more.
+
+### 🔬 Production-Ready
+92% test coverage on GP library. Built for both research and production use.
+
+---
+
+## Quick Start
+
+### Installation
+
+```bash
+# Install with all features
+uv pip install cloud-resource-simulator[all]
+
+# Or install specific components
+uv pip install cloud-resource-simulator[research]  # Notebooks + analysis tools
+uv pip install cloud-resource-simulator[gpu]       # GP modeling with GPyTorch
+```
+
+### Generate Your First Dataset
+
+```{python}
+#| eval: false
+from cloud_sim.data_generation import WorkloadPatternGenerator, WorkloadType
+from datetime import datetime, timedelta
+
+# Initialize generator
+generator = WorkloadPatternGenerator(seed=42)
+
+# Generate 30 days of web application data
+df = generator.generate_time_series(
+    workload_type=WorkloadType.WEB_APP,
+    start_time=datetime.now() - timedelta(days=30),
+    end_time=datetime.now(),
+    interval_minutes=60,
+    include_anomalies=True
+)
+
+print(df.head())
+```
+
+**Generated metrics include:**
+- CPU & memory utilization
+- Network I/O (ingress/egress)
+- Disk IOPS
+- Efficiency scores & waste estimates
+- Anomaly flags
+
+### Train a Gaussian Process Model
+
+```{python}
+#| eval: false
+from cloud_sim.ml_models.gaussian_process import (
+    SparseGPModel,
+    train_gp_model,
+    compute_metrics
+)
+
+# Initialize model with composite periodic kernel
+model = SparseGPModel(
+    num_inducing=100,
+    likelihood="student_t"  # Robust to outliers
+)
+
+# Train on your data
+trained_model = train_gp_model(
+    model=model,
+    train_x=train_data,
+    train_y=train_targets,
+    num_epochs=100
+)
+
+# Make predictions with uncertainty
+predictions, uncertainty = trained_model.predict(test_x)
+
+# Evaluate (accuracy + calibration)
+metrics = compute_metrics(predictions, actual_values)
+print(f"RMSE: {metrics['rmse']:.3f}")
+print(f"Calibration Error: {metrics['calibration_error']:.3f}")
+```
+
+---
+
+## Architecture Overview
+
+```mermaid
+graph TB
+    A[Application Layer] --> B[ML/Forecasting Layer]
+    B --> C[Data Generation Layer]
+
+    A --> A1[Streamlit Dashboard]
+    A --> A2[Jupyter Notebooks]
+
+    B --> B1[Gaussian Processes]
+    B --> B2[Bayesian Hierarchical]
+    B --> B3[Foundation Models]
+
+    C --> C1[Workload Patterns]
+    C --> C2[Cloud Metrics Simulator]
+```
+
+**Three-tier design:**
+
+1. **Data Generation Layer**: Realistic synthetic data with configurable workload patterns
+2. **ML/Forecasting Layer**: Multiple modeling approaches for different use cases
+3. **Application Layer**: Interactive dashboards and analysis notebooks
+
+---
+
+## Key Features
+
+### Empirically-Grounded Patterns
+
+Every workload archetype is configured with **real-world statistics**:
+
+| Workload Type | Avg CPU | Avg Memory | Temporal Pattern |
+|--------------|---------|------------|------------------|
+| Web App | 15-25% | 30-40% | Daily + Weekly |
+| ML Training | 70-90% | 60-80% | Burst + Steady |
+| Database OLTP | 40-60% | 50-70% | Business Hours |
+| Dev Environment | 5-10% | 10-20% | Sporadic |
+
+[See All Archetypes →](tutorials/workload-signatures.qmd)
+
+### Correlation Modeling
+
+Multivariate metrics with **empirical correlations**:
+
+- CPU ↔ Memory: 0.2-0.95 (workload-dependent)
+- Network ↔ CPU: 0.7-0.8 (web applications)
+- Temporal autocorrelation: 0.7-0.8 (first 10 lags)
+
+[Read Correlation Research →](concepts/research/cloud-resource-correlations-report.qmd)
+
+### Flexible Export Formats
+
+- **Polars DataFrames** (primary format)
+- **HuggingFace Datasets** (for ML training)
+- **Parquet/CSV** (for external tools)
+
+---
+
+## Documentation
+
+::::: {.columns}
+
+:::: {.column width="50%"}
+### 📚 Learning-Oriented
+
+**[Tutorials](tutorials/index.qmd)**
+
+Step-by-step guides to learn core concepts:
+
+- Data Exploration
+- Workload Signatures
+- Gaussian Process Modeling
+::::
+
+:::: {.column width="50%"}
+### 🎯 Task-Oriented
+
+**[How-To Guides](how-to/index.qmd)**
+
+Practical recipes for specific tasks:
+
+- Generate Synthetic Data
+- Train GP Models
+- Export to HuggingFace
+::::
+
+:::::
+
+::::: {.columns}
+
+:::: {.column width="50%"}
+### 💡 Understanding-Oriented
+
+**[Concepts](concepts/index.qmd)**
+
+Deep dives into theory and design:
+
+- Research Foundation (35+ citations)
+- Correlation Analysis
+- GP Architecture
+::::
+
+:::: {.column width="50%"}
+### 📖 Information-Oriented
+
+**[API Reference](reference/index.qmd)**
+
+Complete API documentation:
+
+- Data Generation
+- ML Models
+- ETL & Loaders
+::::
+
+:::::
+
+---
+
+## Research Foundation
+
+This project is built on **extensive empirical analysis** of cloud resource patterns:
+
+::: {.callout-tip}
+## 📊 Key Research Findings
+
+- **CPU Utilization**: 13% average (industry-wide) vs. 38% (datacenter-wide)
+- **Resource Waste**: 30-32% of cloud spending
+- **Development Environments**: 70% waste (often idle/forgotten)
+- **Temporal Autocorrelation**: 0.7-0.8 for operational workloads
+
+**35+ academic citations** from Google, Microsoft Research, Alibaba, and more.
+
+[Explore Research →](concepts/index.qmd)
+:::
+
+---
+
+## Use Cases
+
+### 🧪 Research & Development
+- Train time series forecasting models
+- Test anomaly detection algorithms
+- Benchmark optimization strategies
+
+### 💼 Cloud Cost Optimization
+- Simulate cost-saving scenarios
+- Model right-sizing impacts
+- Forecast capacity needs
+
+### 📊 FinOps & Analysis
+- Generate realistic demo datasets
+- Create training materials
+- Build FinOps dashboards
+
+### 🎓 Education & Training
+- Teach cloud resource management
+- Demonstrate waste patterns
+- Illustrate optimization techniques
+
+---
+
+## Community & Support
+
+- **GitHub**: [nehalecky/cloud-resource-simulator](https://github.com/nehalecky/cloud-resource-simulator)
+- **Issues**: [Report bugs or request features](https://github.com/nehalecky/cloud-resource-simulator/issues)
+- **Discussions**: [Ask questions, share ideas](https://github.com/nehalecky/cloud-resource-simulator/discussions)
+
+---
+
+## License
+
+MIT License - see [LICENSE](https://github.com/nehalecky/cloud-resource-simulator/blob/master/LICENSE) for details.
+
+Built with ❤️ using [Python](https://python.org), [Polars](https://pola.rs), [GPyTorch](https://gpytorch.ai), [PyMC](https://www.pymc.io), and [Quarto](https://quarto.org).
