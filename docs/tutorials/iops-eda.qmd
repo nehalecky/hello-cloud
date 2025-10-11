@@ -1,0 +1,266 @@
+---
+title: "IOPS Web Server Time Series Analysis"
+subtitle: "Real-world EDA for model selection and anomaly detection"
+execute:
+  eval: false
+  echo: true
+---
+
+# IOPS Web Server Analysis
+
+Welcome! In this tutorial, you'll learn how to perform comprehensive exploratory data analysis on real operational time series data to inform modeling decisions.
+
+## Learning Objectives
+
+By the end of this tutorial, you will be able to:
+
+- Load and analyze real-world web server KPI data
+- Characterize temporal patterns (periodicity, trends, stationarity)
+- Evaluate data quality for modeling suitability
+- Select appropriate forecasting and anomaly detection approaches
+- Understand tradeoffs between different modeling strategies
+
+::: {.callout-tip}
+## Estimated Time
+20 minutes (overview) | Full analysis: see complete notebook
+:::
+
+---
+
+## Dataset Overview
+
+The **IOPS dataset** comes from the [TSB-UAD benchmark](https://github.com/TheDatumOrg/TSB-UAD), available via [AutonLab/Timeseries-PILE](https://huggingface.co/datasets/AutonLab/Timeseries-PILE) on HuggingFace.
+
+**What it contains:**
+- **20 real web server KPIs** from production systems
+- **Expert-labeled anomalies** for evaluation
+- **High-frequency data**: 1-minute sampling interval
+- **Operational scale**: ~200k samples spanning multiple days
+
+**Why this dataset matters:**
+- Real operational data (not synthetic)
+- Reflects actual cloud resource monitoring scenarios
+- Ideal for time series forecasting and anomaly detection research
+
+::: {.callout-note}
+## Full Analysis Notebook
+For complete statistical analysis and code:
+`notebooks/03_EDA_iops_web_server.md`
+
+This tutorial highlights key findings and modeling recommendations.
+:::
+
+---
+
+## Key Findings from Analysis
+
+### 1. Temporal Patterns
+
+The analysis reveals important temporal structure:
+
+**Periodicity Detection:**
+- Uses ACF (autocorrelation) and FFT (spectral analysis) to identify cycles
+- Detects dominant periods (hourly, daily patterns)
+- Quantifies seasonality strength via STL decomposition
+
+**Why this matters:**
+- **Strong periodicity** → Use seasonal models (SARIMA, Prophet)
+- **Weak/no periodicity** → Use non-seasonal models or foundation models
+- **Period length** → Informs feature engineering and forecast horizons
+
+### 2. Stationarity Analysis
+
+**Augmented Dickey-Fuller Test** determines if the series needs preprocessing:
+
+- **Stationary (p < 0.05)**: Direct modeling, no transformation needed
+- **Non-stationary (p ≥ 0.05)**: Requires differencing or trend-aware methods
+
+**Impact on model selection:**
+- Stationary → ARMA, stationary GP kernels
+- Non-stationary → ARIMA (with differencing), Prophet, foundation models
+
+### 3. Anomaly Characteristics
+
+The dataset includes **expert-labeled anomalies** for validation:
+
+- Anomaly rates: Training (~X%), Test (~Y%)
+- Distributional separation visible in PDF/CDF analysis
+- Statistical outliers with clear visual patterns
+
+**Detection strategies enabled:**
+- Forecast-based (prediction interval violations)
+- Statistical thresholds (Z-score, percentiles)
+- Unsupervised learning (Isolation Forest, LOF)
+- Deep learning (autoencoder reconstruction error)
+
+### 4. Data Quality Assessment
+
+**Complete & Clean Data:**
+- ✅ No missing values (100% complete)
+- ✅ Continuous sampling (no gaps)
+- ✅ Realistic operational scale
+- ✅ Expert-curated anomaly labels
+
+This high quality enables rigorous model evaluation.
+
+---
+
+## Modeling Recommendations
+
+Based on the comprehensive EDA, here are the recommended approaches:
+
+### Foundation Models (Recommended First Try)
+
+**Models**: TimesFM, Chronos, Lag-Llama
+
+**Advantages:**
+- Zero-shot forecasting (no training needed)
+- Handle non-stationarity naturally
+- Pre-trained on diverse time series
+- No hyperparameter tuning required
+
+**When to use**: Default starting point for most forecasting tasks
+
+**Next step**: `docs/tutorials/timesfm-forecasting.qmd`
+
+### Statistical Models
+
+**Models**: ARIMA, SARIMA, Prophet
+
+**Advantages:**
+- Interpretable parameters
+- Fast inference
+- Well-established theory
+- Confidence intervals built-in
+
+**When to use**:
+- Stationary data with clear patterns
+- Need for interpretability
+- Smaller datasets
+
+**Configuration**: Use detected periodicity for seasonal components
+
+### Gaussian Processes
+
+**Kernel selection** (data-driven):
+- Periodic kernels if periodicity detected
+- RBF + Linear for smooth non-periodic patterns
+- Composite kernels for complex structure
+
+**Advantages:**
+- Probabilistic forecasting
+- Uncertainty quantification
+- Flexible kernel design
+
+**When to use**:
+- Need uncertainty estimates
+- Medium-sized datasets (< 50k samples)
+- Domain expertise for kernel selection
+
+**Next step**: `docs/tutorials/gaussian-processes.qmd`
+
+### Deep Learning
+
+**Models**: LSTM, Transformer, N-BEATS
+
+**Advantages:**
+- Learn complex non-linear patterns
+- Multivariate extensions available
+- Scalable to large datasets
+
+**When to use**:
+- Sufficient training data (> 50k samples)
+- Complex patterns not captured by simpler models
+- Computational resources available
+
+---
+
+## Anomaly Detection Strategies
+
+Multiple approaches can be combined for robust detection:
+
+### 1. Forecast-Based Detection
+
+**Method**: Train forecasting model → flag prediction interval violations
+
+**Pros**: Uncertainty-aware, interpretable thresholds
+**Cons**: Requires accurate forecasts
+
+### 2. Statistical Thresholds
+
+**Method**: Z-score, IQR, percentile-based
+
+**Pros**: Simple, fast, no training
+**Cons**: No temporal context, sensitive to outliers
+
+### 3. Unsupervised Learning
+
+**Method**: Isolation Forest, LOF, One-Class SVM
+
+**Pros**: Handles complex patterns, no labels needed
+**Cons**: Less interpretable, hyperparameter tuning
+
+### 4. Deep Learning
+
+**Method**: Autoencoders (LSTM, Transformer)
+
+**Pros**: Learns intricate temporal patterns
+**Cons**: Requires more data, harder to tune
+
+---
+
+## Choosing Your Next Steps
+
+Based on your goals, select the appropriate workflow:
+
+**🎯 For Time Series Forecasting:**
+
+1. **Foundation Models** (Start here): `docs/tutorials/timesfm-forecasting.qmd`
+2. **Gaussian Processes**: `docs/tutorials/gaussian-processes.qmd`
+3. **Statistical Models**: Implement ARIMA/Prophet based on stationarity findings
+
+**🔍 For Anomaly Detection:**
+
+1. Build forecasting model → threshold prediction intervals
+2. Try unsupervised methods (Isolation Forest baseline)
+3. Experiment with deep learning autoencoders
+4. Combine multiple approaches for ensemble detection
+
+**📊 For Hands-On Analysis:**
+
+- Run the full notebook: `notebooks/03_EDA_iops_web_server.md`
+- Experiment with different time series in the IOPS dataset
+- Adapt analysis patterns to your own operational data
+
+---
+
+## Summary
+
+In this tutorial, you learned:
+
+✅ How to analyze real-world time series data for model selection
+✅ Key EDA techniques: ACF/PACF, FFT, STL decomposition, stationarity testing
+✅ How dataset characteristics inform modeling decisions
+✅ Multiple approaches for forecasting and anomaly detection
+✅ Practical next steps for different use cases
+
+## Next Steps
+
+- **[TimesFM Forecasting](timesfm-forecasting.qmd)**: Zero-shot forecasting tutorial
+- **[Gaussian Processes](gaussian-processes.qmd)**: Probabilistic modeling guide
+- **[Data Exploration](data-exploration.qmd)**: Generate synthetic data for experimentation
+
+---
+
+::: {.callout-tip}
+## Apply to Your Own Data
+
+The analysis patterns in this tutorial apply to any operational time series:
+
+1. Load your data (cloud metrics, server KPIs, application logs)
+2. Run the same EDA sequence (distribution, periodicity, stationarity, quality)
+3. Use findings to select appropriate models
+4. Evaluate multiple approaches on your validation set
+
+The full notebook (`notebooks/03_EDA_iops_web_server.md`) provides copy-paste ready code for all analyses.
+:::

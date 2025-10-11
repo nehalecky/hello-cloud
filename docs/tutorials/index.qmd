@@ -21,6 +21,19 @@ Learn how to explore and analyze cloud resource utilization data using the simul
 
 ---
 
+### [IOPS Web Server Analysis](iops-eda.qmd)
+Perform comprehensive exploratory data analysis on real operational time series data to inform modeling decisions.
+
+**What you'll learn:**
+- Real-world time series analysis techniques
+- Periodicity detection and stationarity testing
+- Model selection based on data characteristics
+- Multiple forecasting and anomaly detection approaches
+
+**Duration:** ~20 minutes (overview) | Full notebook for deep dive
+
+---
+
 ### [Workload Signatures](workload-signatures.qmd)
 Understand the different workload archetypes and their characteristic resource usage patterns.
 
@@ -49,11 +62,17 @@ Build robust time series forecasting models using Gaussian Processes with GPyTor
 
 ## Learning Path
 
-We recommend following the tutorials in order:
+We recommend following the tutorials in this order:
 
-1. **Data Exploration** → Understand the data
-2. **Workload Signatures** → Learn workload patterns
-3. **Gaussian Process Modeling** → Build forecasting models
+1. **Data Exploration** → Understand synthetic data generation
+2. **IOPS Web Server Analysis** → Real-world time series EDA
+3. **Workload Signatures** → Learn workload archetypes
+4. **Gaussian Process Modeling** → Build forecasting models
+
+**Alternative paths:**
+- **For forecasting focus**: Data Exploration → IOPS Analysis → GP Modeling
+- **For cloud optimization**: Data Exploration → Workload Signatures
+- **For anomaly detection**: IOPS Analysis → GP Modeling
 
 ## Next Steps
 

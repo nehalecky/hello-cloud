@@ -40,6 +40,7 @@ website:
           contents:
             - tutorials/index.qmd
             - tutorials/data-exploration.qmd
+            - tutorials/iops-eda.qmd
             - tutorials/workload-signatures.qmd
             - tutorials/gaussian-processes.qmd
         - section: "How-To Guides"

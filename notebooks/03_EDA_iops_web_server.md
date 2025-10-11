@@ -11,11 +11,11 @@ kernelspec:
   language: python
 ---
 
-# IOPS Web Server Anomaly Detection: Exploratory Data Analysis
+# IOPS Web Server Time Series: Exploratory Data Analysis
 
 ## Overview and Objectives
 
-This notebook performs exploratory data analysis on the **IOPS dataset** from the [TSB-UAD benchmark](https://github.com/TheDatumOrg/TSB-UAD), available via [AutonLab/Timeseries-PILE](https://huggingface.co/datasets/AutonLab/Timeseries-PILE) on HuggingFace.
+This notebook performs comprehensive exploratory data analysis on the **IOPS dataset** from the [TSB-UAD benchmark](https://github.com/TheDatumOrg/TSB-UAD), available via [AutonLab/Timeseries-PILE](https://huggingface.co/datasets/AutonLab/Timeseries-PILE) on HuggingFace.
 
 ### Dataset Context
 
@@ -29,15 +29,15 @@ The IOPS dataset contains **20 Key Performance Indicator (KPI) time series** fro
 - **Known properties**: Continuous numeric values, 1-minute sampling interval
 - **Labels**: Anomalies identified by domain experts
 
-**Why this matters for GP modeling:**
-- **Unit-agnostic modeling**: GPs work with normalized/standardized values regardless of units
-- **Pattern detection**: We focus on temporal patterns and deviations, not absolute values
-- **Real-world analogy**: Similar to cloud resource monitoring where we track diverse KPIs
+**Why this matters for time series analysis:**
+- **Unit-agnostic**: Most models work with normalized/standardized values regardless of units
+- **Pattern-focused**: Analysis targets temporal structures and deviations, not absolute values
+- **Real-world analog**: Similar to cloud resource monitoring where we track diverse KPIs
 
 This is **actual operational data from production web servers** with **labeled anomalies**, making it ideal for:
-1. **Time series forecasting** with Gaussian Processes
-2. **Forecast-based anomaly detection** (points outside prediction intervals)
-3. **Cloud resource monitoring** analog (web servers ≈ cloud infrastructure)
+1. **Time series forecasting** (statistical, ML, and foundation model approaches)
+2. **Anomaly detection** (forecast-based, threshold-based, or learned representations)
+3. **Cloud resource monitoring** (web servers ≈ cloud infrastructure)
 
 ### Research Foundation
 
@@ -49,11 +49,11 @@ Per our [timeseries anomaly datasets review](../docs/research/timeseries-anomaly
 
 ### Analysis Objectives
 
-1. **Characterize temporal patterns**: Identify periodicities, trends, and seasonality for GP kernel design
+1. **Characterize temporal patterns**: Identify periodicities, trends, and seasonality for model selection and design
 2. **Analyze anomaly characteristics**: Understand anomaly types, frequencies, and magnitudes
 3. **Assess data quality**: Validate completeness and modeling suitability
-4. **Evaluate computational feasibility**: Determine appropriate GP approaches (exact vs sparse)
-5. **Provide modeling recommendations**: Concrete kernel specifications and forecasting strategies
+4. **Evaluate computational requirements**: Determine dataset characteristics affecting model scalability
+5. **Provide modeling recommendations**: Inform forecasting and anomaly detection strategies
 
 ```{code-cell} ipython3
 # Auto-reload: Picks up library changes without kernel restart
@@ -301,10 +301,10 @@ pl.DataFrame({
 
 Understanding the underlying probability distributions helps us choose appropriate modeling approaches and detection thresholds.
 
-**Why this matters for GP modeling:**
-- **PDF (Probability Density)**: Shows where values concentrate - informs our likelihood function
+**Why this matters for time series modeling:**
+- **PDF (Probability Density)**: Shows where values concentrate - informs likelihood assumptions and normalization strategies
 - **CDF (Cumulative Distribution)**: Reveals percentiles - helps set anomaly detection thresholds
-- **Distribution shape**: Heavy tails suggest need for robust kernels; multi-modal patterns require mixture approaches
+- **Distribution shape**: Heavy tails suggest need for robust methods; multi-modal patterns may require mixture approaches or transformations
 
 ```{code-cell} ipython3
 # Plot PDF and CDF side-by-side using library function
@@ -322,7 +322,7 @@ plt.show()
 **Key insights from distribution analysis:**
 - **PDF separation**: Distinct peaks indicate anomalies cluster at different value ranges
 - **CDF divergence**: Large gaps between CDFs show different probability structures
-- **Tail behavior**: Heavy tails in normal distribution suggest occasional high variability (important for GP kernel selection)
+- **Tail behavior**: Heavy tails in normal distribution suggest occasional high variability (important for robust model design)
 - **Detection strategy**: CDF percentiles (e.g., 95th, 99th) can serve as initial thresholds for anomaly flagging
 
 ### Comprehensive Distribution Comparison
@@ -411,8 +411,8 @@ print_distribution_summary(ks_results_dict, kl_results_dict, key_comparison='Tra
 **Why analyze periodicity?**
 
 Time series often exhibit repeating patterns (hourly, daily, weekly cycles). Detecting these patterns is crucial for:
-- **GP kernel selection**: Periodic kernels capture cyclical behavior more efficiently than RBF alone
-- **Forecast accuracy**: Knowing the cycle length improves prediction horizons
+- **Model architecture selection**: Periodic patterns inform the choice between specialized seasonal models and general approaches
+- **Forecast accuracy**: Knowing the cycle length improves prediction horizons and feature engineering
 - **Anomaly detection**: Deviations from expected periodic patterns are strong anomaly signals
 
 **Methods used:**
@@ -504,9 +504,9 @@ else:
 ```
 
 **What to look for in ACF peaks:**
-- **Strong peaks (ACF > 0.6)**: Clear, dominant periodicity - use periodic GP kernel
-- **Moderate peaks (0.2-0.6)**: Weak periodicity - consider periodic kernel but test alternatives
-- **No peaks (ACF < 0.2)**: No clear cycles - use RBF or Matérn kernels instead
+- **Strong peaks (ACF > 0.6)**: Clear, dominant periodicity - suitable for seasonal ARIMA, Prophet, or specialized periodic models
+- **Moderate peaks (0.2-0.6)**: Weak periodicity - may benefit from seasonal decomposition or hybrid approaches
+- **No peaks (ACF < 0.2)**: No clear cycles - use general forecasting methods without seasonal components
 
 ```{code-cell} ipython3
 # Welch's PSD - more robust than raw FFT for noisy signals
@@ -702,8 +702,8 @@ STL (Seasonal-Trend decomposition using Loess) separates a time series into thre
 
 **Why it's useful:**
 - **Seasonality strength**: Quantifies how much of the variance is explained by periodic patterns
-- **Trend identification**: Helps choose between stationary and trend-aware GP kernels
-- **Residual analysis**: Shows noise level - informs GP noise kernel variance
+- **Trend identification**: Helps choose between stationary and non-stationary modeling approaches
+- **Residual analysis**: Shows noise level - informs error modeling and prediction interval calibration
 
 ```{code-cell} ipython3
 # STL Decomposition using detected spectral peaks
@@ -742,9 +742,9 @@ if len(peak_indices) > 0:
         print(f"  Seasonality explains {strength_seasonal*100:.1f}% of pattern variance")
 
         if strength_seasonal > 0.3:
-            print(f"\n→ Periodic patterns are present - suitable for periodic GP kernels")
+            print(f"\n→ Periodic patterns are present - suitable for seasonal models (SARIMA, Prophet, seasonal decomposition)")
         else:
-            print(f"\n→ Weak periodicity - consider combining periodic + RBF kernels")
+            print(f"\n→ Weak periodicity - consider hybrid approaches or non-seasonal models with trend components")
 
     except Exception as e:
         print(f"⚠️  STL decomposition failed: {str(e)}")
@@ -759,10 +759,10 @@ else:
     print("  • Likely irregular / non-seasonal behavior")
     print("  • High noise-to-signal ratio")
     print("\n→ Recommended approaches:")
-    print("  1. Trend + noise decomposition")
-    print("  2. ARIMA for irregular time series")
-    print("  3. RBF-only GP (smooth interpolation)")
-    print("  4. Local regression (LOESS)")
+    print("  1. Non-seasonal ARIMA for irregular time series")
+    print("  2. Trend + noise decomposition (Prophet without seasonality)")
+    print("  3. Foundation models (TimesFM, Chronos) - handle irregular patterns")
+    print("  4. Local regression (LOESS) or moving averages")
 ```
 
 ```{code-cell} ipython3
@@ -966,12 +966,12 @@ A stationary time series has:
 - **Constant variance**: Spread of values remains stable
 - **Constant autocorrelation**: Correlation structure depends only on lag, not on time
 
-**Why it matters for GP modeling:**
-- **Stationary data**: Can use standard kernels (RBF, Periodic, Matérn) directly
+**Why it matters for time series modeling:**
+- **Stationary data**: Suitable for most forecasting methods without preprocessing
 - **Non-stationary data**: Requires either:
-  - Differencing to make stationary
-  - Trend-aware kernels (Linear + RBF)
-  - Detrending before applying GP
+  - Differencing to achieve stationarity (ARIMA's "I" component)
+  - Trend-aware models (Prophet, structural time series)
+  - Detrending before applying stationary models
 
 **The Augmented Dickey-Fuller (ADF) Test:**
 - **Null hypothesis**: Series has a unit root (non-stationary)
@@ -999,32 +999,32 @@ pl.DataFrame({
 ### Interpretation
 
 ```{code-cell} ipython3
-# Stationarity interpretation for GP modeling
+# Stationarity interpretation for time series modeling
 if adf_p < 0.05:
     pl.DataFrame({
         'Assessment': ['Data is stationary'],
-        'GP Modeling': ['Suitable for standard GP kernels'],
-        'Recommended Approach': ['Use RBF, Periodic, or Matérn kernels directly']
+        'Modeling Implications': ['Suitable for stationary time series models'],
+        'Recommended Approaches': ['AR, MA, ARMA, stationary GP kernels, many ML models']
     })
 else:
     pl.DataFrame({
         'Assessment': ['Data is non-stationary'],
-        'GP Modeling': ['Requires preprocessing or trend-aware kernels'],
-        'Options': ['1) Difference the series | 2) Detrend before modeling | 3) Use trend-aware GP kernels']
+        'Modeling Implications': ['Requires preprocessing or trend-aware models'],
+        'Options': ['1) Difference the series (ARIMA) | 2) Detrend (Prophet, STL) | 3) Use trend-aware methods | 4) Foundation models (handle non-stationarity)']
     })
 ```
 
 ## 6. Data Quality and Characteristics
 
-**Why data quality matters for GP modeling:**
+**Why data quality matters for time series modeling:**
 
-Gaussian Processes are powerful but sensitive to data quality issues:
-- **Missing values**: Break covariance matrix structure - must be handled via imputation or masking
-- **Outliers**: Can dominate kernel learning - may need robust likelihood functions
-- **Inconsistent sampling**: Affects kernel lengthscale interpretation
+All forecasting and anomaly detection methods benefit from high-quality data:
+- **Missing values**: Require imputation or methods that handle gaps natively
+- **Outliers**: Can bias model parameters - may need robust estimation or preprocessing
+- **Inconsistent sampling**: Affects temporal feature engineering and model assumptions
 - **Label quality**: Poor anomaly labels lead to incorrect model validation
 
-This section verifies we have clean, complete data suitable for rigorous GP modeling.
+This section verifies we have clean, complete data suitable for rigorous modeling.
 
 ```{code-cell} ipython3
 # Data quality summary
@@ -1051,167 +1051,147 @@ quality_data = {
         f'{test_df["label"].sum()} ({100*test_df["label"].mean():.2f}%)',
         'Continuous (no gaps)',
         f'{"✓ Stationary" if adf_p < 0.05 else "⚠ Non-stationary"} (p={adf_p:.4f})',
-        '✓ High-quality operational data ready for GP modeling'
+        '✓ High-quality operational data ready for time series modeling'
     ]
 }
 
 pl.DataFrame(quality_data)
 ```
 
-## 7. Gaussian Process Modeling Recommendations
+## 7. Conclusion & Downstream Applications
 
-**From EDA to GP Design:**
+**From EDA to Modeling Strategy:**
 
-The exploratory analysis above informs our GP modeling choices:
+The exploratory analysis above informs our modeling and analysis choices:
 
-1. **Distribution analysis (PDF/CDF)** → Likelihood function selection
-2. **Periodicity analysis (ACF/FFT)** → Kernel structure (periodic vs non-periodic)
-3. **Stationarity analysis (ADF)** → Mean function (zero vs trend)
-4. **Data quality** → Noise model and preprocessing needs
+1. **Distribution analysis (PDF/CDF)** → Likelihood assumptions, normalization strategy, robust methods
+2. **Periodicity analysis (ACF/FFT)** → Seasonal components, feature engineering, model architecture
+3. **Stationarity analysis (ADF)** → Preprocessing needs (differencing, detrending)
+4. **Data quality** → Missing value handling, outlier treatment, validation strategy
 
-This section synthesizes these findings into actionable GP modeling recommendations.
+This section synthesizes these findings into actionable recommendations for various downstream tasks.
 
-### 1. Computational Feasibility
-
-**Why this matters:**
-
-Exact GP inference requires:
-- **Memory**: O(n²) to store covariance matrix
-- **Time**: O(n³) for Cholesky decomposition
-
-For large datasets (n > 10,000), we need approximations:
-- **Sparse GPs**: Use inducing points (m << n) → O(nm²) time
-- **Windowing**: Train on recent data only
-- **Variational methods**: Approximate posterior with tractable distribution
+### 1. Dataset Characteristics Summary
 
 ```{code-cell} ipython3
-# Compute feasibility metrics
+# Dataset characteristics for modeling decisions
 n_train = len(train_df)
 n_test = len(test_df)
-memory_gb = (n_train ** 2 * 8) / (1024 ** 3)
+total_samples = n_train + n_test
+duration_days = total_samples / 1440  # 1-minute sampling
+
+# Compute periodicity metrics
+if len(peak_indices) > 0:
+    has_periodicity = True
+    dominant_period = int(peak_periods[sort_idx[0]])
+    periodicity_strength = "Strong" if peak_prominence[sort_idx[0]] > 0.3 else "Moderate"
+else:
+    has_periodicity = False
+    dominant_period = None
+    periodicity_strength = "None detected"
 
 pl.DataFrame({
-    'Metric': ['Training samples', 'Test samples', 'Memory required (GB)'],
+    'Characteristic': [
+        'Training samples',
+        'Test samples',
+        'Total duration (days)',
+        'Sampling interval',
+        'Stationarity',
+        'Periodicity',
+        'Dominant period',
+        'Anomaly rate (train)',
+        'Anomaly rate (test)',
+        'Missing values'
+    ],
     'Value': [
-        float(n_train),
-        float(n_test),
-        memory_gb
+        f'{n_train:,}',
+        f'{n_test:,}',
+        f'{duration_days:.1f}',
+        '1 minute',
+        f'{"Stationary" if adf_p < 0.05 else "Non-stationary"} (p={adf_p:.3f})',
+        periodicity_strength,
+        f'{dominant_period} minutes' if has_periodicity else 'N/A',
+        f'{100*train_df["label"].mean():.2f}%',
+        f'{100*test_df["label"].mean():.2f}%',
+        'None (100% complete)'
     ]
 })
 ```
 
-```{code-cell} ipython3
-# Recommendation based on sample size
-if n_train <= 10000:
-    pl.DataFrame({'Recommendation': ['✓ Standard Cholesky decomposition suitable']})
-elif n_train <= 50000:
-    pl.DataFrame({'Recommendation': ['⚠ Consider windowing or sparse GP with inducing points']})
-else:
-    pl.DataFrame({'Recommendation': ['✗ Use sparse GP (inducing points) or variational methods']})
-```
+### 2. Modeling Approach Recommendations
 
-### 2. Kernel Selection
-
-**How to choose GP kernels:**
-
-The kernel (covariance function) encodes our assumptions about how data points relate:
-
-- **RBF (Radial Basis Function)**: Smooth, gradually varying functions
-  - Use when: No clear periodicity, gradual changes
-  - Hyperparameter: lengthscale ℓ controls smoothness
-
-- **Periodic kernel**: Exactly repeating patterns
-  - Use when: Strong ACF peaks, clear cycles (daily, weekly)
-  - Hyperparameters: period p, lengthscale ℓ
-
-- **Linear kernel**: Captures trends
-  - Use when: Non-stationary data with drift
-  - Hyperparameter: variance σ²
-
-- **White noise**: Independent observation noise
-  - Always include for real data
-  - Hyperparameter: noise variance σ²_n
-
-**Kernel combination strategy:**
-- Sum kernels to combine effects: k_total = k_periodic + k_rbf + k_noise
-- Product kernels for modulated patterns: k_product = k_periodic × k_rbf
+Based on the EDA findings, here are modeling recommendations for different approaches:
 
 ```{code-cell} ipython3
-# DATA-DRIVEN kernel selection based on Welch's PSD analysis
-# Uses detected spectral peaks (not assumptions!)
+# Generate model recommendations based on dataset characteristics
 
-if len(peak_indices) > 0 and len(peak_periods) > 0:
-    # We have detected periodic structure in frequency domain
-    dominant_periods = peak_periods[sort_idx[:min(3, len(peak_periods))]]  # Top 3 periods
-    dominant_powers = peak_power[sort_idx[:min(3, len(peak_periods))]]
-    peak_strengths = peak_prominence[sort_idx[:min(3, len(peak_periods))]]
+model_recommendations = []
 
-    # Build kernel recommendation based on detected structure
-    kernel_components = []
+# 1. Foundation Models (always applicable)
+model_recommendations.append({
+    'Approach': '🤖 Foundation Models',
+    'Models': 'TimesFM, Chronos, Lag-Llama',
+    'Suitability': '✅ Excellent',
+    'Rationale': 'Pre-trained on diverse time series, handle irregular patterns and non-stationarity naturally',
+    'Key Advantage': 'Zero-shot forecasting, no hyperparameter tuning',
+    'Next Step': 'See: docs/tutorials/timesfm-forecasting.qmd'
+})
 
-    # Add periodic kernels for significant peaks
-    for i, (period, power, strength) in enumerate(zip(dominant_periods, dominant_powers, peak_strengths)):
-        if strength > 0.10:  # Significant peak (>10% prominence)
-            kernel_components.append({
-                'Kernel': f'Periodic (period={int(period)})',
-                'Justification': f'PSD peak at period={int(period)} (prominence={strength:.2f})',
-                'Hyperparameters': f'period={int(period)}, lengthscale=learnable'
-            })
-
-    # Always add RBF for non-periodic variations
-    kernel_components.append({
-        'Kernel': 'RBF (smooth deviations)',
-        'Justification': 'Capture variations not explained by periodic components',
-        'Hyperparameters': 'lengthscale=learnable, outputscale=learnable'
-    })
-
-    # Always add noise
-    kernel_components.append({
-        'Kernel': 'White Noise',
-        'Justification': 'Model measurement noise and unexplained variance',
-        'Hyperparameters': 'noise_variance=learnable'
-    })
-
-    print(f"✓ DETECTED PERIODIC STRUCTURE")
-    print(f"  Number of spectral peaks: {len(peak_indices)}")
-    print(f"  Top periods: {', '.join([f'{int(p)}' for p in dominant_periods])} timesteps")
-    print(f"\nRecommended Kernel Structure:")
-    print(f"  k_total = {' + '.join([kc['Kernel'].split()[0] for kc in kernel_components])}")
-    print()
-
-    pl.DataFrame(kernel_components)
-
+# 2. Statistical Models
+if has_periodicity:
+    if adf_p < 0.05:  # Stationary + periodic
+        stat_model = 'SARIMA (Seasonal ARIMA)'
+        stat_config = f'Seasonal period: {dominant_period} minutes'
+    else:  # Non-stationary + periodic
+        stat_model = 'SARIMA with differencing'
+        stat_config = f'Apply differencing + seasonal period: {dominant_period} minutes'
 else:
-    # No periodic structure detected - use non-periodic kernels
-    print("⚠️  NO PERIODIC STRUCTURE DETECTED IN PSD")
-    print("  This indicates irregular / non-seasonal time series")
-    print()
+    if adf_p < 0.05:  # Stationary, no periodicity
+        stat_model = 'ARIMA (non-seasonal)'
+        stat_config = 'Use ACF/PACF for order selection'
+    else:  # Non-stationary, no periodicity
+        stat_model = 'ARIMA with differencing or Prophet'
+        stat_config = 'Differencing for stationarity, Prophet for trend+noise'
 
-    kernel_components = [{
-        'Kernel': 'RBF (smooth variations)',
-        'Justification': 'Model smooth local variations without periodic assumptions',
-        'Hyperparameters': 'lengthscale=learnable, outputscale=learnable'
-    }, {
-        'Kernel': 'Linear (long-term trends)',
-        'Justification': 'Capture non-stationary drift if present',
-        'Hyperparameters': 'variance=learnable'
-    }, {
-        'Kernel': 'White Noise',
-        'Justification': 'Model measurement noise',
-        'Hyperparameters': 'noise_variance=learnable'
-    }]
+model_recommendations.append({
+    'Approach': '📊 Statistical Models',
+    'Models': stat_model,
+    'Suitability': '✅ Good' if adf_p < 0.05 else '⚠️ Requires preprocessing',
+    'Rationale': 'Well-established, interpretable parameters, good for regular patterns',
+    'Key Advantage': 'Interpretable, fast inference, confidence intervals',
+    'Next Step': stat_config
+})
 
-    print("Recommended Kernel Structure:")
-    print("  k_total = RBF + Linear + Noise")
-    print()
-    print("⚠️  CAUTION: GP may not be optimal for this data!")
-    print("  Consider alternative models:")
-    print("    • ARIMA (for irregular time series)")
-    print("    • Prophet (trend + noise decomposition)")
-    print("    • Local regression (LOESS)")
-    print()
+# 3. Gaussian Processes
+if has_periodicity:
+    gp_kernel = f'Periodic (period={dominant_period}) + RBF + Noise'
+    gp_note = 'Periodic kernel for cycles, RBF for residual variation'
+else:
+    gp_kernel = 'RBF + Linear + Noise'
+    gp_note = 'RBF for smoothness, Linear for trend'
 
-    pl.DataFrame(kernel_components)
+gp_suitability = '✅ Feasible' if n_train <= 10000 else ('⚠️ Use sparse GP' if n_train <= 50000 else '❌ Computationally expensive')
+
+model_recommendations.append({
+    'Approach': '🎯 Gaussian Processes',
+    'Models': gp_kernel,
+    'Suitability': gp_suitability,
+    'Rationale': 'Probabilistic forecasting with uncertainty quantification',
+    'Key Advantage': 'Uncertainty estimates, flexible kernel design',
+    'Next Step': 'See: docs/tutorials/gaussian-processes.qmd'
+})
+
+# 4. Deep Learning
+model_recommendations.append({
+    'Approach': '🧠 Deep Learning',
+    'Models': 'LSTM, Transformer, N-BEATS',
+    'Suitability': '⚠️ May be overkill' if n_train < 50000 else '✅ Good with sufficient data',
+    'Rationale': 'Learn complex non-linear patterns from data',
+    'Key Advantage': 'Handles complex patterns, multivariate extensions',
+    'Next Step': 'Requires feature engineering and hyperparameter tuning'
+})
+
+pl.DataFrame(model_recommendations)
 ```
 
 ### 3. Forecasting Horizons
@@ -1244,33 +1224,66 @@ horizon_data = {
 pl.DataFrame(horizon_data)
 ```
 
-### 4. Anomaly Detection Strategy
+### 4. Anomaly Detection Strategies
 
-**METHOD:** Probabilistic forecast-based detection
-
-**APPROACH:**
-
-1. **Training:** Train GP on normal data (exclude labeled anomalies)
-2. **Forecasting:** Generate probabilistic predictions with uncertainty:
-   - Mean prediction: μ(x\*)
-   - Predictive variance: σ(x\*)
-3. **Prediction Intervals:**
-   - 95% interval: [μ(x\*) - 1.96σ(x\*), μ(x\*) + 1.96σ(x\*)]
-   - 99% interval: [μ(x\*) - 2.58σ(x\*), μ(x\*) + 2.58σ(x\*)]
-4. **Anomaly Flagging:**
-   - Anomaly: actual value outside 95% interval
-   - High-confidence anomaly: actual value outside 99% interval
-
-**EVALUATION:**
+Multiple approaches can be used for anomaly detection on this dataset:
 
 ```{code-cell} ipython3
-# Evaluation plan
+# Anomaly detection approach recommendations
+anomaly_approaches = []
+
+# 1. Forecast-based (probabilistic)
+anomaly_approaches.append({
+    'Strategy': '📊 Forecast-Based',
+    'Method': 'Probabilistic forecasting + prediction intervals',
+    'How it Works': 'Flag points outside 95%/99% prediction intervals',
+    'Best For': 'When you have a good forecasting model (GP, Prophet, deep learning)',
+    'Pros': 'Uncertainty-aware, interpretable thresholds',
+    'Cons': 'Requires accurate forecasts'
+})
+
+# 2. Statistical thresholds
+anomaly_approaches.append({
+    'Strategy': '📏 Statistical Thresholds',
+    'Method': 'Z-score, IQR, percentile-based',
+    'How it Works': 'Flag values > 3 std devs or outside percentile ranges',
+    'Best For': 'Quick baseline, stationary data',
+    'Pros': 'Simple, fast, no training needed',
+    'Cons': 'No temporal context, sensitive to outliers'
+})
+
+# 3. Unsupervised learning
+anomaly_approaches.append({
+    'Strategy': '🔍 Unsupervised Learning',
+    'Method': 'Isolation Forest, LOF, One-Class SVM',
+    'How it Works': 'Learn normal behavior, flag deviations',
+    'Best For': 'No labeled data, multivariate patterns',
+    'Pros': 'Handles complex patterns, no labels needed',
+    'Cons': 'Less interpretable, hyperparameter tuning'
+})
+
+# 4. Reconstruction-based
+anomaly_approaches.append({
+    'Strategy': '🧠 Reconstruction-Based',
+    'Method': 'Autoencoders (LSTM, Transformer)',
+    'How it Works': 'High reconstruction error → anomaly',
+    'Best For': 'Complex temporal dependencies, sufficient data',
+    'Pros': 'Learns intricate patterns',
+    'Cons': 'Requires more data, harder to tune'
+})
+
+pl.DataFrame(anomaly_approaches)
+```
+
+```{code-cell} ipython3
+# Evaluation framework (applicable to all methods)
 pl.DataFrame({
-    'Aspect': ['Test Set', 'Evaluation Metrics', 'Baseline Comparisons'],
+    'Aspect': ['Test Set', 'Evaluation Metrics', 'Baseline Comparisons', 'Threshold Tuning'],
     'Details': [
-        f'{len(test_df):,} samples with {test_df["label"].sum()} labeled anomalies',
-        'Precision, Recall, F1-Score, AUC-ROC',
-        'Isolation Forest, LSTM Autoencoder, Statistical methods'
+        f'{len(test_df):,} samples with {test_df["label"].sum()} labeled anomalies ({100*test_df["label"].mean():.2f}%)',
+        'Precision, Recall, F1-Score, AUC-ROC, Precision@k',
+        'Compare multiple methods: statistical, ML-based, forecast-based',
+        'Use validation set to optimize precision-recall trade-off'
     ]
 })
 ```
@@ -1284,51 +1297,63 @@ anomaly_rate_test = 100 * test_df['label'].mean()
 total_anomalies = train_df['label'].sum() + test_df['label'].sum()
 
 summary_metrics = {
-    'Category': ['Dataset Characteristics', 'Dataset Characteristics', 'Dataset Characteristics', 'Dataset Characteristics',
-                 'Temporal Patterns', 'Temporal Patterns',
-                 'Stationarity', 'Stationarity',
-                 'Anomaly Characteristics', 'Anomaly Characteristics', 'Anomaly Characteristics',
-                 'GP Modeling Readiness', 'GP Modeling Readiness', 'GP Modeling Readiness'],
+    'Category': [
+        'Dataset Characteristics', 'Dataset Characteristics', 'Dataset Characteristics', 'Dataset Characteristics',
+        'Temporal Patterns', 'Temporal Patterns',
+        'Stationarity', 'Stationarity',
+        'Anomaly Characteristics', 'Anomaly Characteristics', 'Anomaly Characteristics',
+        'Modeling Readiness', 'Modeling Readiness', 'Modeling Readiness'
+    ],
     'Finding': [
-        '✓ High-quality operational data',
-        f'✓ Realistic scale: {n_train:,} training + {n_test:,} test samples',
-        f'✓ Labeled anomalies: {total_anomalies} total',
-        '✓ Real web server KPIs from production',
-        f'{"✓ Periodicity detected: ~" + str(peak_lags[0]) + " timestep cycles" if has_periodicity else "⚠ No strong periodicity: Complex patterns"}',
-        f'{"✓ ACF shows structured autocorrelation" if has_periodicity else "→ GP will use RBF + Linear kernels"}',
-        f'{"✓ Stationary series" if adf_p < 0.05 else "⚠ Non-stationary"}',
-        f'{"→ Standard GP kernels applicable" if adf_p < 0.05 else "→ Consider differencing or trend-aware kernels"}',
+        '✓ High-quality operational data from production systems',
+        f'✓ Realistic scale: {n_train:,} training + {n_test:,} test samples (~{duration_days:.1f} days)',
+        f'✓ Labeled anomalies: {total_anomalies} total (expert-curated)',
+        '✓ Real web server KPIs (TSB-UAD benchmark)',
+        f'{"✓ Periodicity detected: ~" + str(dominant_period) + " minute cycles" if has_periodicity else "⚠ No strong periodicity: Irregular patterns"}',
+        f'{"✓ ACF shows structured autocorrelation - seasonal models suitable" if has_periodicity else "→ Non-seasonal models or foundation models recommended"}',
+        f'{"✓ Stationary series (ADF p={adf_p:.3f})" if adf_p < 0.05 else f"⚠ Non-stationary (ADF p={adf_p:.3f})"}',
+        f'{"→ Direct modeling without preprocessing" if adf_p < 0.05 else "→ Requires differencing or trend-aware approaches"}',
         f'✓ Training anomaly rate: {anomaly_rate_train:.2f}%',
         f'✓ Test anomaly rate: {anomaly_rate_test:.2f}%',
-        '✓ Anomalies are statistical outliers',
-        f'{"✓ Exact GP feasible" if n_train <= 10000 else ("⚠ Exact GP marginal - sparse methods" if n_train <= 50000 else "✗ Sparse GP required")}',
-        f'{"✓ Kernel: Periodic + RBF + Noise" if has_periodicity else "✓ Kernel: RBF + Linear + Noise"}',
-        f'✓ Forecast horizon: Up to ~{forecast_limit} timesteps'
+        '✓ Anomalies show distributional separation (see PDF/CDF analysis)',
+        '✓ Complete data (no missing values)',
+        '✓ Suitable for statistical, ML, and foundation model approaches',
+        f'✓ Forecast horizon guidance: Up to ~{forecast_limit} timesteps (ACF-based)'
     ]
 }
 
 pl.DataFrame(summary_metrics)
 ```
 
-### Recommended Next Steps
+### Next Steps: Choosing Your Path
 
-1. **Implement GP forecasting** with recommended kernel structure
-2. **Train on normal data** (exclude labeled anomalies)
-3. **Generate probabilistic forecasts** with uncertainty quantification
-4. **Detect anomalies** via prediction intervals (95%/99%)
-5. **Evaluate on test set** against labeled ground truth
-6. **Compare with baselines** (Isolation Forest, LSTM Autoencoder)
-7. **Tune hyperparameters** via marginal likelihood optimization
+Based on your goals, select the appropriate downstream workflow:
 
-✓ **EDA complete!** Dataset ready for GP model implementation.
+**🎯 For Time Series Forecasting:**
+1. **Foundation Models (Recommended)**: `docs/tutorials/timesfm-forecasting.qmd`
+   - Zero-shot forecasting with TimesFM or Chronos
+   - No hyperparameter tuning required
+   - Handles non-stationarity naturally
 
----
+2. **Gaussian Processes**: `docs/tutorials/gaussian-processes.qmd`
+   - Probabilistic forecasting with uncertainty quantification
+   - Flexible kernel design based on periodicity findings
+   - Requires hyperparameter optimization
 
-## Appendix: Next Notebook Sequence
+3. **Statistical Models**: ARIMA/Prophet implementation
+   - Use detected periodicity for seasonal components
+   - Apply differencing if non-stationary
+   - Interpretable, established methods
 
-**Future notebook workflow:**
+**🔍 For Anomaly Detection:**
+1. **Forecast-Based**: Build forecasting model → flag prediction interval violations
+2. **Unsupervised Learning**: Isolation Forest, LOF, One-Class SVM
+3. **Deep Learning**: LSTM Autoencoder for reconstruction-based detection
+4. **Hybrid**: Combine multiple approaches for robust detection
 
-1. ✓ **This notebook:** IOPS Web Server EDA
-2. **Next:** GP Forecasting Implementation (IOPS)
-3. **Then:** Forecast-based Anomaly Detection
-4. **Finally:** Comparison with Baseline Methods
+**📊 For General Analysis:**
+- **Full Analysis Notebook**: This notebook provides complete EDA
+- **Dataset**: Available via `AutonLab/Timeseries-PILE` on HuggingFace
+- **Benchmark**: Part of TSB-UAD suite for anomaly detection research
+
+✓ **EDA complete!** Dataset characterized and ready for modeling.
