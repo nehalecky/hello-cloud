@@ -64,9 +64,8 @@ This is the **grain discovery problem** - finding the most granular combination 
 ```{code-cell} ipython3
 from pathlib import Path
 from datetime import date, datetime, timedelta
-import ibis
-from ibis import _
-import ibis.selectors as s
+from pyspark.sql import functions as F
+from pyspark.sql import Window
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -76,38 +75,32 @@ from loguru import logger
 # Import hellocloud with namespace access
 import hellocloud as hc
 
-# Import composable transformation functions (Ibis pipe pattern)
-#from hellocloud.transforms import pct_change
-
-# Configure Ibis
-ibis.options.interactive = True  # Auto-execute for repr
-ibis.options.repr.interactive.max_rows = 10
+# Get Spark session
+spark = hc.spark.get_spark_session(app_name="piedpiper-eda")
 
 # Configure visualization style
 hc.utils.setup_seaborn_style(style='whitegrid', palette='husl', context='notebook')
 
 hc.configure_notebook_logging()
-logger.info("PiedPiper EDA - Notebook initialized (Ibis + DuckDB + Seaborn)")
+logger.info("PiedPiper EDA - Notebook initialized (PySpark + Seaborn)")
 ```
 
 ### 1.2 Load Dataset
 
 ```{code-cell} ipython3
-# Connect to DuckDB (in-memory, fast analytical queries)
-con = ibis.duckdb.connect()
-
 # Load Parquet file
 DATA_PATH = Path('~/Projects/cloudzero/hello-cloud/data/piedpiper_optimized_daily.parquet').expanduser()
-df = con.read_parquet(DATA_PATH, table_name='piedpiper')
+df = spark.read.parquet(str(DATA_PATH))
+df = df.cache()  # Cache for faster repeated access
 
 # Basic shape
-total_rows = df.count().execute()
-total_cols = len(df.schema())
+total_rows = df.count()
+total_cols = len(df.columns)
 logger.info(f"Dataset: {total_rows:,} rows × {total_cols} columns")
-logger.info(f"Backend: DuckDB (local analytical engine)")
+logger.info(f"Backend: PySpark (distributed analytical engine)")
 
 # Preview
-df.head(5)
+df.limit(5).toPandas()
 ```
 
 ---
@@ -116,20 +109,22 @@ df.head(5)
 
 ```{code-cell} ipython3
 # Identify date column and stats
+from pyspark.sql.types import DateType, TimestampType
+
 date_cols = [
-    name for name, dtype in df.schema().items()
-    if dtype.is_temporal()
+    field.name for field in df.schema.fields
+    if isinstance(field.dataType, (DateType, TimestampType))
 ]
 logger.info(f"Date/Datetime columns found: {date_cols}")
 logger.info(f"Renaming {date_cols[0]} → date")
-df = df.rename(date=date_cols[0])
+df = df.withColumnRenamed(date_cols[0], 'date')
 
 date_stats = df.agg(
-    unique_date = _.date.nunique(),
-    min_date=_.date.min(),
-    max_date=_.date.max()
+    F.countDistinct('date').alias('unique_date'),
+    F.min('date').alias('min_date'),
+    F.max('date').alias('max_date')
 )
-date_stats
+date_stats.toPandas()
 ```
 
 **Noted** Max date spans into the future `2025-12-31`.
@@ -137,7 +132,7 @@ date_stats
 Let's inspect the temporal record density and plot.
 
 ```{code-cell} ipython3
-df.pipe(hc.transforms.summary_stats(group_by='date'))
+df.transform(hc.transforms.summary_stats(value_col='cost', group_col='date'))
 ```
 
 ```{code-cell} ipython3
@@ -154,57 +149,59 @@ plt.show()
 **Observation**: The time series shows a sharp drop at a specific date, with data continuing into the future. Something is off—let's investigate the magnitude of day-over-day changes to identify the anomaly.
 
 ```{code-cell} ipython3
-# Compute day-over-day percent change using pipe pattern
-daily_with_change = (
-    df
-    .group_by('date')
-    .agg(count=_.count())
-    .order_by('date')
-    .pipe(hc.transforms.pct_change('count', 'date'))  # Clean: pct_change transform adds 'count_pct_change' column
+# Compute day-over-day percent change using transform pattern
+from hellocloud.transforms import pct_change
+
+daily_counts = (
+    df.groupBy('date')
+    .agg(F.count('*').alias('count'))
+    .orderBy('date')
+)
+
+daily_with_change = daily_counts.transform(
+    pct_change(value_col='count', order_col='date')
 )
 
 # Find largest drops (most negative percent changes)
 largest_drops = (
     daily_with_change
-    .filter(_.count_pct_change.notnull())
-    .order_by('count_pct_change')
+    .filter(F.col('pct_change').isNotNull())
+    .orderBy('pct_change')
     .limit(5)
-    .select('date', 'count', 'count_pct_change')
+    .select('date', 'count', 'pct_change')
 )
 
 logger.info("Largest day-over-day drops:")
-largest_drops
+largest_drops.toPandas()
 ```
 
 The data shows a significant drop (>30%) on a specific date. We'll filter to the period before this anomaly for clean analysis.
 
 ```{code-cell} ipython3
-# Find earliest date with >30% drop (pct_change returns fraction, so -0.30)
+# Find earliest date with >30% drop (pct_change returns percentage, so -30.0)
 cutoff_date_result = (
     daily_with_change
-    .filter(_.count_pct_change < -0.30)
-    .order_by('date')
+    .filter(F.col('pct_change') < -30.0)
+    .orderBy('date')
     .limit(1)
     .select('date')
-    .execute()
+    .toPandas()
 )
 
 CUTOFF_DATE = cutoff_date_result['date'].iloc[0]
 logger.info(f"Cutoff date detected: {CUTOFF_DATE}")
 
-# Apply filter to Ibis table
-df = df.filter(_.date < CUTOFF_DATE)
+# Apply filter to PySpark DataFrame
+df = df.filter(F.col('date') < CUTOFF_DATE)
 
 # Compute stats
 stats = df.agg(
-    rows=_.count(),
-    days=_.date.nunique(),
-    start=_.date.min(),
-    end=_.date.max()
+    F.count('*').alias('rows'),
+    F.countDistinct('date').alias('days'),
+    F.min('date').alias('start'),
+    F.max('date').alias('end')
 )
-stats
-#logger.info(f"Filtered to: {stats['rows'].iloc[0]:,} rows, {stats['days'].iloc[0]} days ({stats['start'].iloc[0]} to {stats['end'].iloc[0]})")
-stats
+stats.toPandas()
 ```
 
 ---
@@ -289,10 +286,11 @@ Visualize value distributions for all categorical (grouping) columns to understa
 
 ```{code-cell} ipython3
 # Identify categorical columns directly from current dataframe (string/categorical dtypes)
-schema = df.schema()
+from pyspark.sql.types import StringType
+
 categorical_cols = [
-    col for col, dtype in schema.items()
-    if dtype.is_string()
+    field.name for field in df.schema.fields
+    if isinstance(field.dataType, StringType)
 ]
 
 logger.info(f"\n📊 Categorical Columns ({len(categorical_cols)}):")
@@ -328,7 +326,7 @@ if categorical_cols:
 
 ```{code-cell} ipython3
 # Identify all cost columns
-cost_columns = [c for c in df.schema().names if 'cost' in c.lower()]
+cost_columns = [c for c in df.columns if 'cost' in c.lower()]
 
 logger.info(f"\n💰 Cost Columns Found: {len(cost_columns)}")
 logger.info(f"   {cost_columns}")
@@ -339,17 +337,10 @@ logger.info(f"   {cost_columns}")
 from itertools import combinations
 import pandas as pd
 
-# Compute correlations using Ibis (DuckDB supports population correlation)
+# Compute correlations using PySpark
 corr_results = []
 for col1, col2 in combinations(cost_columns, 2):
-    corr_val = (
-        df
-        .select(col1=_[col1], col2=_[col2])
-        .agg(correlation=_.col1.corr(_.col2, how='pop'))
-        .execute()
-        ['correlation']
-        .iloc[0]
-    )
+    corr_val = df.stat.corr(col1, col2)
     corr_results.append({
         'pair': f"{col1} ↔ {col2}",
         'col1': col1,
@@ -395,9 +386,9 @@ else:
 redundant_cost_cols = [c for c in cost_columns if c != 'materialized_cost']
 
 # Execute single-pass filtering & track reduction
-cols_before = len(df.schema())
-df = df.drop(redundant_cost_cols).rename(cost='materialized_cost')
-cols_after = len(df.schema())
+cols_before = len(df.columns)
+df = df.drop(*redundant_cost_cols).withColumnRenamed('materialized_cost', 'cost')
+cols_after = len(df.columns)
 reduction_ratio = (cols_before - cols_after) / cols_before
 
 logger.info(f"\n📉 Column Reduction: {cols_before} → {cols_after} ({reduction_ratio:.1%} reduction)")
@@ -407,7 +398,7 @@ logger.info(f"✅ Renamed: materialized_cost → cost")
 
 ```{code-cell} ipython3
 # Explain remaining data structure
-remaining_cols = df.schema().names
+remaining_cols = df.columns
 
 logger.info(f"\n📦 Remaining Data Structure ({cols_after} columns):")
 logger.info(f"\n   Temporal: usage_date")
@@ -435,11 +426,11 @@ plt.show()
 
 # Compute cardinalities in single query
 dim_stats = df.agg(
-    providers=_.cloud_provider.nunique(),
-    accounts=_.cloud_account_id.nunique(),
-    regions=_.region.nunique(),
-    products=_.product_family.nunique()
-).execute().iloc[0]
+    F.countDistinct('cloud_provider').alias('providers'),
+    F.countDistinct('cloud_account_id').alias('accounts'),
+    F.countDistinct('region').alias('regions'),
+    F.countDistinct('product_family').alias('products')
+).toPandas().iloc[0]
 
 logger.info(f"\n📊 Dimensional Summary:")
 logger.info(f"   Providers: {dim_stats['providers']}")
@@ -458,14 +449,14 @@ Inspect daily patterns to detect pipeline anomalies.
 # Daily aggregates
 daily_summary = (
     df
-    .group_by('date')
+    .groupBy('date')
     .agg(
-        record_count=_.count(),
-        total_cost=_.cost.sum(),
-        cost_std=_.cost.std()
+        F.count('*').alias('record_count'),
+        F.sum('cost').alias('total_cost'),
+        F.stddev('cost').alias('cost_std')
     )
-    .order_by('date')
-    .execute()
+    .orderBy('date')
+    .toPandas()
 )
 
 # Visualize
@@ -504,10 +495,10 @@ def grain_persistence_stats(df, grain_cols, cost_col, min_days=30):
     # Compute entity-level persistence
     entity_stats = (
         df
-        .group_by(grain_cols)
+        .groupBy(grain_cols)
         .agg(
-            days_present=_.date.nunique(),
-            total_cost=_[cost_col].sum()
+            F.countDistinct('date').alias('days_present'),
+            F.sum(cost_col).alias('total_cost')
         )
     )
 
@@ -515,23 +506,23 @@ def grain_persistence_stats(df, grain_cols, cost_col, min_days=30):
     summary = (
         entity_stats
         .agg(
-            total_entities=_.count(),
-            stable_entities=(_.days_present >= min_days).sum().cast('int64'),
-            median_days=_.days_present.median().cast('int64'),
-            mean_days=_.days_present.mean()
+            F.count('*').alias('total_entities'),
+            F.sum(F.when(F.col('days_present') >= min_days, 1).otherwise(0)).alias('stable_entities'),
+            F.expr('percentile_approx(days_present, 0.5)').alias('median_days'),
+            F.avg('days_present').alias('mean_days')
         )
-        .execute()
+        .toPandas()
     )
 
     # Extract scalars and compute derived metrics
-    total = summary['total_entities'].iloc[0]
-    stable = summary['stable_entities'].iloc[0]
+    total = int(summary['total_entities'].iloc[0])
+    stable = int(summary['stable_entities'].iloc[0])
 
     return {
         'entities': total,
         'stable_count': stable,
         'stable_pct': round(100.0 * stable / total, 1) if total > 0 else 0.0,
-        'median_days': summary['median_days'].iloc[0],
+        'median_days': int(summary['median_days'].iloc[0]),
         'mean_days': round(summary['mean_days'].iloc[0], 1)
     }
 
@@ -546,25 +537,25 @@ def entity_timeseries_normalized(df, entity_cols, time_col, metric_col, freq='1d
     # Entity-period aggregation (with time rounding)
     entity_period = (
         df
-        .mutate(time=_[time_col].truncate('D'))  # Round to day
-        .group_by(['time'] + entity_cols)
-        .agg(metric=_[metric_col].sum())
+        .withColumn('time', F.date_trunc('day', F.col(time_col)))
+        .groupBy(['time'] + entity_cols)
+        .agg(F.sum(metric_col).alias('metric'))
     )
 
     # Period totals
     period_totals = (
         entity_period
-        .group_by('time')
-        .agg(period_total=_.metric.sum())
+        .groupBy('time')
+        .agg(F.sum('metric').alias('period_total'))
     )
 
     # Normalize: entity / total
     return (
         entity_period
         .join(period_totals, 'time')
-        .mutate(normalized=_.metric / _.period_total)
-        .order_by(['time'] + entity_cols)
-        .execute()
+        .withColumn('normalized', F.col('metric') / F.col('period_total'))
+        .orderBy(['time'] + entity_cols)
+        .toPandas()
     )
 ```
 
@@ -641,19 +632,19 @@ Validate entities produce forecastable time series.
 # Get top 10 stable, high-cost entities at optimal grain
 top_entities = (
     df
-    .group_by(OPTIMAL_COLS)
+    .groupBy(OPTIMAL_COLS)
     .agg(
-        days_present=_.date.nunique(),
-        total_cost=_.cost.sum()
+        F.countDistinct('date').alias('days_present'),
+        F.sum('cost').alias('total_cost')
     )
-    .filter(_.days_present >= 30)
-    .order_by(ibis.desc('total_cost'))
+    .filter(F.col('days_present') >= 30)
+    .orderBy(F.desc('total_cost'))
     .limit(10)
-    .execute()
+    .toPandas()
 )
 
 # Pareto analysis
-total_cost = df.agg(total=_.cost.sum()).execute()['total'].iloc[0]
+total_cost = df.agg(F.sum('cost').alias('total')).toPandas()['total'].iloc[0]
 top_10_cost = top_entities['total_cost'].sum()
 
 logger.info(f"\n💰 Top 10 Entities at {OPTIMAL_GRAIN}:")
@@ -751,7 +742,7 @@ $\therefore$ Grain validated for time series modeling
 **Next**: Transform to tidy format for attribute-level analysis (Part 5)
 
 ```{code-cell} ipython3
-df.limit(10).execute()
+df.limit(10).toPandas()
 ```
 
 ---
@@ -769,10 +760,11 @@ The data contains a **compound key** - multiple attributes that together uniquel
 
 ```{code-cell} ipython3
 # Get categorical columns for hierarchy analysis
-schema = df.schema()
+from pyspark.sql.types import StringType
+
 categorical_cols = [
-    col for col, dtype in schema.items()
-    if dtype.is_string()
+    field.name for field in df.schema.fields
+    if isinstance(field.dataType, StringType)
 ]
 
 logger.info(f"\n🔍 Analyzing hierarchy among {len(categorical_cols)} categorical attributes:")
@@ -800,19 +792,19 @@ key_candidates = [
 
 for keys in key_candidates:
     # Filter to only columns that exist in dataframe
-    valid_keys = [k for k in keys if k in df.schema().names]
+    valid_keys = [k for k in keys if k in df.columns]
 
     if not valid_keys:
         continue
 
     # Count unique combinations
-    unique_combos = df.select(valid_keys).distinct().count().execute()
+    unique_combos = df.select(valid_keys).distinct().count()
 
     # Count total records per combination (mean entity size)
     entity_sizes_df = (
-        df.group_by(valid_keys)
-        .agg(record_count=_.count())
-        .execute()
+        df.groupBy(valid_keys)
+        .agg(F.count('*').alias('record_count'))
+        .toPandas()
     )
     entity_sizes = entity_sizes_df['record_count'].mean()
 
@@ -857,7 +849,7 @@ logger.info(f"\n💾 Exporting cleaned dataset to: {OUTPUT_DIR}")
 
 ```{code-cell} ipython3
 # Export wide format (source of truth: full entity-level granularity)
-df_collected = df.execute()
+df_collected = df.toPandas()
 
 # Convert Pandas → PyArrow → HuggingFace Dataset
 dataset = Dataset(pa.Table.from_pandas(df_collected))

@@ -1,6 +1,10 @@
 """
 Time series transformation functions using Ibis pipe patterns.
 
+.. deprecated:: 0.2.0
+    Ibis transforms are deprecated and will be removed in v0.3.0.
+    Use PySpark transforms from `hellocloud.transforms.spark` instead.
+
 All functions return closures that accept an Ibis table and return a transformed table.
 This enables clean composition via the .pipe() method.
 
@@ -16,8 +20,18 @@ Examples:
     ... )
 """
 
+import warnings
+
 import ibis
 from ibis import _
+
+# Module-level deprecation warning
+warnings.warn(
+    "hellocloud.transforms.ibis is deprecated and will be removed in v0.3.0. "
+    "Use hellocloud.transforms.spark (PySpark transforms) instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 def pct_change(
