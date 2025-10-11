@@ -261,48 +261,23 @@ Now we classify attributes by cardinality to guide composite key construction:
 This preserves valuable low-cardinality columns while removing noise.
 
 ```{code-cell} ipython3
-# Stratified filtering: different criteria by cardinality class
-# Convert Ibis table to pandas for filtering operations
-attrs_pd = attrs.execute()
+# Stratified filtering using Ibis-native operations
+drop_cols, keep_cols = hc.utils.stratified_column_filter(
+    attrs,
+    primary_key_threshold=0.9,
+    sparse_threshold=0.6,
+    grouping_cardinality=0.1,
+    grouping_completeness=0.95,
+    resource_id_min=0.5,
+    resource_id_max=0.9,
+    resource_id_completeness=0.95,
+    composite_min=0.1,
+    composite_max=0.5,
+    composite_info_score=0.3
+)
 
-# DROP: Primary keys (>90% cardinality, no grouping utility)
-drop_primary_keys = attrs_pd[attrs_pd['cardinality_ratio'] > 0.9]['column'].tolist()
-
-# DROP: Sparse columns (value_density < 60%, too many nulls)
-drop_sparse = attrs_pd[attrs_pd['value_density'] < 0.6]['column'].tolist()
-
-# KEEP: Grouping dimensions (<10% cardinality) if highly complete
-keep_grouping = attrs_pd[
-    (attrs_pd['cardinality_ratio'] <= 0.1) &
-    (attrs_pd['value_density'] > 0.95)  # Must be highly complete
-]['column'].tolist()
-
-# KEEP: High cardinality (50-90%) if complete (potential resource IDs)
-keep_resource_ids = attrs_pd[
-    (attrs_pd['cardinality_ratio'] > 0.5) &
-    (attrs_pd['cardinality_ratio'] <= 0.9) &
-    (attrs_pd['value_density'] > 0.95)  # Must be highly complete
-]['column'].tolist()
-
-# KEEP: Medium cardinality (10-50%) if info score is decent
-keep_composite_candidates = attrs_pd[
-    (attrs_pd['cardinality_ratio'] > 0.1) &
-    (attrs_pd['cardinality_ratio'] <= 0.5) &
-    (attrs_pd['information_score'] > 0.3)  # Balanced across dimensions
-]['column'].tolist()
-
-# Combine filters
-drop_cols = list(set(drop_primary_keys + drop_sparse))
-keep_cols = list(set(keep_grouping + keep_resource_ids + keep_composite_candidates))
-
-logger.info(f"\n🗑️  Dropping {len(drop_cols)} columns:")
-logger.info(f"   Primary keys: {sorted(drop_primary_keys)}")
-logger.info(f"   Sparse columns: {sorted(drop_sparse)}")
-
-logger.info(f"\n✅ Keeping {len(keep_cols)} columns:")
-logger.info(f"   Grouping dims: {sorted(keep_grouping)}")
-logger.info(f"   Resource IDs: {sorted(keep_resource_ids)}")
-logger.info(f"   Composite candidates: {sorted(keep_composite_candidates)}")
+logger.info(f"\n🗑️  Dropping {len(drop_cols)} columns: {sorted(drop_cols)}")
+logger.info(f"\n✅ Keeping {len(keep_cols)} columns: {sorted(keep_cols)}")
 
 # Apply filter (Ibis: schema is dict-like, use .names)
 df_filtered = df.select([col for col in df.schema().names if col not in drop_cols])

@@ -149,6 +149,108 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> ibis.Table:
     return ibis.memtable(results_df)
 
 
+def stratified_column_filter(
+    attrs: ibis.Table,
+    primary_key_threshold: float = 0.9,
+    sparse_threshold: float = 0.6,
+    grouping_cardinality: float = 0.1,
+    grouping_completeness: float = 0.95,
+    resource_id_min: float = 0.5,
+    resource_id_max: float = 0.9,
+    resource_id_completeness: float = 0.95,
+    composite_min: float = 0.1,
+    composite_max: float = 0.5,
+    composite_info_score: float = 0.3,
+) -> tuple[list[str], list[str]]:
+    """
+    Apply stratified filtering to attribute analysis results using Ibis operations.
+
+    Different filtering criteria based on cardinality class:
+    - Primary keys (>90%): Always drop (no analytical value)
+    - High cardinality (50-90%): Keep if complete (potential resource IDs)
+    - Medium cardinality (10-50%): Keep if info score > threshold
+    - Grouping dimensions (<10%): Keep if highly complete
+    - Sparse columns: Drop if value_density < threshold
+
+    Args:
+        attrs: Output from attribute_analysis() (Ibis Table)
+        primary_key_threshold: Cardinality ratio above which to drop (primary keys)
+        sparse_threshold: Value density below which to drop (too many nulls)
+        grouping_cardinality: Max cardinality for grouping dimensions
+        grouping_completeness: Min value density for grouping dimensions
+        resource_id_min: Min cardinality for resource IDs
+        resource_id_max: Max cardinality for resource IDs
+        resource_id_completeness: Min value density for resource IDs
+        composite_min: Min cardinality for composite key candidates
+        composite_max: Max cardinality for composite key candidates
+        composite_info_score: Min information score for composite candidates
+
+    Returns:
+        (drop_cols, keep_cols): Tuple of column name lists
+
+    Example:
+        >>> attrs = hc.utils.attribute_analysis(df)
+        >>> drop_cols, keep_cols = hc.utils.stratified_column_filter(attrs)
+        >>> df_filtered = df.select([c for c in df.schema().names if c not in drop_cols])
+    """
+    # DROP: Primary keys (high cardinality, no grouping utility)
+    drop_primary_keys = (
+        attrs.filter(_.cardinality_ratio > primary_key_threshold)
+        .select("column")
+        .execute()["column"]
+        .tolist()
+    )
+
+    # DROP: Sparse columns (too many nulls)
+    drop_sparse = (
+        attrs.filter(_.value_density < sparse_threshold)
+        .select("column")
+        .execute()["column"]
+        .tolist()
+    )
+
+    # KEEP: Grouping dimensions (low cardinality, highly complete)
+    keep_grouping = (
+        attrs.filter(
+            (_.cardinality_ratio <= grouping_cardinality)
+            & (_.value_density > grouping_completeness)
+        )
+        .select("column")
+        .execute()["column"]
+        .tolist()
+    )
+
+    # KEEP: High cardinality resource IDs (if complete)
+    keep_resource_ids = (
+        attrs.filter(
+            (_.cardinality_ratio > resource_id_min)
+            & (_.cardinality_ratio <= resource_id_max)
+            & (_.value_density > resource_id_completeness)
+        )
+        .select("column")
+        .execute()["column"]
+        .tolist()
+    )
+
+    # KEEP: Medium cardinality composite candidates (if good info score)
+    keep_composite_candidates = (
+        attrs.filter(
+            (_.cardinality_ratio > composite_min)
+            & (_.cardinality_ratio <= composite_max)
+            & (_.information_score > composite_info_score)
+        )
+        .select("column")
+        .execute()["column"]
+        .tolist()
+    )
+
+    # Combine filters
+    drop_cols = list(set(drop_primary_keys + drop_sparse))
+    keep_cols = list(set(keep_grouping + keep_resource_ids + keep_composite_candidates))
+
+    return drop_cols, keep_cols
+
+
 # Backward compatibility alias
 def comprehensive_schema_analysis(df: ibis.Table) -> ibis.Table:
     """

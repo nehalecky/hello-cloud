@@ -51,6 +51,7 @@ from .eda_analysis import (
     shannon_entropy,
     # Sampling
     smart_sample,
+    stratified_column_filter,
     # Temporal Normalization
     time_normalized_size,
 )
@@ -69,6 +70,7 @@ __all__ = [
     "align_entity_timeseries",
     # EDA - Schema & Information Theory
     "attribute_analysis",
+    "stratified_column_filter",
     "comprehensive_schema_analysis",  # Deprecated
     "daily_observation_counts",
     "numeric_column_summary",
