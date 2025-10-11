@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pytest
 
-from hellocloud.utils import plot_temporal_density
+from hellocloud.analysis.eda import plot_temporal_density
 
 
 @pytest.fixture

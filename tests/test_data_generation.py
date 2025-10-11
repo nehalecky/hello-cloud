@@ -6,7 +6,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from hellocloud.data_generation import (
+from hellocloud.generation import (
     CloudMetricsSimulator,
     WorkloadPatternGenerator,
     WorkloadType,
@@ -160,7 +160,7 @@ class TestIntegration:
 
     def test_full_pipeline(self):
         """Test the complete data generation pipeline."""
-        from hellocloud.data_generation.workload_patterns import create_multi_workload_dataset
+        from hellocloud.generation.workload_patterns import create_multi_workload_dataset
 
         # Generate multi-workload dataset
         df = create_multi_workload_dataset(

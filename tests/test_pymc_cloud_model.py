@@ -8,8 +8,8 @@ import polars as pl
 import pytest
 import xarray as xr
 
-from hellocloud.ml_models.application_taxonomy import CloudResourceTaxonomy
-from hellocloud.ml_models.pymc_cloud_model import (
+from hellocloud.modeling.application_taxonomy import CloudResourceTaxonomy
+from hellocloud.modeling.pymc_cloud_model import (
     CloudResourceHierarchicalModel,
 )
 

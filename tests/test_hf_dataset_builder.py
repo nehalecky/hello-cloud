@@ -8,7 +8,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from hellocloud.data_generation.hf_dataset_builder import (
+from hellocloud.generation.hf_dataset_builder import (
     CloudMetricsDatasetBuilder,
 )
 
@@ -50,7 +50,7 @@ class TestCloudMetricsDatasetBuilder:
         assert schema["cpu_utilization"].dtype == "float32"
         assert schema["is_idle"].dtype == "bool"
 
-    @patch("hellocloud.data_generation.hf_dataset_builder.Dataset")
+    @patch("hellocloud.generation.hf_dataset_builder.Dataset")
     def test_polars_to_dataset_conversion(self, mock_dataset):
         """Test converting Polars DataFrame to HuggingFace Dataset."""
         # Mock Dataset constructor to accept arrow table
@@ -116,7 +116,7 @@ class TestCloudMetricsDatasetBuilder:
         # Create sample data spanning multiple days
         df = self._create_sample_dataframe(num_hours=168)  # 1 week
 
-        with patch("hellocloud.data_generation.hf_dataset_builder.DatasetDict") as mock_dict:
+        with patch("hellocloud.generation.hf_dataset_builder.DatasetDict") as mock_dict:
             mock_dict.return_value = MagicMock()
 
             splits = builder.create_time_series_splits(df, test_size=0.2)
@@ -152,7 +152,7 @@ class TestCloudMetricsDatasetBuilder:
             dataset.data = data
             return dataset
 
-        with patch("hellocloud.data_generation.hf_dataset_builder.Dataset") as mock_dataset:
+        with patch("hellocloud.generation.hf_dataset_builder.Dataset") as mock_dataset:
             mock_dataset.from_dict.side_effect = capture_dataset
 
             splits = builder.create_time_series_splits(df, test_size=0.2)
@@ -172,7 +172,7 @@ class TestCloudMetricsDatasetBuilder:
 
         df = self._create_sample_dataframe(num_hours=24)
 
-        with patch("hellocloud.data_generation.hf_dataset_builder.Dataset") as mock_dataset:
+        with patch("hellocloud.generation.hf_dataset_builder.Dataset") as mock_dataset:
             mock_dataset_instance = MagicMock()
             mock_dataset.from_dict.return_value = mock_dataset_instance
             mock_dataset_instance.map.return_value = mock_dataset_instance

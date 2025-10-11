@@ -1,4 +1,4 @@
-"""Machine learning models for cloud cost optimization."""
+"""Machine learning models for cloud resource optimization."""
 
 from .application_taxonomy import (
     ApplicationArchetype,

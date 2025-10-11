@@ -21,7 +21,7 @@ Validates CompositePeriodicKernel behavior including:
 - Positive semi-definite (PSD) property
 """
 
-from hellocloud.ml_models.gaussian_process.kernels import CompositePeriodicKernel
+from hellocloud.modeling.gaussian_process.kernels import CompositePeriodicKernel
 
 
 class TestCompositePeriodicKernel:

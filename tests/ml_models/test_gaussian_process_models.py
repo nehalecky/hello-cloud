@@ -23,7 +23,7 @@ Validates SparseGPModel behavior including:
 
 import gpytorch
 
-from hellocloud.ml_models.gaussian_process.models import SparseGPModel, initialize_inducing_points
+from hellocloud.modeling.gaussian_process.models import SparseGPModel, initialize_inducing_points
 
 
 class TestSparseGPModel:

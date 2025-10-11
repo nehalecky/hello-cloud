@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from pydantic import ValidationError
 
-from hellocloud.ml_models.application_taxonomy import (
+from hellocloud.modeling.application_taxonomy import (
     ApplicationArchetype,
     ApplicationDomain,
     CloudResourceTaxonomy,

@@ -27,7 +27,7 @@ except ImportError:
 if not TORCH_AVAILABLE:
     collect_ignore_glob = ["**/test_gaussian_process_*.py"]
 
-from hellocloud.ml_models.application_taxonomy import (
+from hellocloud.modeling.application_taxonomy import (
     ApplicationArchetype,
     ApplicationDomain,
     CostProfile,
