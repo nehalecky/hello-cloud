@@ -1565,19 +1565,25 @@ def create_correlation_heatmap(
     return fig
 
 
-def plot_temporal_density(
+def plot_temporal_density(  # noqa: C901
     df: ibis.Table,
     date_col: str,
     metric_col: str | None = None,
     log_scale: bool = False,
     title: str | None = None,
     figsize: tuple[int, int] = (14, 5),
+    show_distribution: bool = False,
+    dist_type: str = "violin",
+    show_marginal: bool = False,
+    marginal_type: str = "box",
 ) -> plt.Figure:
     """
     Plot temporal observation density or metric trends over time using seaborn.
 
-    Creates a time series line plot showing either record counts (if metric_col=None)
-    or aggregated metrics over time. Uses seaborn for professional styling.
+    Creates either:
+    - Line plot showing aggregated values (default)
+    - Distribution plot showing value spread at each timestamp (show_distribution=True)
+    - Can include marginal distribution (box/hist/kde) alongside time series
 
     Args:
         df: Input Ibis Table
@@ -1586,47 +1592,133 @@ def plot_temporal_density(
         log_scale: Use logarithmic scale for y-axis
         title: Plot title (None = auto-generate)
         figsize: Figure size (width, height)
+        show_distribution: If True, show distribution per timestamp instead of aggregation
+        dist_type: Distribution plot type ('violin' or 'box'), only used if show_distribution=True
+        show_marginal: If True, add marginal distribution plot on the right side
+        marginal_type: Marginal plot type ('box', 'hist', or 'kde'), only used if show_marginal=True
 
     Returns:
         Matplotlib Figure object
 
     Example:
-        >>> # Plot record counts over time
+        >>> # Plot record counts over time (line)
         >>> fig = plot_temporal_density(df, 'usage_date', log_scale=True)
-        >>> # Plot cost trends
-        >>> fig = plot_temporal_density(df, 'usage_date', metric_col='cost')
+        >>> # Plot with marginal box plot showing distribution of counts
+        >>> fig = plot_temporal_density(df, 'usage_date', show_marginal=True, marginal_type='box')
+        >>> # Plot cost distribution per day (violin)
+        >>> fig = plot_temporal_density(df, 'usage_date', metric_col='cost', show_distribution=True)
         >>> plt.show()
     """
-    # Aggregate by date
-    if metric_col:
-        daily = df.group_by(date_col).agg(value=df[metric_col].sum()).order_by(date_col).execute()
-        y_col = "value"
-        auto_title = f"{metric_col.replace('_', ' ').title()} Over Time"
-        y_label = metric_col.replace("_", " ").title()
+    # Determine if we need to create subplot layout for marginal
+    if show_marginal and not show_distribution:
+        # Create figure with gridspec for main plot + marginal
+        fig = plt.figure(figsize=figsize)
+        gs = fig.add_gridspec(1, 2, width_ratios=[4, 1], wspace=0.05)
+        ax = fig.add_subplot(gs[0])
+        ax_marg = fig.add_subplot(gs[1], sharey=ax)
     else:
-        daily = df.group_by(date_col).agg(value=_.count()).order_by(date_col).execute()
-        y_col = "value"
-        auto_title = "Temporal Observation Density"
-        y_label = "Record Count"
+        # Standard single plot
+        fig, ax = plt.subplots(figsize=figsize)
+        ax_marg = None
 
-    # Create figure
-    fig, ax = plt.subplots(figsize=figsize)
+    if show_distribution and metric_col:
+        # Distribution mode: show value spread at each timestamp
+        daily = df.select(date_col, metric_col).order_by(date_col).execute()
 
-    # Plot with seaborn
-    sns.lineplot(
-        data=daily,
-        x=date_col,
-        y=y_col,
-        ax=ax,
-        linewidth=2.5,
-        color="steelblue",
-        marker="o",
-        markersize=4,
-    )
+        auto_title = f"{metric_col.replace('_', ' ').title()} Distribution Over Time"
+        y_label = metric_col.replace("_", " ").title()
+
+        # Plot distribution
+        if dist_type == "violin":
+            sns.violinplot(
+                data=daily,
+                x=date_col,
+                y=metric_col,
+                ax=ax,
+                color="steelblue",
+                inner="quartile",
+                cut=0,
+            )
+        elif dist_type == "box":
+            sns.boxplot(
+                data=daily,
+                x=date_col,
+                y=metric_col,
+                ax=ax,
+                color="steelblue",
+            )
+        else:
+            raise ValueError(f"dist_type must be 'violin' or 'box', got '{dist_type}'")
+
+    else:
+        # Aggregation mode: show single value per timestamp (original behavior)
+        if metric_col:
+            daily = (
+                df.group_by(date_col).agg(value=df[metric_col].sum()).order_by(date_col).execute()
+            )
+            y_col = "value"
+            auto_title = f"{metric_col.replace('_', ' ').title()} Over Time"
+            y_label = metric_col.replace("_", " ").title()
+        else:
+            daily = df.group_by(date_col).agg(value=_.count()).order_by(date_col).execute()
+            y_col = "value"
+            auto_title = "Temporal Observation Density"
+            y_label = "Record Count"
+
+        # Plot with seaborn
+        sns.lineplot(
+            data=daily,
+            x=date_col,
+            y=y_col,
+            ax=ax,
+            linewidth=2.5,
+            color="steelblue",
+            marker="o",
+            markersize=4,
+        )
+
+        # Add marginal distribution if requested
+        if show_marginal and ax_marg is not None:
+            if marginal_type == "box":
+                sns.boxplot(
+                    data=daily,
+                    y=y_col,
+                    ax=ax_marg,
+                    color="steelblue",
+                    width=0.5,
+                )
+            elif marginal_type == "hist":
+                ax_marg.hist(
+                    daily[y_col],
+                    bins=20,
+                    orientation="horizontal",
+                    color="steelblue",
+                    alpha=0.7,
+                    edgecolor="black",
+                )
+            elif marginal_type == "kde":
+                from scipy import stats
+
+                density = stats.gaussian_kde(daily[y_col])
+                y_vals = np.linspace(daily[y_col].min(), daily[y_col].max(), 100)
+                ax_marg.plot(density(y_vals), y_vals, color="steelblue", linewidth=2)
+                ax_marg.fill_betweenx(y_vals, 0, density(y_vals), alpha=0.3, color="steelblue")
+            else:
+                raise ValueError(
+                    f"marginal_type must be 'box', 'hist', or 'kde', got '{marginal_type}'"
+                )
+
+            # Style marginal plot
+            ax_marg.set_xlabel("")
+            ax_marg.set_ylabel("")
+            ax_marg.tick_params(labelleft=False)
+            ax_marg.grid(True, alpha=0.3, linestyle="--", axis="y")
 
     # Apply log scale if requested
     if log_scale:
         ax.set_yscale("log")
+        if ax_marg:
+            ax_marg.set_yscale("log")
         y_label += " (log scale)"
 
     # Styling

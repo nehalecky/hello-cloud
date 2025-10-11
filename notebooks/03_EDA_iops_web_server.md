@@ -6,9 +6,9 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.17.3
 kernelspec:
-  display_name: python3
-  language: python
   name: python3
+  display_name: Python 3 (ipykernel)
+  language: python
 ---
 
 # IOPS Web Server Anomaly Detection: Exploratory Data Analysis
@@ -419,10 +419,6 @@ Time series often exhibit repeating patterns (hourly, daily, weekly cycles). Det
 - **ACF (Autocorrelation Function)**: Measures correlation between series and its lagged versions - peaks indicate periodicities
 - **FFT (Fast Fourier Transform)**: Frequency domain analysis - identifies dominant cycles by power spectrum
 - **STL Decomposition**: Separates trend, seasonal, and residual components - quantifies seasonality strength
-
-```{code-cell} ipython3
-
-```
 
 ```{code-cell} ipython3
 # Combine train and test for comprehensive frequency analysis

@@ -15,7 +15,7 @@ kernelspec:
 
 ## Overview
 
-This notebook supports exploratory analysis for CloudZero PiedPiper billing data, including:
+This notebook supports exploratory analysis for PiedPiper billing data, including:
 
 - Data loading and quality assessment
 - Schema-level attribute analysis and filtering
@@ -28,16 +28,16 @@ This notebook supports exploratory analysis for CloudZero PiedPiper billing data
  * Identify the optimal compound key (grain) for the time series
  * Basic understanding of time series distributions.
 
-**Dataset**: CloudZero production billing data (122 days, 8.3M records)
+**Dataset**: PiedPiper production billing data (122 days, 8.3M records)
 
 ---
 
 ## Assumptions
 
-Cloud billing data represents resource consumption events aggregated by CloudZero's data pipeline. We conceptualize the **event space** as:
+Cloud billing data represents resource consumption events aggregated by CZ data pipeline. We conceptualize the **event space** as:
 
 - $\mathbf{E}_0$ (full space): All cloud resource consumption across all providers, accounts, and time
-- $\mathbf{E}$ (observed): pied Piper sample produced by CloudZero, where $\mathbf{E} \subseteq \mathbf{E}_0$
+- $\mathbf{E}$ (observed): pied Piper sample produced by CZ, where $\mathbf{E} \subseteq \mathbf{E}_0$
 
 **Known sampling biases**:
 1. **Provider coverage**: Only resources with cost allocation tags are visible
@@ -76,6 +76,9 @@ from loguru import logger
 # Import hellocloud with namespace access
 import hellocloud as hc
 
+# Import composable transformation functions (Ibis pipe pattern)
+#from hellocloud.transforms import pct_change
+
 # Configure Ibis
 ibis.options.interactive = True  # Auto-execute for repr
 ibis.options.repr.interactive.max_rows = 10
@@ -112,32 +115,30 @@ df.head(5)
 ### 1.3 Temporal Observation Density
 
 ```{code-cell} ipython3
-# Identify date column from schema
-schema = df.schema()
+# Identify date column and stats
 date_cols = [
-    name for name, dtype in schema.items()
+    name for name, dtype in df.schema().items()
     if dtype.is_temporal()
 ]
-
 logger.info(f"Date/Datetime columns found: {date_cols}")
-date_col = date_cols[0]
+logger.info(f"Renaming {date_cols[0]} → date")
+df = df.rename(date=date_cols[0])
 
-# Rename to 'date' for simplicity
-df = df.rename(date=date_col)
-logger.info(f"Renamed {date_col} → 'date'")
-
-# Compute date range
-date_stats = df.select(
+date_stats = df.agg(
+    unique_date = _.date.nunique(),
     min_date=_.date.min(),
     max_date=_.date.max()
-).execute()
-
-logger.info(f"Date range: {date_stats['min_date'].iloc[0]} to {date_stats['max_date'].iloc[0]}")
+)
+date_stats
 ```
 
 **Noted** Max date spans into the future `2025-12-31`.
 
 Let's inspect the temporal record density and plot.
+
+```{code-cell} ipython3
+df.pipe(hc.transforms.summary_stats(group_by='date'))
+```
 
 ```{code-cell} ipython3
 # Plot temporal observation density with seaborn
@@ -153,25 +154,22 @@ plt.show()
 **Observation**: The time series shows a sharp drop at a specific date, with data continuing into the future. Something is off—let's investigate the magnitude of day-over-day changes to identify the anomaly.
 
 ```{code-cell} ipython3
-# Compute day-over-day percent change using window functions
+# Compute day-over-day percent change using pipe pattern
 daily_with_change = (
     df
     .group_by('date')
     .agg(count=_.count())
     .order_by('date')
-    .mutate(
-        prev_count=_['count'].lag(),
-        pct_change=(_['count'] - _['count'].lag()) / _['count'].lag()
-    )
+    .pipe(hc.transforms.pct_change('count', 'date'))  # Clean: pct_change transform adds 'count_pct_change' column
 )
 
 # Find largest drops (most negative percent changes)
 largest_drops = (
     daily_with_change
-    .filter(_.pct_change.notnull())
-    .order_by('pct_change')
+    .filter(_.count_pct_change.notnull())
+    .order_by('count_pct_change')
     .limit(5)
-    .select('date', 'count', 'pct_change')
+    .select('date', 'count', 'count_pct_change')
 )
 
 logger.info("Largest day-over-day drops:")
@@ -181,10 +179,10 @@ largest_drops
 The data shows a significant drop (>30%) on a specific date. We'll filter to the period before this anomaly for clean analysis.
 
 ```{code-cell} ipython3
-# Find earliest date with >30% drop
+# Find earliest date with >30% drop (pct_change returns fraction, so -0.30)
 cutoff_date_result = (
     daily_with_change
-    .filter(_.pct_change < -0.30)
+    .filter(_.count_pct_change < -0.30)
     .order_by('date')
     .limit(1)
     .select('date')
@@ -203,9 +201,9 @@ stats = df.agg(
     days=_.date.nunique(),
     start=_.date.min(),
     end=_.date.max()
-).execute()
-
-logger.info(f"Filtered to: {stats['rows'].iloc[0]:,} rows, {stats['days'].iloc[0]} days ({stats['start'].iloc[0]} to {stats['end'].iloc[0]})")
+)
+stats
+#logger.info(f"Filtered to: {stats['rows'].iloc[0]:,} rows, {stats['days'].iloc[0]} days ({stats['start'].iloc[0]} to {stats['end'].iloc[0]})")
 stats
 ```
 
@@ -235,8 +233,6 @@ These size-normalized metrics help identify attributes with little discriminator
 ```{code-cell} ipython3
 # Compute comprehensive attribute analysis (Ibis in, Ibis out!)
 attrs = hc.utils.attribute_analysis(df, sample_size=50_000)
-
-# Display with beautiful Ibis table rendering
 attrs
 ```
 

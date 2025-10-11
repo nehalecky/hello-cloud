@@ -8,7 +8,7 @@ __version__ = "0.1.0"
 __author__ = "Nicholaus Halecky"
 
 # Import submodules for namespace access (e.g., hc.utils.plot_temporal_density)
-from . import utils
+from . import transforms, utils
 
 # Import key classes and functions for top-level convenience
 from .data_generation import (
@@ -29,6 +29,7 @@ from .utils import (
 
 __all__ = [
     # Submodules
+    "transforms",
     "utils",
     # Data Generation
     "CloudMetricsDatasetBuilder",
