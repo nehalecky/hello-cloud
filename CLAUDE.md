@@ -279,6 +279,22 @@ result = (
 
 # Backend portability: Same code works with PySpark
 # con = ibis.pyspark.connect(spark_session)
+
+# Summary statistics by group
+stats = df.transform(
+    summary_stats(value_col='cost', group_col='region')
+)
+```
+
+#### Important: Decimal (Fractional) Values
+Our PySpark transforms return **decimal values** (0.10 = 10%), like pandas:
+
+```python
+# pct_change returns fractional form: 0.10 for 10% increase
+daily_change = df.transform(pct_change('cost', 'date'))
+
+# Filter for >30% drops (use -0.30, not -30.0!)
+large_drops = daily_change.filter(F.col('pct_change') < -0.30)
 ```
 
 ### Error Handling

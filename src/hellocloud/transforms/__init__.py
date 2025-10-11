@@ -9,12 +9,7 @@ import warnings
 
 # Try importing Spark transforms
 try:
-    from hellocloud.transforms.spark import (
-        add_lag_features,
-        add_rolling_stats,
-        pct_change,
-        summary_stats,
-    )
+    from hellocloud.transforms.spark import pct_change, summary_stats
 
     _SPARK_AVAILABLE = True
 except ImportError:
@@ -42,6 +37,4 @@ if not _SPARK_AVAILABLE:
 __all__ = [
     "pct_change",
     "summary_stats",
-    "add_rolling_stats",
-    "add_lag_features",
 ]
