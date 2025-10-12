@@ -75,7 +75,7 @@ jobs:
           path: ./docs/_site
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: always() && github.event_name != 'pull_request' && needs.build.result != 'cancelled'
     needs: build
     runs-on: ubuntu-latest
     environment:
