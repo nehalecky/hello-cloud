@@ -72,21 +72,24 @@ class CompositePeriodicKernel(gpytorch.kernels.Kernel):
         # SLOW: Long-period cycles (e.g., daily sawtooth envelope)
         slow_periodic_kernel = PeriodicKernel()
         slow_periodic_kernel.period_length = slow_period
-        # Keep period fixed, but LEARN lengthscale for pattern smoothness
+        # Keep period and lengthscale fixed for stability
         slow_periodic_kernel.raw_period_length.requires_grad = False
+        slow_periodic_kernel.raw_lengthscale.requires_grad = False
         self.slow_periodic = ScaleKernel(slow_periodic_kernel)
 
         # FAST: Short-period cycles (e.g., hourly sinusoidal carrier)
         fast_periodic_kernel = PeriodicKernel()
         fast_periodic_kernel.period_length = fast_period
-        # Keep period fixed, but LEARN lengthscale for pattern smoothness
+        # Keep period and lengthscale fixed for stability
         fast_periodic_kernel.raw_period_length.requires_grad = False
+        fast_periodic_kernel.raw_lengthscale.requires_grad = False
         self.fast_periodic = ScaleKernel(fast_periodic_kernel)
 
         # Smooth baseline deviations - use LARGER lengthscale so it doesn't dominate
         rbf_kernel = RBFKernel()
         rbf_kernel.lengthscale = rbf_lengthscale * 3.0  # 0.3 instead of 0.1 - less flexible
-        # Allow RBF lengthscale to be learned but start larger
+        # Fix RBF lengthscale for stability
+        rbf_kernel.raw_lengthscale.requires_grad = False
         self.rbf = ScaleKernel(rbf_kernel)
 
     def forward(

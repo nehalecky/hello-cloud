@@ -28,10 +28,10 @@ from loguru import logger
 NOTEBOOK_DIR = Path(__file__).parent.parent / "notebooks"
 EXECUTION_TIMEOUT = 60  # seconds per notebook
 NOTEBOOKS = [
-    "02_workload_signatures_guide.md",
-    "03_iops_web_server_eda.md",
-    "04_gaussian_process_modeling.md",
-    "05_cloudzero_piedpiper_eda.md",
+    "02_guide_workload_signatures_guide.md",
+    "03_EDA_iops_web_server.md",
+    "04_modeling_gaussian_process.md",
+    "05_EDA_piedpiper_data.md",
 ]
 
 
@@ -172,7 +172,7 @@ def all_notebook_results(request):
     results = {}
 
     # Get the parametrized fixture results
-    for notebook_name in NOTEBOOKS:
+    for _notebook_name in NOTEBOOKS:
         # Create a sub-request for each notebook
         sub_request = request.getfixturevalue("executed_notebook")
         if hasattr(sub_request, "name"):
