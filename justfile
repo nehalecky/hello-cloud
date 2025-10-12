@@ -55,12 +55,14 @@ nb-execute-all:
     set -euo pipefail
     echo "Executing published notebooks..."
     mkdir -p notebooks/_build
-    # Only execute notebooks that are ready for publication (listed in docs/_quarto.yml)
-    for notebook in 03_EDA_iops_web_server 05_EDA_piedpiper_data; do
+    # Only execute notebooks that don't require external data files
+    # 03: IOPS (uses embedded benchmark data)
+    # 05: PiedPiper (SKIP - requires gitignored data files)
+    for notebook in 03_EDA_iops_web_server; do
         echo "  → $notebook"
         uv run jupytext "notebooks/$notebook.md" --to ipynb --execute --output "notebooks/_build/$notebook.ipynb"
     done
-    echo "✓ All published notebooks executed"
+    echo "✓ All CI-executable notebooks processed"
 
 # Test all notebooks as smoke tests
 nb-test-all:

@@ -12,8 +12,8 @@ These are working notebooks—the actual analysis artifacts, not polished tutori
 **[IOPS Web Server EDA](../../notebooks/_build/03_EDA_iops_web_server.ipynb)**
 Real operational time series from TSB-UAD benchmark. ACF/PACF analysis, stationarity testing, periodicity detection via FFT. Identifies patterns that inform model selection for forecasting and anomaly detection.
 
-**[PiedPiper Cost Data EDA](../../notebooks/_build/05_EDA_piedpiper_data.ipynb)**
-Cloud billing event analysis on 122 days of production data. Attribute analysis via information theory (Shannon entropy), grain discovery for time series forecasting, entity persistence validation. Demonstrates systematic EDA methodology from raw billing events to forecastable entities.
+**PiedPiper Cost Data EDA** (local execution only)
+Cloud billing event analysis on 122 days of production data. Requires local data files (not published due to data size). Demonstrates attribute analysis via information theory, grain discovery for time series forecasting, and entity persistence validation.
 
 ---
 

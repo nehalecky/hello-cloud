@@ -42,7 +42,6 @@ website:
           contents:
             - notebooks/index.qmd
             - ../notebooks/_build/03_EDA_iops_web_server.ipynb
-            - ../notebooks/_build/05_EDA_piedpiper_data.ipynb
         - section: "Tutorials"
           contents:
             - tutorials/index.qmd
