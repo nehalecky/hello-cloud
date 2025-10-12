@@ -102,30 +102,17 @@ execute:
   error: false
 
 quartodoc:
-  package: cloud_sim
+  package: hellocloud
   dir: reference
   title: "API Reference"
 
   sections:
     - title: "Data Generation"
       desc: "Synthetic cloud resource data generation with realistic utilization patterns"
-      contents:
-        - name: data_generation.WorkloadPatternGenerator
-        - name: data_generation.WorkloadType
-        - name: data_generation.CloudMetricsSimulator
-        - name: data_generation.CloudMetricsDatasetBuilder
+      contents: []
 
-    - title: "Gaussian Process Models"
-      desc: "GPyTorch-based sparse variational GP for time series forecasting"
-      contents:
-        - name: ml_models.gaussian_process.SparseGPModel
-        - name: ml_models.gaussian_process.CompositePeriodicKernel
-        - name: ml_models.gaussian_process.initialize_inducing_points
-        - name: ml_models.gaussian_process.train_gp_model
-        - name: ml_models.gaussian_process.compute_metrics
-
-    - title: "Bayesian Hierarchical Models"
-      desc: "PyMC-based hierarchical models for cloud resource patterns (coming soon)"
+    - title: "Utilities"
+      desc: "Analysis utilities for cloud resource data"
       contents: []
 
 metadata-files:
