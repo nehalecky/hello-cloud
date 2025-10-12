@@ -69,6 +69,9 @@ class CompositePeriodicKernel(gpytorch.kernels.Kernel):
         self._fast_period = fast_period
         self._rbf_lengthscale = rbf_lengthscale
 
+        # Fixed lengthscales prevent gradient instability in additive kernel composition.
+        # See test_fixed_lengthscales_no_gradient for validation.
+
         # SLOW: Long-period cycles (e.g., daily sawtooth envelope)
         slow_periodic_kernel = PeriodicKernel()
         slow_periodic_kernel.period_length = slow_period

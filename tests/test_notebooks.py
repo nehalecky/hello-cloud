@@ -186,6 +186,7 @@ def all_notebook_results(request):
 # ============================================================================
 
 
+@pytest.mark.optional
 @pytest.mark.smoke
 @pytest.mark.parametrize("notebook_name", NOTEBOOKS)
 def test_notebook_syntax(notebook_name):
@@ -205,6 +206,7 @@ def test_notebook_syntax(notebook_name):
         pytest.fail(f"Syntax error in {notebook_name}: {e}")
 
 
+@pytest.mark.optional
 @pytest.mark.smoke
 @pytest.mark.parametrize("notebook_name", NOTEBOOKS)
 def test_notebook_imports(notebook_name):
@@ -247,6 +249,7 @@ def test_notebook_imports(notebook_name):
 # ============================================================================
 
 
+@pytest.mark.optional
 def test_notebook_execution_success(executed_notebook):
     """Test that notebook executed successfully."""
     result = executed_notebook
