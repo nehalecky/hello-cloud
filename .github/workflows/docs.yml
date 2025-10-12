@@ -7,11 +7,13 @@ on:
       - 'docs/**'
       - 'notebooks/**'
       - 'src/hellocloud/**'
+      - 'justfile'
       - '.github/workflows/docs.yml'
   pull_request:
     paths:
       - 'docs/**'
       - 'notebooks/**'
+      - 'justfile'
   workflow_dispatch:
 
 permissions:
