@@ -49,18 +49,18 @@ nb-execute NAME:
     uv run jupytext notebooks/{{NAME}}.md --to ipynb --execute --output notebooks/_build/{{NAME}}.ipynb
     @echo "✓ Saved to notebooks/_build/{{NAME}}.ipynb"
 
-# Execute all notebooks (for site publishing)
+# Execute all published notebooks (for site publishing)
 nb-execute-all:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Executing all notebooks..."
+    echo "Executing published notebooks..."
     mkdir -p notebooks/_build
-    for notebook in notebooks/*.md; do
-        name=$(basename "$notebook" .md)
-        echo "  → $name"
-        uv run jupytext "$notebook" --to ipynb --execute --output notebooks/_build/$name.ipynb
+    # Only execute notebooks that are ready for publication (listed in docs/_quarto.yml)
+    for notebook in 03_EDA_iops_web_server 05_EDA_piedpiper_data; do
+        echo "  → $notebook"
+        uv run jupytext "notebooks/$notebook.md" --to ipynb --execute --output "notebooks/_build/$notebook.ipynb"
     done
-    echo "✓ All notebooks executed"
+    echo "✓ All published notebooks executed"
 
 # Test all notebooks as smoke tests
 nb-test-all:
