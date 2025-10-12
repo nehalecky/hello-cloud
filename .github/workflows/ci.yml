@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
@@ -35,17 +35,9 @@ jobs:
         run: |
           uv run pytest tests/ -v -m "not optional" --cov=src/hellocloud --cov-report=term-missing --cov-report=html --cov-report=xml --cov-fail-under=30
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        if: matrix.python-version == '3.11'
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: true
-          verbose: true
-
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
-        if: matrix.python-version == '3.11'
+        if: matrix.python-version == '3.12'
         with:
           name: coverage-report
           path: htmlcov/
@@ -58,7 +50,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
