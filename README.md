@@ -1,10 +1,15 @@
 # Hello Cloud
 
+[![Docs](https://github.com/nehalecky/hello-cloud/actions/workflows/docs.yml/badge.svg)](https://github.com/nehalecky/hello-cloud/actions/workflows/docs.yml)
+[![Pages](https://img.shields.io/badge/docs-live-blue)](https://nehalecky.github.io/hello-cloud)
+
 Hands-on exploration of cloud resource usage and cost optimization.
 
 Workload characterization • Cost analysis • Time series forecasting • Anomaly detection
 
 Ibis+DuckDB (local) • PySpark (scale)
+
+**Documentation:** https://nehalecky.github.io/hello-cloud
 
 ## Installation
 

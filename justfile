@@ -31,27 +31,37 @@ notebook:
     uv run jupyter notebook notebooks/
 
 # Open specific notebook in Jupyter Lab
-notebook-open NAME:
+nb NAME:
     uv run jupyter lab notebooks/{{NAME}}.md
 
-# Open IOPS EDA notebook (quick access)
-iops-eda:
-    uv run jupyter lab notebooks/03_EDA_iops_web_server.md
-
 # Test notebook execution (convert + execute)
-notebook-test NAME:
+nb-test NAME:
     uv run jupytext notebooks/{{NAME}}.md --to ipynb --execute --output /dev/null
 
-# Test IOPS EDA notebook execution
-test-iops:
-    uv run jupytext notebooks/03_EDA_iops_web_server.md --to ipynb --execute --output /dev/null
-
 # Convert notebook to ipynb (for sharing)
-notebook-convert NAME:
+nb-convert NAME:
     uv run jupytext notebooks/{{NAME}}.md --to ipynb --output notebooks/_build/{{NAME}}.ipynb
 
+# Execute notebook and save with outputs (for publishing)
+nb-execute NAME:
+    @echo "Executing {{NAME}}.md → _build/{{NAME}}.ipynb (with outputs)..."
+    @mkdir -p notebooks/_build
+    uv run jupytext notebooks/{{NAME}}.md --to ipynb --execute --output notebooks/_build/{{NAME}}.ipynb
+    @echo "✓ Saved to notebooks/_build/{{NAME}}.ipynb"
+
+# Execute all notebooks (for site publishing)
+nb-execute-all:
+    @echo "Executing all notebooks..."
+    @mkdir -p notebooks/_build
+    @for notebook in notebooks/*.md; do \
+        name=$$(basename "$$notebook" .md); \
+        echo "  → $$name"; \
+        uv run jupytext "$$notebook" --to ipynb --execute --output notebooks/_build/$$name.ipynb; \
+    done
+    @echo "✓ All notebooks executed"
+
 # Test all notebooks as smoke tests
-test-notebooks:
+nb-test-all:
     uv run pytest tests/test_notebooks.py -m smoke -v
 
 # Run linter
@@ -103,28 +113,13 @@ docs-clean:
 docs: docs-api docs-build
 
 # View specific tutorial (opens in browser after building)
-tutorial NAME:
+tut NAME:
     quarto render docs/tutorials/{{NAME}}.qmd
     open docs/_site/tutorials/{{NAME}}.html
 
-# View IOPS EDA tutorial (quick access)
-tutorial-iops:
-    quarto render docs/tutorials/iops-eda.qmd
-    open docs/_site/tutorials/iops-eda.html
-
 # Preview specific tutorial with live reload
-tutorial-preview NAME:
+tut-preview NAME:
     quarto preview docs/tutorials/{{NAME}}.qmd
-
-# Build and open IOPS tutorial workflow (notebook → tutorial)
-iops-workflow:
-    @echo "📓 Opening IOPS EDA notebook in Jupyter Lab..."
-    @echo "📚 Building IOPS tutorial..."
-    quarto render docs/tutorials/iops-eda.qmd
-    @echo "🌐 Opening tutorial in browser..."
-    open docs/_site/tutorials/iops-eda.html
-    @echo "✅ Starting Jupyter Lab (use Ctrl+C to exit)..."
-    uv run jupyter lab notebooks/03_EDA_iops_web_server.md
 
 # Run all checks (lint + test + docs)
 check: lint test docs

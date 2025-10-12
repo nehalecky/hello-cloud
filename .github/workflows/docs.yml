@@ -5,11 +5,13 @@ on:
     branches: [main, master]
     paths:
       - 'docs/**'
-      - 'src/cloud_sim/**'
+      - 'notebooks/**'
+      - 'src/hellocloud/**'
       - '.github/workflows/docs.yml'
   pull_request:
     paths:
       - 'docs/**'
+      - 'notebooks/**'
   workflow_dispatch:
 
 permissions:
@@ -45,10 +47,17 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
+      - name: Install just
+        uses: extractions/setup-just@v2
+
       - name: Install dependencies
         run: |
-          uv sync --group docs
+          uv sync --all-extras
           uv pip install -e .
+
+      - name: Execute notebooks with outputs
+        run: |
+          just nb-execute-all
 
       - name: Generate API Reference
         run: |

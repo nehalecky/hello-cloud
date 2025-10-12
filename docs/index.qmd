@@ -1,56 +1,83 @@
 ---
-title: "Cloud Resource Simulator"
-subtitle: "Multi-model framework for cloud resource utilization patterns and synthetic data generation"
+title: "Hello Cloud"
+subtitle: "Time series analysis for cloud resource optimization"
 ---
 
-# Welcome to Cloud Resource Simulator
+# Hello Cloud
 
-A **research-grounded framework** for modeling cloud resource utilization patterns using Gaussian Processes, Bayesian hierarchical models, and foundation model integrations.
+**Systematic exploration of forecasting and anomaly detection applied to cloud infrastructure cost and utilization.**
+
+This project demonstrates technical ramp-up into a new domain through hands-on implementation of state-of-the-art time series techniques: Foundation Models (TimesFM, Chronos), Gaussian Processes (GPyTorch), statistical methods (ARIMA, Prophet), and Spark 4.0 for distributed analysis. All synthetic data generation and modeling decisions are grounded in **35+ peer-reviewed studies** analyzing real cloud infrastructure patterns.
 
 ::: {.callout-note}
-## Built on Real Research
+## Technical Approach
 
-Our models are based on extensive empirical analysis showing:
+**Forecasting Methods**
+- Foundation Models: Zero-shot prediction (TimesFM, Chronos) without training
+- Gaussian Processes: Probabilistic forecasts with calibrated uncertainty (GPyTorch SVGPs)
+- Statistical Methods: ARIMA, Prophet, and classical time series analysis
+- Distributed Analysis: Spark 4.0 for workloads requiring scale
 
-- **13% average CPU utilization** across cloud infrastructure
-- **30-32% waste** in cloud spending
-- **Strong temporal patterns** (0.7-0.8 autocorrelation)
+**Anomaly Detection Strategies**
+- Forecast-based: Prediction interval violations
+- Statistical: Isolation Forest, LOF, One-Class SVM
+- Reconstruction-based: LSTM autoencoders, Transformers
+- Hybrid: Multiple method ensembles
 
-[See Research Foundation →](concepts/research/cloud-resource-patterns-research.qmd)
+**Empirical Foundation**
+Research shows cloud infrastructure exhibits consistent patterns: 13% average CPU utilization, 30% resource waste, strong temporal autocorrelation (r=0.7-0.8). All synthetic data generation uses these empirically-validated parameters.
+
+[Research Foundation →](concepts/research/cloud-resource-patterns-research.qmd)
 :::
 
-## Why Cloud Resource Simulator?
+## Methodology
 
-### 🎯 Realistic Synthetic Data
-Generate cloud resource time series data with **empirically-grounded patterns**, not assumptions.
+### Data Sources
+Analysis uses real operational time series (IOPS web server KPIs, Alibaba cluster traces) and synthetic data parameterized from peer-reviewed research. All workload patterns reflect empirically-observed cloud infrastructure behavior.
 
-### 📊 Multiple Modeling Approaches
-- **Gaussian Processes** (GPyTorch): Time series forecasting with uncertainty
-- **Bayesian Hierarchical Models** (PyMC): Industry→Application→Resource hierarchy
-- **Foundation Models**: Zero-shot forecasting (Chronos, TimesFM)
+### Comparative Analysis
+Apply multiple techniques (Foundation Models, Gaussian Processes, statistical methods) to identical datasets. Document what works, what fails, and why. Build systematic understanding through controlled experimentation.
 
-### 🧬 12+ Workload Archetypes
-Pre-configured patterns for web apps, databases, ML training, microservices, and more.
+### Appropriate Tooling
+Local analysis with Ibis+DuckDB for fast iteration. Spark 4.0 for workloads requiring distributed computation (Alibaba's 1.3k machine × 6-month trace dataset). Right tool for the scale.
 
-### 🔬 Production-Ready
-92% test coverage on GP library. Built for both research and production use.
+### Reproducible Workflow
+MyST-format notebooks provide version-controlled source. Hot reload via Jupytext for rapid iteration. Dependency management via `uv`. All analysis fully reproducible.
+
+### Empirical Grounding
+Workload patterns, resource correlations, and waste profiles derived from 35+ peer-reviewed studies analyzing production cloud infrastructure at Google, Microsoft, Alibaba, and AWS.
 
 ---
 
-## Quick Start
+## Getting Started
 
-### Installation
+### Setup
 
 ```bash
-# Install with all features
-uv pip install cloud-resource-simulator[all]
+# Clone repository
+git clone https://github.com/nehalecky/hello-cloud.git
+cd hello-cloud
 
-# Or install specific components
-uv pip install cloud-resource-simulator[research]  # Notebooks + analysis tools
-uv pip install cloud-resource-simulator[gpu]       # GP modeling with GPyTorch
+# Install dependencies with uv
+just install
+
+# Launch Jupyter Lab
+just lab
 ```
 
-### Generate Your First Dataset
+### Example Analysis
+
+View executed notebooks with outputs or run locally:
+
+```bash
+# Open notebook in Jupyter Lab
+just nb 03_EDA_iops_web_server
+
+# View published tutorial
+just tut iops-eda
+```
+
+### Generate Synthetic Data
 
 ```{python}
 #| eval: false
@@ -178,7 +205,7 @@ Multivariate metrics with **empirical correlations**:
 ::::: {.columns}
 
 :::: {.column width="50%"}
-### 📚 Learning-Oriented
+### Learning-Oriented
 
 **[Tutorials](tutorials/index.qmd)**
 
@@ -190,7 +217,7 @@ Step-by-step guides to learn core concepts:
 ::::
 
 :::: {.column width="50%"}
-### 🎯 Task-Oriented
+### Task-Oriented
 
 **[How-To Guides](how-to/index.qmd)**
 
@@ -206,7 +233,7 @@ Practical recipes for specific tasks:
 ::::: {.columns}
 
 :::: {.column width="50%"}
-### 💡 Understanding-Oriented
+### Understanding-Oriented
 
 **[Concepts](concepts/index.qmd)**
 
@@ -218,7 +245,7 @@ Deep dives into theory and design:
 ::::
 
 :::: {.column width="50%"}
-### 📖 Information-Oriented
+### Information-Oriented
 
 **[API Reference](reference/index.qmd)**
 
@@ -238,7 +265,7 @@ Complete API documentation:
 This project is built on **extensive empirical analysis** of cloud resource patterns:
 
 ::: {.callout-tip}
-## 📊 Key Research Findings
+## Key Research Findings
 
 - **CPU Utilization**: 13% average (industry-wide) vs. 38% (datacenter-wide)
 - **Resource Waste**: 30-32% of cloud spending
@@ -252,40 +279,47 @@ This project is built on **extensive empirical analysis** of cloud resource patt
 
 ---
 
-## Use Cases
+## Technical Demonstrations
 
-### 🧪 Research & Development
-- Train time series forecasting models
-- Test anomaly detection algorithms
-- Benchmark optimization strategies
+### Foundation Model Evaluation
+Applied TimesFM and Chronos to real cloud KPI data. Evaluated zero-shot forecasting performance without training or hyperparameter tuning. Documented failure modes and applicability boundaries.
 
-### 💼 Cloud Cost Optimization
-- Simulate cost-saving scenarios
-- Model right-sizing impacts
-- Forecast capacity needs
+### Production-Ready Gaussian Processes
+Implemented sparse variational GPs (GPyTorch) with composite periodic kernels. Kernel design informed by ACF/FFT analysis. Achieved calibrated uncertainty quantification with 92% test coverage on model library.
 
-### 📊 FinOps & Analysis
-- Generate realistic demo datasets
-- Create training materials
-- Build FinOps dashboards
+### Appropriate Scale Awareness
+Local analysis with Ibis+DuckDB for fast iteration (most workloads). Spark 4.0 reserved for datasets requiring distributed computation (Alibaba 1.3k machine × 6-month traces). Documented when to scale vs. when to stay local.
 
-### 🎓 Education & Training
-- Teach cloud resource management
-- Demonstrate waste patterns
-- Illustrate optimization techniques
+### Realistic Anomaly Detection
+Applied detection methods to time series with 13% average utilization, seasonal patterns, and correlated metrics. Evaluated forecast-based, statistical, and reconstruction-based approaches on expert-labeled ground truth.
+
+### Research-Grounded Synthesis
+Synthesized 35+ peer-reviewed studies into parameterized workload generators. All synthetic data reflects empirically-observed patterns: 13% avg CPU, 30% waste, 0.7-0.8 temporal autocorrelation.
 
 ---
 
-## Community & Support
+## Open Source
 
-- **GitHub**: [nehalecky/cloud-resource-simulator](https://github.com/nehalecky/cloud-resource-simulator)
-- **Issues**: [Report bugs or request features](https://github.com/nehalecky/cloud-resource-simulator/issues)
-- **Discussions**: [Ask questions, share ideas](https://github.com/nehalecky/cloud-resource-simulator/discussions)
+All notebooks, analysis, and code available at [github.com/nehalecky/hello-cloud](https://github.com/nehalecky/hello-cloud).
+
+**License**: MIT
 
 ---
 
-## License
+## Tech Stack
 
-MIT License - see [LICENSE](https://github.com/nehalecky/cloud-resource-simulator/blob/master/LICENSE) for details.
+**Data Processing**
+- [Ibis](https://ibis-project.org): Portable DataFrame API (DuckDB backend locally, PySpark for scale)
+- [DuckDB](https://duckdb.org): In-memory OLAP for fast analytical queries
+- [Spark 4.0](https://spark.apache.org): Distributed computation for large-scale workloads
 
-Built with ❤️ using [Python](https://python.org), [Polars](https://pola.rs), [GPyTorch](https://gpytorch.ai), [PyMC](https://www.pymc.io), and [Quarto](https://quarto.org).
+**ML & Modeling**
+- [GPyTorch](https://gpytorch.ai): Sparse variational Gaussian Processes
+- [PyMC](https://www.pymc.io): Bayesian hierarchical models
+- HuggingFace: Foundation model integration (TimesFM, Chronos)
+
+**Development Workflow**
+- [Jupytext](https://jupytext.readthedocs.io): MyST notebooks for version control
+- [Quarto](https://quarto.org): Documentation publishing
+- [uv](https://docs.astral.sh/uv/): Fast dependency management
+- [just](https://just.systems): Command runner for workflows

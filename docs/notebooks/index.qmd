@@ -1,0 +1,35 @@
+---
+title: "Notebooks"
+subtitle: "End-to-end analysis workflows with code, outputs, and commentary"
+---
+
+## Analysis Notebooks
+
+These are working notebooks—the actual analysis artifacts, not polished tutorials. You'll see the full workflow: data loading, quality checks, exploratory analysis, and modeling decisions. Outputs are included, so you can evaluate the work without running anything locally.
+
+### Available Notebooks
+
+**[IOPS Web Server EDA](../../notebooks/_build/03_EDA_iops_web_server.ipynb)**
+Real operational time series from TSB-UAD benchmark. ACF/PACF analysis, stationarity testing, periodicity detection via FFT. Identifies patterns that inform model selection for forecasting and anomaly detection.
+
+**[PiedPiper Cost Data EDA](../../notebooks/_build/05_EDA_piedpiper_data.ipynb)**
+Cloud billing event analysis on 122 days of production data. Attribute analysis via information theory (Shannon entropy), grain discovery for time series forecasting, entity persistence validation. Demonstrates systematic EDA methodology from raw billing events to forecastable entities.
+
+---
+
+## Technical Notes
+
+**Source Format**: MyST Markdown (`.md` files in `notebooks/`)
+**Published Format**: Jupyter notebooks (`.ipynb` with outputs)
+**Execution**: Pre-executed locally, outputs frozen for web publishing
+**Dependencies**: Managed via `uv` (see `pyproject.toml`)
+
+**Reproducibility**: All notebooks executable via `just nb-execute <name>`. Source MyST files are version controlled; executed notebooks are build artifacts.
+
+---
+
+## Why Notebooks?
+
+Notebooks capture the exploratory data analysis process—the actual thinking, not just the final results. You see dead ends, data quality issues, methodological decisions, and the iterative refinement that leads to modeling choices.
+
+For polished overviews and key findings, see [Tutorials](../tutorials/index.qmd).
