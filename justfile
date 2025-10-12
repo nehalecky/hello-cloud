@@ -51,14 +51,16 @@ nb-execute NAME:
 
 # Execute all notebooks (for site publishing)
 nb-execute-all:
-    @echo "Executing all notebooks..."
-    @mkdir -p notebooks/_build
-    @for notebook in notebooks/*.md; do \
-        name=$$(basename "$$notebook" .md); \
-        echo "  → $$name"; \
-        uv run jupytext "$$notebook" --to ipynb --execute --output notebooks/_build/$$name.ipynb; \
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Executing all notebooks..."
+    mkdir -p notebooks/_build
+    for notebook in notebooks/*.md; do
+        name=$(basename "$notebook" .md)
+        echo "  → $name"
+        uv run jupytext "$notebook" --to ipynb --execute --output notebooks/_build/$name.ipynb
     done
-    @echo "✓ All notebooks executed"
+    echo "✓ All notebooks executed"
 
 # Test all notebooks as smoke tests
 nb-test-all:
