@@ -1058,8 +1058,6 @@ logger.info("Subsampling validation complete")
 
 **Conclusion**: Subsampled data is **suitable for computational efficiency** without sacrificing signal characteristics. Use for expensive methods like exact GP inference.
 
-```
-
 ## 5. Stationarity Analysis
 
 **What is stationarity and why does it matter?**
