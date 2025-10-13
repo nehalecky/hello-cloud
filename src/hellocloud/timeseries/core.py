@@ -116,3 +116,43 @@ class TimeSeries:
 
         # Return in hierarchy order
         return [col for col in self.hierarchy if col in grain_set]
+
+    def filter(self, **entity_keys) -> "TimeSeries":
+        """
+        Filter to specific entity by hierarchy column values.
+
+        Args:
+            **entity_keys: Column name/value pairs to filter on
+                          (must be columns in hierarchy)
+
+        Returns:
+            New TimeSeries with filtered DataFrame
+
+        Raises:
+            TimeSeriesError: If filter column not in hierarchy
+
+        Example:
+            ts.filter(provider="AWS", account="acc1")
+        """
+        from pyspark.sql import functions as F
+
+        # Validate all filter columns are in hierarchy
+        invalid = set(entity_keys.keys()) - set(self.hierarchy)
+        if invalid:
+            raise TimeSeriesError(
+                f"Invalid filter column(s): {invalid}. "
+                f"Must be columns in hierarchy: {self.hierarchy}"
+            )
+
+        # Apply filters
+        filtered_df = self.df
+        for col, value in entity_keys.items():
+            filtered_df = filtered_df.filter(F.col(col) == value)
+
+        # Return new TimeSeries with filtered data
+        return TimeSeries(
+            df=filtered_df,
+            hierarchy=self.hierarchy,
+            metric_col=self.metric_col,
+            time_col=self.time_col,
+        )

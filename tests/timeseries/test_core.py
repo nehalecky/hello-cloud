@@ -186,3 +186,78 @@ class TestGrainResolution:
 
         grain = ts._resolve_grain(["account"])
         assert grain == ["account"]
+
+
+class TestTimeSeriesFilter:
+    """Test TimeSeries filtering operations."""
+
+    def test_filter_single_entity(self, spark):
+        """Should filter to specific entity and return new TimeSeries."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-01", "AWS", "acc2", 200.0),
+                ("2025-01-01", "GCP", "acc3", 300.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        filtered = ts.filter(provider="AWS", account="acc1")
+
+        assert isinstance(filtered, TimeSeries)
+        assert filtered.df.count() == 1
+        result = filtered.df.collect()[0]
+        assert result["provider"] == "AWS"
+        assert result["account"] == "acc1"
+
+    def test_filter_returns_new_instance(self, spark):
+        """Should return new TimeSeries instance, not modify original."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-01", "AWS", "acc2", 200.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+        filtered = ts.filter(account="acc1")
+
+        assert ts.df.count() == 2  # Original unchanged
+        assert filtered.df.count() == 1
+        assert ts is not filtered
+
+    def test_filter_multiple_criteria(self, spark):
+        """Should filter on multiple hierarchy columns."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", 100.0),
+                ("2025-01-01", "AWS", "acc1", "us-west-1", 200.0),
+                ("2025-01-01", "AWS", "acc2", "us-east-1", 300.0),
+            ],
+            ["date", "provider", "account", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account", "region"])
+
+        filtered = ts.filter(provider="AWS", account="acc1", region="us-east-1")
+
+        assert filtered.df.count() == 1
+        result = filtered.df.collect()[0]
+        assert result["region"] == "us-east-1"
+
+    def test_filter_invalid_column_raises_error(self, spark):
+        """Should raise error if filter column not in hierarchy."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        with pytest.raises(TimeSeriesError, match="Invalid filter column"):
+            ts.filter(invalid_column="value")
