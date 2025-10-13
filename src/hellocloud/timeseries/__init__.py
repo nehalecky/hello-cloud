@@ -1,5 +1,5 @@
 """TimeSeries analysis utilities."""
 
-from hellocloud.timeseries.core import TimeSeries
+from hellocloud.timeseries.core import TimeSeries, TimeSeriesError
 
-__all__ = ["TimeSeries"]
+__all__ = ["TimeSeries", "TimeSeriesError"]
