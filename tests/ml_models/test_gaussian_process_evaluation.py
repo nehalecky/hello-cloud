@@ -22,7 +22,7 @@ Validates metric computation including:
 
 import numpy as np
 
-from hellocloud.ml_models.gaussian_process.evaluation import (
+from hellocloud.modeling.gaussian_process.evaluation import (
     compute_anomaly_metrics,
     compute_metrics,
     compute_prediction_intervals,

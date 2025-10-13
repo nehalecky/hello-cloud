@@ -25,8 +25,8 @@ from pathlib import Path
 
 import gpytorch
 
-from hellocloud.ml_models.gaussian_process.models import SparseGPModel, initialize_inducing_points
-from hellocloud.ml_models.gaussian_process.training import (
+from hellocloud.modeling.gaussian_process.models import SparseGPModel, initialize_inducing_points
+from hellocloud.modeling.gaussian_process.training import (
     load_model,
     save_model,
     train_gp_model,

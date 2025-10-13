@@ -33,7 +33,7 @@ alt.data_transformers.enable('default')  # Use default transformer for now
 alt.theme.enable('quartz')  # Clean, professional theme
 
 # Import our simulation framework
-from hellocloud.data_generation import WorkloadPatternGenerator, WorkloadType
+from hellocloud.generation import WorkloadPatternGenerator, WorkloadType
 ```
 
 ## Part 1: Foundations - Why Do Workload Signatures Exist?

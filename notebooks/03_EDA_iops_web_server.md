@@ -77,7 +77,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Cloud simulator utilities
-from hellocloud.utils.distribution_analysis import (
+from hellocloud.analysis.distribution import (
     plot_pdf_cdf_comparison,
     plot_distribution_comparison,
     compute_ks_tests,

@@ -109,7 +109,7 @@ All notebooks use **MyST format**:
 ### Core Design Principles
 - **Multi-Model Approach**: Gaussian Processes, Bayesian hierarchical models, and foundation model integration
 - **Empirical Foundation**: Based on research showing 12-15% average CPU utilization and 25-35% cloud waste
-- **Ibis+DuckDB Stack**: Portable DataFrame API with DuckDB backend for local analytics, PySpark for scale
+- **PySpark 4.0 Stack**: Distributed DataFrame processing for local development and production scale
 - **Production-Ready**: 92% test coverage on GP library, comprehensive testing framework
 
 ### Module Structure
@@ -164,121 +164,78 @@ These findings inform all synthetic data generation parameters.
 
 ## Development Patterns
 
-### Polars → Ibis Migration Patterns
+### PySpark Transform Patterns
 
-The project migrated from Polars to Ibis+DuckDB for better backend portability and analytical performance. Key conversion patterns:
+The project uses PySpark 4.0 for all DataFrame operations with composable `.transform()` pattern.
 
-#### Execution
+#### Spark Session
 ```python
-# Polars
-df.collect()  # Execute lazy operations
+from hellocloud.spark import get_spark_session
 
-# Ibis
-df.execute()  # Returns pandas DataFrame
+# Get or create Spark session (singleton)
+spark = get_spark_session(app_name="my-analysis")
+
+# Local mode defaults (configured automatically):
+# - local[*] master (all cores)
+# - 4GB driver memory
+# - 8 shuffle partitions (not 200!)
 ```
 
-#### Schema Access
+#### Loading Data
 ```python
-# Polars
-schema = df.collect_schema()
-col_names = df.columns
+# Read Parquet
+df = spark.read.parquet('data/file.parquet')
+df = df.cache()  # Cache for repeated access
 
-# Ibis
-schema = df.schema()  # Returns ibis.Schema
-col_names = df.schema().names  # List of column names
+# Basic operations
+total_rows = df.count()
+df.show(10)
+df.toPandas()  # Convert to pandas for display
 ```
 
-#### Column References
+#### Column Operations
 ```python
-# Polars
-pl.col('cost')
-pl.len()
+from pyspark.sql import functions as F
 
-# Ibis
-_.cost  or  _['cost']  # Column deference
-_.count()  # Row count aggregation
+# Column references
+F.col('cost')
+F.sum('cost')
+F.countDistinct('date')
+
+# Filtering
+df.filter(F.col('cost') > 100)
+
+# Aggregations
+result = df.groupBy('region').agg(
+    F.sum('cost').alias('total'),
+    F.countDistinct('date').alias('days')
+)
 ```
 
-#### Aggregations
+#### Transform Pattern
 ```python
-# Polars
-df.agg([
-    pl.col('cost').sum().alias('total'),
-    pl.col('date').n_unique().alias('days')
-])
+from hellocloud.transforms import pct_change, summary_stats
 
-# Ibis
-df.agg(
-    total=_.cost.sum(),
-    days=_.date.nunique()
-)  # No list wrapping, keyword args for aliases
-```
-
-#### Filtering
-```python
-# Polars
-df.filter(pl.col('cost') > 100)
-
-# Ibis
-df.filter(_.cost > 100)
-```
-
-#### Sorting & Renaming
-```python
-# Polars
-df.sort('date')
-df.rename({'old_name': 'new_name'})
-
-# Ibis
-df.order_by('date')
-df.rename(new_name='old_name')  # Reversed argument order!
-```
-
-#### Dtype Checks
-```python
-# Polars
-isinstance(dtype, (pl.Utf8, pl.Categorical))
-isinstance(dtype, (pl.Date, pl.Datetime))
-
-# Ibis
-dtype.is_string()
-dtype.is_temporal()
-```
-
-#### Count Operations
-```python
-# Polars (returns DataFrame)
-count_df = df.count()  # Returns single-row DataFrame
-count_val = count_df[0, 0]  # Extract scalar
-
-# Ibis (returns scalar directly)
-count_val = df.count().execute()  # Already a scalar int
-```
-
-### Data Processing
-Use Ibis for portable DataFrame operations with DuckDB backend:
-```python
-import ibis
-from ibis import _
-import pandas as pd  # Used for results after .execute()
-
-# Connect to DuckDB (in-memory analytics)
-con = ibis.duckdb.connect()
-
-# Read data
-df = con.read_parquet('data/file.parquet', table_name='data')
-
-# Query with Ibis (lazy evaluation)
-result = (
-    df.filter(_.cost > 0)
-    .group_by('region')
-    .agg(total=_.cost.sum())
-    .order_by(ibis.desc('total'))
-    .execute()  # Returns pandas DataFrame
+# Composable transforms using .transform()
+result = df.transform(
+    pct_change(value_col='cost', order_col='date', group_cols=['resource_id'])
 )
 
-# Backend portability: Same code works with PySpark
-# con = ibis.pyspark.connect(spark_session)
+# Summary statistics by group
+stats = df.transform(
+    summary_stats(value_col='cost', group_col='region')
+)
+```
+
+#### Important: Decimal (Fractional) Values
+Our PySpark transforms return **decimal values** (0.10 = 10%), like pandas:
+
+```python
+# pct_change returns fractional form: 0.10 for 10% increase
+daily_change = df.transform(pct_change('cost', 'date'))
+
+# Filter for >30% drops (use -0.30, not -30.0!)
+large_drops = daily_change.filter(F.col('pct_change') < -0.30)
 ```
 
 ### Error Handling
@@ -302,9 +259,8 @@ from pydantic import BaseModel, Field, field_validator
 ## Important Dependencies
 
 ### Core Libraries
-- **ibis-framework[duckdb]**: Portable DataFrame API for analytics (local: DuckDB, scale: PySpark)
-- **duckdb**: In-memory OLAP database for fast analytical queries
-- **pandas**: Used for results after Ibis `.execute()` and visualization
+- **pyspark**: Distributed DataFrame processing engine (requires Java 21)
+- **pandas**: Used for results after PySpark `.toPandas()` and visualization
 - **pymc**: Bayesian modeling
 - **chronos-forecasting**: Amazon's foundation model
 - **transformers**: HuggingFace integration
@@ -317,6 +273,12 @@ from pydantic import BaseModel, Field, field_validator
 - **black**: Code formatter
 - **ruff**: Linter (replaces flake8, isort, etc.)
 - **jupytext**: MyST notebook support
+
+### Java Requirements
+- **Java 21 (OpenJDK)**: Required for PySpark 4.0
+- Installed via Homebrew: `brew install openjdk@21`
+- JAVA_HOME configured in ~/.zshrc (see dotfiles)
+- Automatically used by Spark session
 
 ## Common Tasks
 

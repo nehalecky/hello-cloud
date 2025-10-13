@@ -191,12 +191,28 @@ def all_notebook_results(request):
 @pytest.mark.parametrize("notebook_name", NOTEBOOKS)
 def test_notebook_syntax(notebook_name):
     """Test that notebook Python syntax is valid."""
-    script_path = NOTEBOOK_DIR / notebook_name
+    md_path = NOTEBOOK_DIR / notebook_name
 
-    if not script_path.exists():
+    if not md_path.exists():
         pytest.skip(f"Notebook {notebook_name} not found")
 
-    with open(script_path) as f:
+    # Convert to .py if needed
+    py_name = notebook_name.replace(".md", ".py")
+    py_path = NOTEBOOK_DIR / py_name
+
+    if not py_path.exists():
+        try:
+            subprocess.run(
+                ["uv", "run", "jupytext", "--to", "py", str(md_path)],
+                cwd=NOTEBOOK_DIR,
+                check=True,
+                capture_output=True,
+            )
+        except subprocess.CalledProcessError as e:
+            pytest.skip(f"Could not convert {notebook_name} to .py: {e}")
+
+    # Parse .py version
+    with open(py_path) as f:
         content = f.read()
 
     try:
@@ -211,13 +227,28 @@ def test_notebook_syntax(notebook_name):
 @pytest.mark.parametrize("notebook_name", NOTEBOOKS)
 def test_notebook_imports(notebook_name):
     """Test that notebook imports can be resolved (without full execution)."""
-    script_path = NOTEBOOK_DIR / notebook_name
+    md_path = NOTEBOOK_DIR / notebook_name
 
-    if not script_path.exists():
+    if not md_path.exists():
         pytest.skip(f"Notebook {notebook_name} not found")
 
-    # Extract import statements
-    with open(script_path) as f:
+    # Convert to .py if needed
+    py_name = notebook_name.replace(".md", ".py")
+    py_path = NOTEBOOK_DIR / py_name
+
+    if not py_path.exists():
+        try:
+            subprocess.run(
+                ["uv", "run", "jupytext", "--to", "py", str(md_path)],
+                cwd=NOTEBOOK_DIR,
+                check=True,
+                capture_output=True,
+            )
+        except subprocess.CalledProcessError as e:
+            pytest.skip(f"Could not convert {notebook_name} to .py: {e}")
+
+    # Extract import statements from .py version
+    with open(py_path) as f:
         content = f.read()
 
     try:
@@ -235,8 +266,9 @@ def test_notebook_imports(notebook_name):
         logger.info(f"✓ Found {len(imports)} imports in {notebook_name}")
 
         # Test critical imports that should be available
-        critical_imports = ["polars", "numpy", "hellocloud"]
-        for imp in critical_imports:
+        # Note: Some notebooks use PySpark instead of Polars
+        required_imports = ["numpy", "hellocloud"]
+        for imp in required_imports:
             matching = [i for i in imports if imp in i]
             assert len(matching) > 0, f"Missing critical import '{imp}' in {notebook_name}"
 

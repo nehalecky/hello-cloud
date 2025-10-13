@@ -1,23 +1,19 @@
-"""
-Hello Cloud - Cloud Cost Analysis and Optimization
-
-Hands-on tools for cloud resource usage analysis and cost optimization.
-"""
+"""Hello Cloud - Cloud Cost Analysis and Optimization"""
 
 __version__ = "0.1.0"
 __author__ = "Nicholaus Halecky"
 
-# Import submodules for namespace access (e.g., hc.utils.plot_temporal_density)
-from . import transforms, utils
+# Import submodules
+from . import analysis, generation, modeling, spark, transforms, utils
 
-# Import key classes and functions for top-level convenience
-from .data_generation import (
+# Convenience imports
+from .generation import (
     CloudMetricsDatasetBuilder,
     CloudMetricsSimulator,
     WorkloadPatternGenerator,
     WorkloadType,
 )
-from .ml_models import (
+from .modeling import (
     CloudResourceHierarchicalModel,
     CloudResourceTaxonomy,
 )
@@ -28,18 +24,18 @@ from .utils import (
 )
 
 __all__ = [
-    # Submodules
+    "analysis",
+    "generation",
+    "modeling",
+    "spark",
     "transforms",
     "utils",
-    # Data Generation
     "CloudMetricsDatasetBuilder",
     "CloudMetricsSimulator",
     "WorkloadPatternGenerator",
     "WorkloadType",
-    # ML Models
     "CloudResourceHierarchicalModel",
     "CloudResourceTaxonomy",
-    # Logging utilities (convenience)
     "configure_notebook_logging",
     "quiet_library_logging",
     "verbose_library_logging",

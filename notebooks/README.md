@@ -107,7 +107,7 @@ This notebook demonstrates **library-first development** where:
 
 **Usage pattern:**
 ```python
-from hellocloud.ml_models.gaussian_process import (
+from hellocloud.modeling.gaussian_process import (
     SparseGPModel, CompositePeriodicKernel,
     train_gp_model, compute_metrics
 )

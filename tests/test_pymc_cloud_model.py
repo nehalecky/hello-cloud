@@ -8,8 +8,8 @@ import polars as pl
 import pytest
 import xarray as xr
 
-from hellocloud.ml_models.application_taxonomy import CloudResourceTaxonomy
-from hellocloud.ml_models.pymc_cloud_model import (
+from hellocloud.modeling.application_taxonomy import CloudResourceTaxonomy
+from hellocloud.modeling.pymc_cloud_model import (
     CloudResourceHierarchicalModel,
 )
 
@@ -34,7 +34,7 @@ class TestCloudResourceHierarchicalModel:
         model = CloudResourceHierarchicalModel(archetypes=custom_archetypes, seed=42)
         assert model.archetypes == custom_archetypes
 
-    @patch("hellocloud.ml_models.pymc_cloud_model.pm")
+    @patch("hellocloud.modeling.pymc_cloud_model.pm")
     def test_build_model(self, mock_pm):
         """Test building the PyMC model."""
         # Setup mock PyMC model context manager
@@ -64,7 +64,7 @@ class TestCloudResourceHierarchicalModel:
         assert mock_pm.Beta.called  # For utilization priors
         assert mock_pm.Gamma.called  # For cost distributions
 
-    @patch("hellocloud.ml_models.pymc_cloud_model.pm")
+    @patch("hellocloud.modeling.pymc_cloud_model.pm")
     def test_fit_model(self, mock_pm):
         """Test fitting the model with data."""
         # Setup mock trace with xarray structure
@@ -107,7 +107,7 @@ class TestCloudResourceHierarchicalModel:
             # Verify trace was stored
             assert model.trace is not None
 
-    @patch("hellocloud.ml_models.pymc_cloud_model.pm")
+    @patch("hellocloud.modeling.pymc_cloud_model.pm")
     def test_generate_synthetic_data(self, mock_pm):
         """Test synthetic data generation."""
         # Setup mock PyMC
@@ -182,7 +182,7 @@ class TestCloudResourceHierarchicalModel:
         assert all(0 <= mem <= 100 for mem in predictions["memory"])
         assert all(cost >= 0 for cost in predictions["cost"])
 
-    @patch("hellocloud.ml_models.pymc_cloud_model.az.to_netcdf")
+    @patch("hellocloud.modeling.pymc_cloud_model.az.to_netcdf")
     def test_save_model(self, mock_to_netcdf):
         """Test saving the model."""
         model = CloudResourceHierarchicalModel(seed=42)
@@ -194,7 +194,7 @@ class TestCloudResourceHierarchicalModel:
         # Verify save was called
         mock_to_netcdf.assert_called_once()
 
-    @patch("hellocloud.ml_models.pymc_cloud_model.az.from_netcdf")
+    @patch("hellocloud.modeling.pymc_cloud_model.az.from_netcdf")
     @patch("os.path.exists")
     def test_load_model(self, mock_exists, mock_from_netcdf):
         """Test loading a saved model."""
@@ -352,7 +352,7 @@ class TestCloudResourceHierarchicalModel:
 class TestHierarchicalStructure:
     """Test the hierarchical structure of the model."""
 
-    @patch("hellocloud.ml_models.pymc_cloud_model.pm")
+    @patch("hellocloud.modeling.pymc_cloud_model.pm")
     def test_industry_level_parameters(self, mock_pm):
         """Test that industry-level parameters are created."""
         # Setup mock PyMC
@@ -384,7 +384,7 @@ class TestHierarchicalStructure:
         # Model should have been created
         assert mock_pm.Model.called
 
-    @patch("hellocloud.ml_models.pymc_cloud_model.pm")
+    @patch("hellocloud.modeling.pymc_cloud_model.pm")
     def test_archetype_level_parameters(self, mock_pm):
         """Test that archetype-level parameters inherit from industry level."""
         # Setup mock PyMC
@@ -479,7 +479,7 @@ class TestResourceCorrelations:
 
         return mock_trace
 
-    @patch("hellocloud.ml_models.pymc_cloud_model.pm")
+    @patch("hellocloud.modeling.pymc_cloud_model.pm")
     def test_cpu_memory_correlation(self, mock_pm):
         """Test that CPU and memory utilization are correlated in synthetic data."""
         # Setup mock PyMC
@@ -506,7 +506,7 @@ class TestResourceCorrelations:
             # Should have some correlation (not perfectly 0)
             assert abs(correlation) > 0.01
 
-    @patch("hellocloud.ml_models.pymc_cloud_model.pm")
+    @patch("hellocloud.modeling.pymc_cloud_model.pm")
     def test_cost_utilization_relationship(self, mock_pm):
         """Test that cost increases with utilization."""
         # Setup mock PyMC
@@ -543,7 +543,7 @@ class TestResourceCorrelations:
         (5, 720),  # 1 month
     ],
 )
-@patch("hellocloud.ml_models.pymc_cloud_model.pm")
+@patch("hellocloud.modeling.pymc_cloud_model.pm")
 def test_synthetic_data_dimensions(mock_pm, num_resources, time_periods):
     """Test that synthetic data has correct dimensions."""
     # Setup mock PyMC

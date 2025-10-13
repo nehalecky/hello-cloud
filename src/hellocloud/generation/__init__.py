@@ -1,4 +1,4 @@
-"""Data generation modules for CloudZero simulation."""
+"""Synthetic data generation for cloud workload patterns."""
 
 from .cloud_metrics_simulator import CloudMetricsSimulator, CloudResource
 from .hf_dataset_builder import CloudMetricsDatasetBuilder

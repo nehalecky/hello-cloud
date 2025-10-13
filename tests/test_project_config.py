@@ -176,9 +176,11 @@ class TestProjectImports:
     def test_submodules_importable(self):
         """Test that submodules can be imported."""
         submodules = [
-            "hellocloud.data_generation",
-            "hellocloud.ml_models",
+            "hellocloud.generation",
+            "hellocloud.modeling",
+            "hellocloud.analysis",
             "hellocloud.utils",
+            "hellocloud.transforms",
         ]
 
         for module_name in submodules:
