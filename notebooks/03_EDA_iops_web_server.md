@@ -64,7 +64,6 @@ Per our [timeseries anomaly datasets review](../docs/research/timeseries-anomaly
 ```{code-cell} ipython3
 # Environment setup
 import pandas as pd
-import polars as pl
 import numpy as np
 import altair as alt
 import seaborn as sns
@@ -93,10 +92,10 @@ alt.theme.active = 'quartz'  # Updated for Altair 5.5.0+
 sns.set_theme(style='whitegrid', palette='colorblind')
 plt.rcParams['figure.dpi'] = 100
 
-# Environment info
-pl.DataFrame({
-    'Library': ['Pandas', 'Polars', 'NumPy', 'Matplotlib', 'Seaborn', 'Altair'],
-    'Version': [pd.__version__, pl.__version__, np.__version__, plt.matplotlib.__version__, sns.__version__, alt.__version__]
+# Environment info (will show PySpark version after spark session is created)
+pd.DataFrame({
+    'Library': ['Pandas', 'NumPy', 'Matplotlib', 'Seaborn', 'Altair'],
+    'Version': [pd.__version__, np.__version__, plt.matplotlib.__version__, sns.__version__, alt.__version__]
 })
 ```
 
@@ -116,12 +115,20 @@ test_url = f"{base_url}/anomaly_detection/TSB-UAD-Public/IOPS/{kpi_id}.test.out"
 train_pd = pd.read_csv(train_url, header=None, names=['value', 'label'])
 test_pd = pd.read_csv(test_url, header=None, names=['value', 'label'])
 
-# Convert to Polars for consistency with our stack
+# Add timestamps using pandas, then convert to PySpark
 # NOTE: Dataset provides no actual timestamps - we create sequential indices
 # According to TSB-UAD documentation, IOPS data is sampled at 1-minute intervals
 # This means our index represents minutes elapsed
-train_df = pl.from_pandas(train_pd).with_columns(pl.arange(0, len(train_pd)).alias('timestamp'))
-test_df = pl.from_pandas(test_pd).with_columns(pl.arange(0, len(test_pd)).alias('timestamp'))
+train_pd['timestamp'] = np.arange(0, len(train_pd))
+test_pd['timestamp'] = np.arange(0, len(test_pd))
+
+# Get or create Spark session
+from hellocloud.spark import get_spark_session
+spark = get_spark_session(app_name="iops-eda")
+
+# Convert to PySpark DataFrames
+train_df = spark.createDataFrame(train_pd)
+test_df = spark.createDataFrame(test_pd)
 ```
 
 **Timestamp Limitation**: The TSB-UAD dataset provides no actual timestamps—only sequential indices. We create synthetic timestamps assuming 1-minute sampling intervals (documented in TSB-UAD specification).
@@ -138,7 +145,7 @@ The table below shows key metadata for tracking this specific time series:
 
 ```{code-cell} ipython3
 # Dataset metadata
-pl.DataFrame({
+pd.DataFrame({
     'Attribute': ['KPI ID', 'Source'],
     'Value': [
         kpi_id,
@@ -151,12 +158,12 @@ This KPI is one of 20 monitored web server metrics from the IOPS dataset, select
 
 ```{code-cell} ipython3
 # Training data preview
-train_df.head(10)
+train_df.limit(10).toPandas()
 ```
 
 ```{code-cell} ipython3
 # Test data preview
-test_df.head(10)
+test_df.limit(10).toPandas()
 ```
 
 ## 2. Initial Data Inspection
@@ -165,15 +172,24 @@ Examining data structure, completeness, and anomaly distribution.
 
 ```{code-cell} ipython3
 # Data quality assessment
-train_nulls = train_df.select(pl.all().null_count()).sum().to_numpy()[0,0]
-test_nulls = test_df.select(pl.all().null_count()).sum().to_numpy()[0,0]
+from pyspark.sql import functions as F
 
-pl.DataFrame({
+# Count nulls in each column and sum them up
+train_nulls = sum([train_df.filter(F.col(c).isNull()).count() for c in train_df.columns])
+test_nulls = sum([test_df.filter(F.col(c).isNull()).count() for c in test_df.columns])
+
+# Get counts and aggregations
+train_count = train_df.count()
+test_count = test_df.count()
+train_anomalies = train_df.filter(F.col('label') == 1).count()
+test_anomalies = test_df.filter(F.col('label') == 1).count()
+
+pd.DataFrame({
     'Dataset': ['Training', 'Test'],
-    'Total Samples': [len(train_df), len(test_df)],
+    'Total Samples': [train_count, test_count],
     'Missing Values': [int(train_nulls), int(test_nulls)],
-    'Anomaly Points': [train_df['label'].sum(), test_df['label'].sum()],
-    'Anomaly Rate (%)': [100 * train_df['label'].mean(), 100 * test_df['label'].mean()]
+    'Anomaly Points': [train_anomalies, test_anomalies],
+    'Anomaly Rate (%)': [100 * train_anomalies / train_count, 100 * test_anomalies / test_count]
 })
 ```
 
@@ -185,25 +201,40 @@ pl.DataFrame({
 The clean, complete structure makes this dataset ideal for time series modeling without preprocessing.
 
 ```{code-cell} ipython3
-# Statistical summary
-summary_data = []
+# Statistical summary - compute from PySpark DataFrames
+train_stats = train_df.select('value').summary('count', 'mean', 'stddev', 'min', '25%', '50%', '75%', 'max').collect()
+test_stats = test_df.select('value').summary('count', 'mean', 'stddev', 'min', '25%', '50%', '75%', 'max').collect()
 
-for name, df in [('Train', train_df), ('Test', test_df)]:
-    summary_data.append({
-        'Split': name,
-        'Count': len(df),
-        'Mean': df["value"].mean(),
-        'Std': df["value"].std(),
-        'Min': df["value"].min(),
-        '25%': df["value"].quantile(0.25),
-        'Median': df["value"].median(),
-        '75%': df["value"].quantile(0.75),
-        'Max': df["value"].max(),
-        'Anomalies': df['label'].sum(),
-        'Anomaly %': 100 * df['label'].mean()
-    })
+summary_data = [
+    {
+        'Split': 'Train',
+        'Count': train_count,
+        'Mean': float(train_stats[1]['value']),
+        'Std': float(train_stats[2]['value']),
+        'Min': float(train_stats[3]['value']),
+        '25%': float(train_stats[4]['value']),
+        'Median': float(train_stats[5]['value']),
+        '75%': float(train_stats[6]['value']),
+        'Max': float(train_stats[7]['value']),
+        'Anomalies': train_anomalies,
+        'Anomaly %': 100 * train_anomalies / train_count
+    },
+    {
+        'Split': 'Test',
+        'Count': test_count,
+        'Mean': float(test_stats[1]['value']),
+        'Std': float(test_stats[2]['value']),
+        'Min': float(test_stats[3]['value']),
+        '25%': float(test_stats[4]['value']),
+        'Median': float(test_stats[5]['value']),
+        '75%': float(test_stats[6]['value']),
+        'Max': float(test_stats[7]['value']),
+        'Anomalies': test_anomalies,
+        'Anomaly %': 100 * test_anomalies / test_count
+    }
+]
 
-pl.DataFrame(summary_data)
+pd.DataFrame(summary_data)
 ```
 
 **Key Observations**:
@@ -296,11 +327,12 @@ chart_zoom
 ```{code-cell} ipython3
 # Create unified data segments dictionary
 # This reduces variable copies and provides clean key-based access
+# Convert PySpark DataFrames to numpy arrays for analysis
 data_segments = {
-    'train': train_df['value'].to_numpy(),
-    'test': test_df['value'].to_numpy(),
-    'normal': train_df.filter(pl.col('label') == 0)['value'].to_numpy(),
-    'anomaly': train_df.filter(pl.col('label') == 1)['value'].to_numpy(),
+    'train': np.array(train_df.select('value').toPandas()['value']),
+    'test': np.array(test_df.select('value').toPandas()['value']),
+    'normal': np.array(train_df.filter(F.col('label') == 0).select('value').toPandas()['value']),
+    'anomaly': np.array(train_df.filter(F.col('label') == 1).select('value').toPandas()['value']),
 }
 
 logger.info(f"Data segments created: {', '.join(data_segments.keys())}")
@@ -314,7 +346,7 @@ This segmentation enables distributional comparisons that inform anomaly detecti
 
 ```{code-cell} ipython3
 # Distribution statistics: Normal vs Anomalous
-pl.DataFrame({
+pd.DataFrame({
     'Period Type': ['Normal', 'Anomalous'],
     'Count': [len(data_segments['normal']), len(data_segments['anomaly'])],
     'Mean': [data_segments['normal'].mean(), data_segments['anomaly'].mean() if len(data_segments['anomaly']) > 0 else None],
@@ -412,7 +444,7 @@ plt.show()
 # Display KS test results as table
 print("Kolmogorov-Smirnov Test Results")
 print("=" * 70)
-ks_df = pl.DataFrame([
+ks_df = pd.DataFrame([
     {'Comparison': comp, **results}
     for comp, results in ks_results_dict.items()
 ])
@@ -425,7 +457,7 @@ print("\nKullback-Leibler Divergence Results")
 print("=" * 70)
 print("KL(P || Q) measures how distribution Q diverges from reference distribution P")
 print("Higher values indicate greater distributional difference\n")
-kl_df = pl.DataFrame([
+kl_df = pd.DataFrame([
     {'Comparison': comp, **results}
     for comp, results in kl_results_dict.items()
 ])
@@ -463,15 +495,18 @@ Time series often exhibit repeating patterns (hourly, daily, weekly cycles). Det
 ```{code-cell} ipython3
 # Combine train and test for comprehensive frequency analysis
 # Using full dataset provides more accurate periodicity detection
-full_df = pl.concat([
-    train_df.with_columns(pl.lit('train').alias('split')),
-    test_df.with_columns(pl.lit('test').alias('split'))
-]).with_columns(
-    pl.arange(0, len(train_df) + len(test_df)).alias('timestamp')
-)
+train_with_split = train_df.withColumn('split', F.lit('train'))
+test_with_split = test_df.withColumn('split', F.lit('test'))
+full_df = train_with_split.union(test_with_split)
 
-full_values = full_df['value'].to_numpy()
-train_values = train_df['value'].to_numpy()
+# Add sequential timestamp column using monotonically_increasing_id
+# Note: This creates a unique but not necessarily sequential ID, so we'll use row_number instead
+from pyspark.sql.window import Window
+full_df = full_df.withColumn('timestamp', F.row_number().over(Window.orderBy(F.monotonically_increasing_id())) - 1)
+
+# Convert to numpy arrays for analysis
+full_values = np.array(full_df.select('value').toPandas()['value'])
+train_values = np.array(train_df.select('value').toPandas()['value'])
 
 from loguru import logger
 logger.info(f"Periodicity analysis: {len(full_values):,} samples (train+test combined)")
@@ -548,9 +583,9 @@ if len(peak_lags) > 0:
             'Pattern Type': ', '.join(pattern_type) if pattern_type else 'Other'
         })
 
-    pl.DataFrame(periodicity_data)
+    pd.DataFrame(periodicity_data)
 else:
-    pl.DataFrame({'Note': ['No strong periodicities detected (ACF peaks < 0.2)']})
+    pd.DataFrame({'Note': ['No strong periodicities detected (ACF peaks < 0.2)']})
 ```
 
 **Detected Periodicities**:
@@ -684,7 +719,7 @@ if len(peak_indices) > 0 and len(valid_frequencies) > 0:
             )
         })
 
-    pl.DataFrame(peak_data)
+    pd.DataFrame(peak_data)
 else:
     # Initialize empty peak variables for downstream cells
     peak_freqs = np.array([])
@@ -692,7 +727,7 @@ else:
     peak_power = np.array([])
     sort_idx = np.array([])
 
-    pl.DataFrame({'Note': ['No significant spectral peaks detected']})
+    pd.DataFrame({'Note': ['No significant spectral peaks detected']})
 ```
 
 **Spectral Peaks Interpretation**:
@@ -807,7 +842,7 @@ if len(peak_indices) > 0:
         strength_label = "Strong" if strength_seasonal > 0.6 else ("Moderate" if strength_seasonal > 0.3 else "Weak")
 
         # Display metrics
-        stl_metrics_df = pl.DataFrame({
+        stl_metrics_df = pd.DataFrame({
             'Metric': ['Dominant Period', 'Seasonality Strength', 'Classification', 'Variance Explained'],
             'Value': [
                 f"{dominant_period} {TIME_UNIT}",
@@ -828,7 +863,7 @@ if len(peak_indices) > 0:
         print("  • Insufficient data for chosen period")
         print("→ Consider alternative decomposition methods or non-seasonal models")
 else:
-    no_peaks_df = pl.DataFrame({'Note': ['No spectral peaks detected - STL not applicable']})
+    no_peaks_df = pd.DataFrame({'Note': ['No spectral peaks detected - STL not applicable']})
     display(no_peaks_df)
     logger.info("No spectral peaks detected - skipping STL decomposition")
 ```
@@ -945,8 +980,8 @@ For computational efficiency (especially for exact Gaussian Processes), we reduc
 After subsampling, we retain statistical moments (mean, std, percentiles), autocorrelation structure, and frequency content without aliasing.
 
 ```{code-cell} ipython3
-# Statistical comparison
-stats_comparison = pl.DataFrame({
+# Statistical comparison using pandas DataFrame
+stats_comparison = pd.DataFrame({
     'Metric': ['Mean', 'Std', 'Variance', 'Min', 'Max', 'Q25', 'Median', 'Q75'],
     'Full Data': [
         train_values.mean(),
@@ -971,9 +1006,7 @@ stats_comparison = pl.DataFrame({
 })
 
 # Add percent difference
-stats_comparison = stats_comparison.with_columns(
-    ((pl.col('Subsampled') - pl.col('Full Data')) / pl.col('Full Data') * 100).alias('Diff %')
-)
+stats_comparison['Diff %'] = ((stats_comparison['Subsampled'] - stats_comparison['Full Data']) / stats_comparison['Full Data'] * 100)
 
 stats_comparison
 ```
@@ -1006,7 +1039,7 @@ for lag in lags_to_check:
         'Preserved': 'Yes' if not np.isnan(acf_full) and not np.isnan(acf_sub) and abs(acf_full - acf_sub) < 0.1 else 'N/A'
     })
 
-pl.DataFrame(acf_comparison)
+pd.DataFrame(acf_comparison)
 ```
 
 ```{code-cell} ipython3
@@ -1085,7 +1118,7 @@ adf_result = adfuller(train_values, autolag='AIC')
 adf_stat, adf_p, adf_lags, adf_nobs, adf_crit, adf_ic = adf_result
 
 # Create and display results table
-adf_results_df = pl.DataFrame({
+adf_results_df = pd.DataFrame({
     'Metric': ['ADF Statistic', 'p-value', 'Critical Value (1%)', 'Critical Value (5%)', 'Critical Value (10%)'],
     'Value': [
         float(adf_stat),
@@ -1105,13 +1138,13 @@ adf_results_df
 ```{code-cell} ipython3
 # Stationarity interpretation for time series modeling
 if adf_p < 0.05:
-    interpretation_df = pl.DataFrame({
+    interpretation_df = pd.DataFrame({
         'Assessment': ['Data is stationary'],
         'Modeling Implications': ['Suitable for stationary time series models'],
         'Recommended Approaches': ['AR, MA, ARMA, stationary GP kernels, many ML models']
     })
 else:
-    interpretation_df = pl.DataFrame({
+    interpretation_df = pd.DataFrame({
         'Assessment': ['Data is non-stationary'],
         'Modeling Implications': ['Requires preprocessing or trend-aware models'],
         'Options': ['1) Difference the series (ARIMA) | 2) Detrend (Prophet, STL) | 3) Use trend-aware methods | 4) Foundation models (handle non-stationarity)']
@@ -1149,7 +1182,10 @@ All forecasting and anomaly detection methods benefit from high-quality data:
 This section verifies we have clean, complete data suitable for rigorous modeling.
 
 ```{code-cell} ipython3
-# Data quality summary
+# Data quality summary - get stats from PySpark DataFrames
+train_value_stats = train_df.select('value').summary('min', 'max').collect()
+test_value_stats = test_df.select('value').summary('min', 'max').collect()
+
 quality_data = {
     'Quality Dimension': [
         'Completeness - Training',
@@ -1164,20 +1200,20 @@ quality_data = {
         'Overall Assessment'
     ],
     'Status': [
-        f'{len(train_df):,} samples',
-        f'{len(test_df):,} samples',
+        f'{train_count:,} samples',
+        f'{test_count:,} samples',
         'None (0)',
-        f'[{train_df["value"].min():.2f}, {train_df["value"].max():.2f}]',
-        f'[{test_df["value"].min():.2f}, {test_df["value"].max():.2f}]',
-        f'{train_df["label"].sum()} ({100*train_df["label"].mean():.2f}%)',
-        f'{test_df["label"].sum()} ({100*test_df["label"].mean():.2f}%)',
+        f'[{float(train_value_stats[0]["value"]):.2f}, {float(train_value_stats[1]["value"]):.2f}]',
+        f'[{float(test_value_stats[0]["value"]):.2f}, {float(test_value_stats[1]["value"]):.2f}]',
+        f'{train_anomalies} ({100*train_anomalies/train_count:.2f}%)',
+        f'{test_anomalies} ({100*test_anomalies/test_count:.2f}%)',
         'Continuous (no gaps)',
         f'{"✓ Stationary" if adf_p < 0.05 else "⚠ Non-stationary"} (p={adf_p:.4f})',
         '✓ High-quality operational data ready for time series modeling'
     ]
 }
 
-pl.DataFrame(quality_data)
+pd.DataFrame(quality_data)
 ```
 
 ## 7. Conclusion & Downstream Applications
@@ -1212,7 +1248,7 @@ else:
     dominant_period = None
     periodicity_strength = "None detected"
 
-pl.DataFrame({
+pd.DataFrame({
     'Characteristic': [
         'Training samples',
         'Test samples',
@@ -1233,8 +1269,8 @@ pl.DataFrame({
         f'{"Stationary" if adf_p < 0.05 else "Non-stationary"} (p={adf_p:.3f})',
         periodicity_strength,
         f'{dominant_period} minutes' if has_periodicity else 'N/A',
-        f'{100*train_df["label"].mean():.2f}%',
-        f'{100*test_df["label"].mean():.2f}%',
+        f'{100*train_anomalies/train_count:.2f}%',
+        f'{100*test_anomalies/test_count:.2f}%',
         'None (100% complete)'
     ]
 })
@@ -1313,7 +1349,7 @@ model_recommendations.append({
     'Next Step': 'Requires feature engineering and hyperparameter tuning'
 })
 
-pl.DataFrame(model_recommendations)
+pd.DataFrame(model_recommendations)
 ```
 
 ### 3. Forecasting Horizons
@@ -1343,7 +1379,7 @@ horizon_data = {
     ]
 }
 
-pl.DataFrame(horizon_data)
+pd.DataFrame(horizon_data)
 ```
 
 ### 4. Anomaly Detection Strategies
@@ -1394,15 +1430,15 @@ anomaly_approaches.append({
     'Cons': 'Requires more data, harder to tune'
 })
 
-pl.DataFrame(anomaly_approaches)
+pd.DataFrame(anomaly_approaches)
 ```
 
 ```{code-cell} ipython3
 # Evaluation framework (applicable to all methods)
-pl.DataFrame({
+pd.DataFrame({
     'Aspect': ['Test Set', 'Evaluation Metrics', 'Baseline Comparisons', 'Threshold Tuning'],
     'Details': [
-        f'{len(test_df):,} samples with {test_df["label"].sum()} labeled anomalies ({100*test_df["label"].mean():.2f}%)',
+        f'{test_count:,} samples with {test_anomalies} labeled anomalies ({100*test_anomalies/test_count:.2f}%)',
         'Precision, Recall, F1-Score, AUC-ROC, Precision@k',
         'Compare multiple methods: statistical, ML-based, forecast-based',
         'Use validation set to optimize precision-recall trade-off'
@@ -1414,9 +1450,9 @@ pl.DataFrame({
 
 ```{code-cell} ipython3
 # Generate summary metrics
-anomaly_rate_train = 100 * train_df['label'].mean()
-anomaly_rate_test = 100 * test_df['label'].mean()
-total_anomalies = train_df['label'].sum() + test_df['label'].sum()
+anomaly_rate_train = 100 * train_anomalies / train_count
+anomaly_rate_test = 100 * test_anomalies / test_count
+total_anomalies = train_anomalies + test_anomalies
 
 summary_metrics = {
     'Category': [
@@ -1444,7 +1480,7 @@ summary_metrics = {
     ]
 }
 
-pl.DataFrame(summary_metrics)
+pd.DataFrame(summary_metrics)
 ```
 
 ### Next Steps: Choosing Your Path
