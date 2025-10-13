@@ -176,6 +176,13 @@ pl.DataFrame({
 })
 ```
 
+**Data Quality Summary**:
+- ✅ **Complete**: No missing values in either split
+- ✅ **Labeled**: Expert-curated anomaly labels for validation
+- ⚠️ **Imbalanced**: Low anomaly rate typical of operational data (most periods are normal)
+
+The clean, complete structure makes this dataset ideal for time series modeling without preprocessing.
+
 ```{code-cell} ipython3
 # Statistical summary
 summary_data = []
@@ -197,6 +204,11 @@ for name, df in [('Train', train_df), ('Test', test_df)]:
 
 pl.DataFrame(summary_data)
 ```
+
+**Key Observations**:
+- Training and test splits show similar distributions (mean, std), suggesting consistent data generation process
+- Anomalous periods have distinct statistical properties (see distribution analysis below)
+- Value ranges are comparable across splits—no obvious distribution shift
 
 ## 3. Temporal Visualization
 
