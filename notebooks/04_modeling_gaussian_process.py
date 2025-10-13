@@ -38,39 +38,41 @@
 
 # %%
 # Core imports
-# Configuration
-import warnings
-
-import gpytorch
-
-# Visualization
-import matplotlib.pyplot as plt
 import numpy as np
-import polars as pl
-import seaborn as sns
+# Polars replaced with PySpark
 
 # PyTorch and GPyTorch
 import torch
-from gpytorch.likelihoods import GaussianLikelihood, StudentTLikelihood
-from scipy.stats import norm
-from scipy.stats import t as student_t
-
-# Metrics
-from sklearn.metrics import roc_auc_score, roc_curve
+import gpytorch
+from gpytorch.likelihoods import StudentTLikelihood, GaussianLikelihood
 
 # Cloud simulation library (our GP implementation)
 from hellocloud.modeling.gaussian_process import (
+    CompositePeriodicKernel,
     SparseGPModel,
-    compute_anomaly_metrics,
-    compute_metrics,
-    compute_prediction_intervals,
     initialize_inducing_points,
-    load_model,
-    save_model,
     train_gp_model,
+    save_model,
+    load_model,
+    compute_metrics,
+    compute_anomaly_metrics,
+    compute_prediction_intervals,
 )
 
-warnings.filterwarnings("ignore")
+# Visualization
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Metrics
+from sklearn.metrics import (
+    precision_score, recall_score, f1_score, roc_auc_score,
+    roc_curve
+)
+from scipy.stats import norm, t as student_t
+
+# Configuration
+import warnings
+warnings.filterwarnings('ignore')
 
 sns.set_style("whitegrid")
 sns.set_context("notebook", font_scale=1.1)
@@ -84,11 +86,11 @@ np.random.seed(42)
 # operations (_linalg_eigh) not yet implemented in PyTorch's MPS backend.
 # Using CPU is reliable and still performs well for this dataset size.
 if torch.cuda.is_available():
-    device = torch.device("cuda")
+    device = torch.device('cuda')
     print(f"✓ Using CUDA GPU: {torch.cuda.get_device_name(0)}")
 else:
-    device = torch.device("cpu")
-    print("✓ Using CPU")
+    device = torch.device('cpu')
+    print(f"✓ Using CPU")
 
 # Use float32 for all operations (standard for deep learning)
 dtype = torch.float32
@@ -143,55 +145,51 @@ train_url = f"{base_url}/anomaly_detection/TSB-UAD-Public/IOPS/{kpi_id}.train.ou
 test_url = f"{base_url}/anomaly_detection/TSB-UAD-Public/IOPS/{kpi_id}.test.out"
 
 print("Downloading IOPS data from HuggingFace...")
-train_pd = pd.read_csv(train_url, header=None, names=["value", "label"])
-test_pd = pd.read_csv(test_url, header=None, names=["value", "label"])
+train_pd = pd.read_csv(train_url, header=None, names=['value', 'label'])
+test_pd = pd.read_csv(test_url, header=None, names=['value', 'label'])
 
 # Convert to Polars
 # NOTE: Dataset has no timestamps - we create sequential indices (1-minute intervals)
-train_df = pl.DataFrame(
-    {
-        "timestamp": np.arange(len(train_pd)),
-        "value": train_pd["value"].values,
-        "is_anomaly": train_pd["label"].values.astype(bool),
-    }
-)
+train_df = spark.createDataFrame({
+    'timestamp': np.arange(len(train_pd)),
+    'value': train_pd['value'].values,
+    'is_anomaly': train_pd['label'].values.astype(bool)
+})
 
-test_df = pl.DataFrame(
-    {
-        "timestamp": np.arange(len(test_pd)),
-        "value": test_pd["value"].values,
-        "is_anomaly": test_pd["label"].values.astype(bool),
-    }
-)
+test_df = spark.createDataFrame({
+    'timestamp': np.arange(len(test_pd)),
+    'value': test_pd['value'].values,
+    'is_anomaly': test_pd['label'].values.astype(bool)
+})
 
-print("✓ Data loaded successfully")
+print(f"✓ Data loaded successfully")
 print(f"  Training: {len(train_df):,} samples")
 print(f"  Test: {len(test_df):,} samples")
 
 # %%
 # Extract arrays for modeling
-X_train = train_df["timestamp"].to_numpy().reshape(-1, 1).astype(np.float64)
-y_train = train_df["value"].to_numpy().astype(np.float64)
-anomaly_train = train_df["is_anomaly"].to_numpy()
+X_train = train_df['timestamp'].to_numpy().reshape(-1, 1).astype(np.float64)
+y_train = train_df['value'].to_numpy().astype(np.float64)
+anomaly_train = train_df['is_anomaly'].to_numpy()
 
 n_train = len(X_train)
 n_anomalies_train = anomaly_train.sum()
 
-print("Training data:")
+print(f"Training data:")
 print(f"  Total samples: {n_train:,}")
 print(f"  Anomalies: {n_anomalies_train} ({100*n_anomalies_train/n_train:.2f}%)")
 print(f"  Time range: {X_train.min():.0f} → {X_train.max():.0f}")
 
 # %%
 # Extract test arrays
-X_test = test_df["timestamp"].to_numpy().reshape(-1, 1).astype(np.float64)
-y_test = test_df["value"].to_numpy().astype(np.float64)
-anomaly_test = test_df["is_anomaly"].to_numpy()
+X_test = test_df['timestamp'].to_numpy().reshape(-1, 1).astype(np.float64)
+y_test = test_df['value'].to_numpy().astype(np.float64)
+anomaly_test = test_df['is_anomaly'].to_numpy()
 
 n_test = len(X_test)
 n_anomalies_test = anomaly_test.sum()
 
-print("Test data:")
+print(f"Test data:")
 print(f"  Total samples: {n_test:,}")
 print(f"  Anomalies: {n_anomalies_test} ({100*n_anomalies_test/n_test:.2f}%)")
 print(f"  Time range: {X_test.min():.0f} → {X_test.max():.0f}")
@@ -205,7 +203,7 @@ X_range = X_max - X_min
 X_train_norm = (X_train - X_min) / X_range
 X_test_norm = (X_test - X_min) / X_range
 
-print("Normalized timestamps:")
+print(f"Normalized timestamps:")
 print(f"  Training: {X_train_norm.min():.6f} → {X_train_norm.max():.6f}")
 print(f"  Test: {X_test_norm.min():.6f} → {X_test_norm.max():.6f}")
 
@@ -215,7 +213,7 @@ mask_clean = ~anomaly_train.astype(bool)
 X_train_clean = X_train_norm[mask_clean]
 y_train_clean = y_train[mask_clean]
 
-print("Clean training set (traditional approach):")
+print(f"Clean training set (traditional approach):")
 print(f"  Samples: {len(X_train_clean):,} (excluded {n_anomalies_train} anomalies)")
 
 # %%
@@ -229,7 +227,7 @@ y_train_clean_t = torch.tensor(y_train_clean, dtype=dtype, device=device)
 X_test_t = torch.tensor(X_test_norm, dtype=dtype, device=device)
 y_test_t = torch.tensor(y_test, dtype=dtype, device=device)
 
-print("Tensor shapes:")
+print(f"Tensor shapes:")
 print(f"  X_train: {X_train_t.shape}, y_train: {y_train_t.shape}")
 print(f"  X_train_clean: {X_train_clean_t.shape}, y_train_clean: {y_train_clean_t.shape}")
 print(f"  X_test: {X_test_t.shape}, y_test: {y_test_t.shape}")
@@ -275,13 +273,11 @@ X_train_sub = X_train[subsample_indices]
 y_train_sub = y_train[subsample_indices]
 anomaly_train_sub = anomaly_train[subsample_indices]
 
-print("Subsampled training data:")
+print(f"Subsampled training data:")
 print(f"  Original: {len(X_train):,} samples")
 print(f"  Subsampled: {len(X_train_sub):,} samples (every {subsample_factor}th point)")
 print(f"  Reduction: {100*(1-len(X_train_sub)/len(X_train)):.1f}%")
-print(
-    f"  Anomalies: {anomaly_train_sub.sum()} ({100*anomaly_train_sub.sum()/len(X_train_sub):.2f}%)"
-)
+print(f"  Anomalies: {anomaly_train_sub.sum()} ({100*anomaly_train_sub.sum()/len(X_train_sub):.2f}%)")
 
 # %% [markdown]
 # ### 4.1.1 Subsampling Validation: Does It Preserve Signal Structure?
@@ -290,9 +286,9 @@ print(
 # CRITICAL: Verify subsampling doesn't destroy the signal
 # Save all outputs to file for easy reference
 
-output_file = "../subsampling_validation.txt"
+output_file = '../subsampling_validation.txt'
 
-with open(output_file, "w") as f:
+with open(output_file, 'w') as f:
     f.write("=" * 80 + "\n")
     f.write("SUBSAMPLING VALIDATION REPORT\n")
     f.write("=" * 80 + "\n\n")
@@ -304,21 +300,21 @@ with open(output_file, "w") as f:
     f.write("-" * 80 + "\n")
 
     metrics = {
-        "Mean": (y_train.mean(), y_train_sub.mean()),
-        "Std": (y_train.std(), y_train_sub.std()),
-        "Variance": (y_train.var(), y_train_sub.var()),
-        "Min": (y_train.min(), y_train_sub.min()),
-        "Max": (y_train.max(), y_train_sub.max()),
-        "Q25": (np.percentile(y_train, 25), np.percentile(y_train_sub, 25)),
-        "Median": (np.median(y_train), np.median(y_train_sub)),
-        "Q75": (np.percentile(y_train, 75), np.percentile(y_train_sub, 75)),
+        'Mean': (y_train.mean(), y_train_sub.mean()),
+        'Std': (y_train.std(), y_train_sub.std()),
+        'Variance': (y_train.var(), y_train_sub.var()),
+        'Min': (y_train.min(), y_train_sub.min()),
+        'Max': (y_train.max(), y_train_sub.max()),
+        'Q25': (np.percentile(y_train, 25), np.percentile(y_train_sub, 25)),
+        'Median': (np.median(y_train), np.median(y_train_sub)),
+        'Q75': (np.percentile(y_train, 75), np.percentile(y_train_sub, 75)),
     }
 
     for metric, (full, sub) in metrics.items():
         diff = ((sub - full) / full) * 100 if full != 0 else 0
         line = f"{metric:<20} {full:<15.3f} {sub:<15.3f} {diff:>+6.1f}%\n"
         f.write(line)
-        print(line, end="")
+        print(line, end='')
 
     f.write("=" * 80 + "\n\n")
     print()
@@ -355,11 +351,11 @@ with open(output_file, "w") as f:
             diff = acf_sub - acf_full
             line = f"{lag:<10} {acf_full:<15.3f} {acf_sub:<15.3f} {diff:>+6.3f}\n"
             f.write(line)
-            print(line, end="")
+            print(line, end='')
         else:
             line = f"{lag:<10} {str(acf_full):<15} {str(acf_sub):<15} {'N/A':<15}\n"
             f.write(line)
-            print(line, end="")
+            print(line, end='')
 
     f.write("=" * 80 + "\n")
 
@@ -373,23 +369,12 @@ fig, axes = plt.subplots(3, 1, figsize=(18, 12))
 
 # Plot 1: First 5000 timesteps - Full data vs subsampled
 n_viz = 5000
-axes[0].plot(
-    X_train[:n_viz].flatten(), y_train[:n_viz], "k-", linewidth=0.5, alpha=0.5, label="Full data"
-)
-axes[0].scatter(
-    X_train_sub[: n_viz // subsample_factor],
-    y_train_sub[: n_viz // subsample_factor],
-    c="red",
-    s=20,
-    alpha=0.7,
-    zorder=5,
-    label=f"Subsampled (every {subsample_factor}th)",
-)
-axes[0].set_title(
-    f"Subsampling Validation: First {n_viz} Timesteps", fontsize=14, fontweight="bold"
-)
-axes[0].set_xlabel("Timestamp")
-axes[0].set_ylabel("IOPS Value")
+axes[0].plot(X_train[:n_viz].flatten(), y_train[:n_viz], 'k-', linewidth=0.5, alpha=0.5, label='Full data')
+axes[0].scatter(X_train_sub[:n_viz//subsample_factor], y_train_sub[:n_viz//subsample_factor],
+                c='red', s=20, alpha=0.7, zorder=5, label=f'Subsampled (every {subsample_factor}th)')
+axes[0].set_title(f'Subsampling Validation: First {n_viz} Timesteps', fontsize=14, fontweight='bold')
+axes[0].set_xlabel('Timestamp')
+axes[0].set_ylabel('IOPS Value')
 axes[0].legend()
 axes[0].grid(alpha=0.3)
 
@@ -399,45 +384,29 @@ zoom_end = zoom_start + 500
 zoom_indices = (X_train.flatten() >= zoom_start) & (X_train.flatten() < zoom_end)
 zoom_indices_sub = (X_train_sub.flatten() >= zoom_start) & (X_train_sub.flatten() < zoom_end)
 
-axes[1].plot(
-    X_train[zoom_indices].flatten(),
-    y_train[zoom_indices],
-    "k-",
-    linewidth=1.5,
-    alpha=0.7,
-    label="Full data",
-)
-axes[1].scatter(
-    X_train_sub[zoom_indices_sub],
-    y_train_sub[zoom_indices_sub],
-    c="red",
-    s=50,
-    alpha=0.8,
-    zorder=5,
-    label="Subsampled points",
-)
-axes[1].set_title(
-    f"Zoom: Timesteps {zoom_start}-{zoom_end} (~2 Fast Periods)", fontsize=14, fontweight="bold"
-)
-axes[1].set_xlabel("Timestamp")
-axes[1].set_ylabel("IOPS Value")
+axes[1].plot(X_train[zoom_indices].flatten(), y_train[zoom_indices], 'k-', linewidth=1.5, alpha=0.7, label='Full data')
+axes[1].scatter(X_train_sub[zoom_indices_sub], y_train_sub[zoom_indices_sub],
+                c='red', s=50, alpha=0.8, zorder=5, label=f'Subsampled points')
+axes[1].set_title(f'Zoom: Timesteps {zoom_start}-{zoom_end} (~2 Fast Periods)', fontsize=14, fontweight='bold')
+axes[1].set_xlabel('Timestamp')
+axes[1].set_ylabel('IOPS Value')
 axes[1].legend()
 axes[1].grid(alpha=0.3)
 
 # Plot 3: Distribution comparison (histogram + KDE)
-axes[2].hist(y_train, bins=50, alpha=0.5, density=True, color="black", label="Full data")
-axes[2].hist(y_train_sub, bins=50, alpha=0.5, density=True, color="red", label="Subsampled")
-axes[2].set_title("Value Distribution Comparison", fontsize=14, fontweight="bold")
-axes[2].set_xlabel("IOPS Value")
-axes[2].set_ylabel("Density")
+axes[2].hist(y_train, bins=50, alpha=0.5, density=True, color='black', label='Full data')
+axes[2].hist(y_train_sub, bins=50, alpha=0.5, density=True, color='red', label='Subsampled')
+axes[2].set_title('Value Distribution Comparison', fontsize=14, fontweight='bold')
+axes[2].set_xlabel('IOPS Value')
+axes[2].set_ylabel('Density')
 axes[2].legend()
 axes[2].grid(alpha=0.3)
 
 plt.tight_layout()
 
 # Save plot
-visual_plot_file = "../subsampling_visual_validation.png"
-plt.savefig(visual_plot_file, dpi=150, bbox_inches="tight")
+visual_plot_file = '../subsampling_visual_validation.png'
+plt.savefig(visual_plot_file, dpi=150, bbox_inches='tight')
 print(f"✓ Visual validation plot saved to: {visual_plot_file}")
 
 plt.show()
@@ -447,71 +416,48 @@ plt.show()
 from scipy import signal
 
 # Compute PSD for full data (use Welch's method for long series)
-freqs_full, psd_full = signal.welch(y_train, fs=1.0, nperseg=min(2048, len(y_train) // 4))
+freqs_full, psd_full = signal.welch(y_train, fs=1.0, nperseg=min(2048, len(y_train)//4))
 
 # Compute PSD for subsampled data
-freqs_sub, psd_sub = signal.welch(
-    y_train_sub, fs=1.0 / subsample_factor, nperseg=min(2048, len(y_train_sub) // 4)
-)
+freqs_sub, psd_sub = signal.welch(y_train_sub, fs=1.0/subsample_factor, nperseg=min(2048, len(y_train_sub)//4))
 
 # Plot power spectral density
 fig, ax = plt.subplots(figsize=(16, 6))
 
-ax.semilogy(freqs_full, psd_full, "k-", linewidth=2, alpha=0.7, label="Full data PSD")
-ax.semilogy(freqs_sub, psd_sub, "r--", linewidth=2, alpha=0.7, label="Subsampled PSD")
+ax.semilogy(freqs_full, psd_full, 'k-', linewidth=2, alpha=0.7, label='Full data PSD')
+ax.semilogy(freqs_sub, psd_sub, 'r--', linewidth=2, alpha=0.7, label='Subsampled PSD')
 
 # Mark expected frequencies
 expected_fast_freq = 1.0 / 250  # Fast period
 expected_slow_freq = 1.0 / 1250  # Slow period
 
-ax.axvline(
-    expected_fast_freq,
-    color="blue",
-    linestyle=":",
-    linewidth=2,
-    alpha=0.5,
-    label="Expected fast freq (1/250)",
-)
-ax.axvline(
-    expected_slow_freq,
-    color="green",
-    linestyle=":",
-    linewidth=2,
-    alpha=0.5,
-    label="Expected slow freq (1/1250)",
-)
+ax.axvline(expected_fast_freq, color='blue', linestyle=':', linewidth=2, alpha=0.5, label=f'Expected fast freq (1/250)')
+ax.axvline(expected_slow_freq, color='green', linestyle=':', linewidth=2, alpha=0.5, label=f'Expected slow freq (1/1250)')
 
 # Nyquist frequency for subsampled data
 nyquist_sub = 1.0 / (2 * subsample_factor)
-ax.axvline(
-    nyquist_sub,
-    color="orange",
-    linestyle="--",
-    linewidth=2,
-    alpha=0.7,
-    label=f"Subsampled Nyquist (1/{2*subsample_factor})",
-)
+ax.axvline(nyquist_sub, color='orange', linestyle='--', linewidth=2, alpha=0.7, label=f'Subsampled Nyquist (1/{2*subsample_factor})')
 
-ax.set_xlabel("Frequency (cycles/timestep)", fontsize=12)
-ax.set_ylabel("Power Spectral Density", fontsize=12)
-ax.set_title("Frequency Content: Full vs Subsampled Data", fontsize=14, fontweight="bold")
+ax.set_xlabel('Frequency (cycles/timestep)', fontsize=12)
+ax.set_ylabel('Power Spectral Density', fontsize=12)
+ax.set_title('Frequency Content: Full vs Subsampled Data', fontsize=14, fontweight='bold')
 ax.legend()
-ax.grid(alpha=0.3, which="both")
+ax.grid(alpha=0.3, which='both')
 ax.set_xlim([freqs_full[1], 0.05])  # Focus on low frequencies
 
 plt.tight_layout()
 
 # Save PSD plot
-psd_plot_file = "../subsampling_psd_analysis.png"
-plt.savefig(psd_plot_file, dpi=150, bbox_inches="tight")
+psd_plot_file = '../subsampling_psd_analysis.png'
+plt.savefig(psd_plot_file, dpi=150, bbox_inches='tight')
 print(f"✓ PSD analysis plot saved to: {psd_plot_file}")
 
 plt.show()
 
 # Check if fast frequency is above Nyquist - SAVE TO FILE
-aliasing_file = "../subsampling_aliasing_analysis.txt"
+aliasing_file = '../subsampling_aliasing_analysis.txt'
 
-with open(aliasing_file, "w") as f:
+with open(aliasing_file, 'w') as f:
     f.write("=" * 80 + "\n")
     f.write("ALIASING ANALYSIS\n")
     f.write("=" * 80 + "\n")
@@ -525,7 +471,7 @@ with open(aliasing_file, "w") as f:
         verdict = "⚠️  ALIASING DETECTED!"
         f.write(verdict + "\n")
         f.write(f"   Fast frequency ({expected_fast_freq:.6f}) > Nyquist ({nyquist_sub:.6f})\n")
-        f.write("   Subsampling CANNOT capture 250-timestep oscillations!\n")
+        f.write(f"   Subsampling CANNOT capture 250-timestep oscillations!\n")
         f.write(f"   Need subsampling factor ≤ {int(250/2)} to avoid aliasing\n")
     else:
         verdict = "✓ No aliasing - fast frequency below Nyquist"
@@ -538,7 +484,7 @@ with open(aliasing_file, "w") as f:
 
 # Print to console as well
 print()
-with open(aliasing_file) as f:
+with open(aliasing_file, 'r') as f:
     print(f.read())
 
 print(f"\n✓ Aliasing analysis saved to: {aliasing_file}")
@@ -552,7 +498,7 @@ X_train_sub_norm = (X_train_sub - X_min) / X_range
 X_train_sub_t = torch.tensor(X_train_sub_norm, dtype=dtype, device=device)
 y_train_sub_t = torch.tensor(y_train_sub, dtype=dtype, device=device)
 
-print("Subsampled tensor shapes:")
+print(f"Subsampled tensor shapes:")
 print(f"  X: {X_train_sub_t.shape}")
 print(f"  y: {y_train_sub_t.shape}")
 print(f"  Normalized range: [{X_train_sub_norm.min():.6f}, {X_train_sub_norm.max():.6f}]")
@@ -561,13 +507,12 @@ print(f"  Normalized range: [{X_train_sub_norm.min():.6f}, {X_train_sub_norm.max
 # ### 4.2 Exact GP Model Definition
 
 # %%
-from gpytorch.distributions import MultivariateNormal
-from gpytorch.kernels import PeriodicKernel, RBFKernel, ScaleKernel
-from gpytorch.likelihoods import GaussianLikelihood
-from gpytorch.means import ConstantMean
-from gpytorch.mlls import ExactMarginalLogLikelihood
 from gpytorch.models import ExactGP
-
+from gpytorch.means import ConstantMean
+from gpytorch.kernels import ScaleKernel, RBFKernel, PeriodicKernel
+from gpytorch.distributions import MultivariateNormal
+from gpytorch.mlls import ExactMarginalLogLikelihood
+from gpytorch.likelihoods import GaussianLikelihood
 
 class ExactGPModel(ExactGP):
     """
@@ -576,18 +521,17 @@ class ExactGPModel(ExactGP):
     This is computationally expensive (O(n³)) but can capture fine structure
     without variational approximation.
     """
-
-    def __init__(self, train_x, train_y, likelihood, kernel_type="rbf"):
+    def __init__(self, train_x, train_y, likelihood, kernel_type='rbf'):
         super().__init__(train_x, train_y, likelihood)
 
         # Mean function - initialize to data mean
         self.mean_module = ConstantMean()
 
         # Kernel selection
-        if kernel_type == "rbf":
+        if kernel_type == 'rbf':
             # Simple RBF kernel (baseline)
             self.covar_module = ScaleKernel(RBFKernel())
-        elif kernel_type == "periodic":
+        elif kernel_type == 'periodic':
             # RBF + Periodic (multi-scale patterns)
             slow_period = 1250 / X_range
             fast_period = 250 / X_range
@@ -612,7 +556,6 @@ class ExactGPModel(ExactGP):
         covar_x = self.covar_module(x)
         return MultivariateNormal(mean_x, covar_x)
 
-
 print("✓ Exact GP model class defined")
 
 # %% [markdown]
@@ -621,9 +564,7 @@ print("✓ Exact GP model class defined")
 # %%
 # Initialize model and likelihood
 likelihood_exact_rbf = GaussianLikelihood()
-model_exact_rbf = ExactGPModel(
-    X_train_sub_t, y_train_sub_t, likelihood_exact_rbf, kernel_type="rbf"
-)
+model_exact_rbf = ExactGPModel(X_train_sub_t, y_train_sub_t, likelihood_exact_rbf, kernel_type='rbf')
 
 # Initialize mean to data mean
 model_exact_rbf.mean_module.constant.data.fill_(y_train_sub.mean())
@@ -633,7 +574,7 @@ model_exact_rbf = model_exact_rbf.to(device)
 likelihood_exact_rbf = likelihood_exact_rbf.to(device)
 
 print("✓ Exact GP (RBF kernel) initialized")
-print("  Kernel: RBF")
+print(f"  Kernel: RBF")
 print(f"  Training samples: {len(X_train_sub_t):,}")
 print(f"  Mean initialized to: {model_exact_rbf.mean_module.constant.item():.3f}")
 
@@ -681,7 +622,7 @@ with torch.no_grad(), gpytorch.settings.fast_pred_var():
     std_exact_rbf = pred_dist_rbf.stddev.cpu().numpy()
 
 # Compute metrics
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 rmse_rbf = np.sqrt(mean_squared_error(y_test, mean_exact_rbf))
 mae_rbf = mean_absolute_error(y_test, mean_exact_rbf)
@@ -707,29 +648,29 @@ n_viz = 1000
 fig, axes = plt.subplots(2, 1, figsize=(16, 10))
 
 # Plot 1: Predictions vs actual
-axes[0].plot(y_test[:n_viz], "k-", linewidth=1, label="Actual", alpha=0.7)
-axes[0].plot(mean_exact_rbf[:n_viz], "b--", linewidth=1.5, label="Exact GP (RBF) predictions")
+axes[0].plot(y_test[:n_viz], 'k-', linewidth=1, label='Actual', alpha=0.7)
+axes[0].plot(mean_exact_rbf[:n_viz], 'b--', linewidth=1.5, label='Exact GP (RBF) predictions')
 axes[0].fill_between(
     np.arange(n_viz),
-    mean_exact_rbf[:n_viz] - 2 * std_exact_rbf[:n_viz],
-    mean_exact_rbf[:n_viz] + 2 * std_exact_rbf[:n_viz],
+    mean_exact_rbf[:n_viz] - 2*std_exact_rbf[:n_viz],
+    mean_exact_rbf[:n_viz] + 2*std_exact_rbf[:n_viz],
     alpha=0.2,
-    color="blue",
-    label="95% CI",
+    color='blue',
+    label='95% CI'
 )
-axes[0].set_title("Exact GP (RBF): First 1000 Test Points", fontsize=14, fontweight="bold")
-axes[0].set_xlabel("Time step")
-axes[0].set_ylabel("IOPS Value")
+axes[0].set_title('Exact GP (RBF): First 1000 Test Points', fontsize=14, fontweight='bold')
+axes[0].set_xlabel('Time step')
+axes[0].set_ylabel('IOPS Value')
 axes[0].legend()
 axes[0].grid(alpha=0.3)
 
 # Plot 2: Residuals
 residuals_rbf = y_test[:n_viz] - mean_exact_rbf[:n_viz]
-axes[1].scatter(np.arange(n_viz), residuals_rbf, alpha=0.3, s=10, color="red")
-axes[1].axhline(y=0, color="k", linestyle="--", linewidth=2)
-axes[1].set_title("Residuals", fontsize=14, fontweight="bold")
-axes[1].set_xlabel("Time step")
-axes[1].set_ylabel("Residual (Actual - Predicted)")
+axes[1].scatter(np.arange(n_viz), residuals_rbf, alpha=0.3, s=10, color='red')
+axes[1].axhline(y=0, color='k', linestyle='--', linewidth=2)
+axes[1].set_title('Residuals', fontsize=14, fontweight='bold')
+axes[1].set_xlabel('Time step')
+axes[1].set_ylabel('Residual (Actual - Predicted)')
 axes[1].grid(alpha=0.3)
 
 plt.tight_layout()
@@ -803,10 +744,12 @@ plt.show()
 M = 200  # Number of inducing points
 
 inducing_points = initialize_inducing_points(
-    X_train=X_train_t, num_inducing=M, method="evenly_spaced"
+    X_train=X_train_t,
+    num_inducing=M,
+    method="evenly_spaced"
 )
 
-print("✓ Inducing points initialized:")
+print(f"✓ Inducing points initialized:")
 print(f"  Count: {M}")
 print(f"  Shape: {inducing_points.shape}")
 print(f"  Range: {inducing_points.min():.6f} → {inducing_points.max():.6f}")
@@ -817,7 +760,7 @@ y_train_mean = y_train.mean()
 y_train_std = y_train.std()
 y_train_var = y_train.var()
 
-print("Training data statistics:")
+print(f"Training data statistics:")
 print(f"  Mean: {y_train_mean:.3f}")
 print(f"  Std: {y_train_std:.3f}")
 print(f"  Variance: {y_train_var:.3f}")
@@ -831,13 +774,13 @@ print("   with variational inference's KL penalty, leading to underfitting.")
 model_robust = SparseGPModel(
     inducing_points=inducing_points,
     slow_period=1250 / X_range,  # Sawtooth envelope period
-    fast_period=250 / X_range,  # Sinusoidal carrier period
-    rbf_lengthscale=0.1,
+    fast_period=250 / X_range,   # Sinusoidal carrier period
+    rbf_lengthscale=0.1
 ).to(device)
 
-likelihood_robust = StudentTLikelihood(deg_free_prior=gpytorch.priors.NormalPrior(4.0, 1.0)).to(
-    device
-)
+likelihood_robust = StudentTLikelihood(
+    deg_free_prior=gpytorch.priors.NormalPrior(4.0, 1.0)
+).to(device)
 
 # Initialize mean function to training data mean
 model_robust.mean_module.constant.data.fill_(y_train_mean)
@@ -861,21 +804,23 @@ print(f"  Outputscales initialized to: {initial_outputscale:.3f} each")
 y_train_clean_mean = y_train_clean.mean()
 y_train_clean_var = y_train_clean.var()
 
-print("Clean training data statistics:")
+print(f"Clean training data statistics:")
 print(f"  Mean: {y_train_clean_mean:.3f}")
 print(f"  Variance: {y_train_clean_var:.3f}")
 
 # %%
 # Create traditional model with Gaussian likelihood (baseline)
 inducing_points_clean = initialize_inducing_points(
-    X_train=X_train_clean_t, num_inducing=M, method="evenly_spaced"
+    X_train=X_train_clean_t,
+    num_inducing=M,
+    method="evenly_spaced"
 )
 
 model_traditional = SparseGPModel(
     inducing_points=inducing_points_clean,
     slow_period=1250 / X_range,
     fast_period=250 / X_range,
-    rbf_lengthscale=0.1,
+    rbf_lengthscale=0.1
 ).to(device)
 
 likelihood_traditional = GaussianLikelihood().to(device)
@@ -905,8 +850,8 @@ print(f"  Outputscales initialized to: {variance_per_component_clean:.3f} each")
 import os
 
 # Check if saved models exist
-robust_model_path = "../models/gp_robust_model.pth"
-traditional_model_path = "../models/gp_traditional_model.pth"
+robust_model_path = '../models/gp_robust_model.pth'
+traditional_model_path = '../models/gp_traditional_model.pth'
 
 models_exist = os.path.exists(robust_model_path) and os.path.exists(traditional_model_path)
 
@@ -932,9 +877,9 @@ if models_exist:
         # Kernel parameters for backward compatibility with old checkpoints
         slow_period=1250 / X_range,
         fast_period=250 / X_range,
-        rbf_lengthscale=0.1,
+        rbf_lengthscale=0.1
     )
-    losses_robust = checkpoint_robust["losses"]
+    losses_robust = checkpoint_robust['losses']
 else:
     # Train robust model using library (with device-specific jitter)
     losses_robust = train_gp_model(
@@ -947,7 +892,7 @@ else:
         learning_rate=0.01,
         cholesky_jitter=cholesky_jitter,
         cholesky_max_tries=cholesky_max_tries,
-        verbose=True,
+        verbose=True
     )
 
     # Save trained model
@@ -956,7 +901,7 @@ else:
         likelihood=likelihood_robust,
         save_path=robust_model_path,
         losses=losses_robust,
-        metadata={"dataset": "IOPS", "approach": "robust"},
+        metadata={'dataset': 'IOPS', 'approach': 'robust'}
     )
 
 # %% [markdown]
@@ -972,9 +917,9 @@ if models_exist:
         # Kernel parameters for backward compatibility with old checkpoints
         slow_period=1250 / X_range,
         fast_period=250 / X_range,
-        rbf_lengthscale=0.1,
+        rbf_lengthscale=0.1
     )
-    losses_traditional = checkpoint_trad["losses"]
+    losses_traditional = checkpoint_trad['losses']
 else:
     # Train traditional model using library (with device-specific jitter)
     losses_traditional = train_gp_model(
@@ -987,7 +932,7 @@ else:
         learning_rate=0.01,
         cholesky_jitter=cholesky_jitter,
         cholesky_max_tries=cholesky_max_tries,
-        verbose=True,
+        verbose=True
     )
 
     # Save trained model
@@ -996,7 +941,7 @@ else:
         likelihood=likelihood_traditional,
         save_path=traditional_model_path,
         losses=losses_traditional,
-        metadata={"dataset": "IOPS", "approach": "traditional"},
+        metadata={'dataset': 'IOPS', 'approach': 'traditional'}
     )
 
 # %% [markdown]
@@ -1006,12 +951,12 @@ else:
 # Plot training losses
 fig, ax = plt.subplots(figsize=(12, 5))
 
-ax.plot(losses_robust, linewidth=2, label="Robust (Student-t, all data)", color="steelblue")
-ax.plot(losses_traditional, linewidth=2, label="Traditional (Gaussian, clean data)", color="coral")
+ax.plot(losses_robust, linewidth=2, label='Robust (Student-t, all data)', color='steelblue')
+ax.plot(losses_traditional, linewidth=2, label='Traditional (Gaussian, clean data)', color='coral')
 
-ax.set_xlabel("Epoch", fontsize=12)
-ax.set_ylabel("Negative ELBO Loss", fontsize=12)
-ax.set_title("Training Loss Comparison", fontsize=14, fontweight="bold")
+ax.set_xlabel('Epoch', fontsize=12)
+ax.set_ylabel('Negative ELBO Loss', fontsize=12)
+ax.set_title('Training Loss Comparison', fontsize=14, fontweight='bold')
 ax.legend(fontsize=11)
 ax.grid(alpha=0.3)
 
@@ -1041,12 +986,11 @@ mean_robust_list = []
 std_robust_list = []
 
 # Apply same numerical stability settings as training (device-specific)
-with (
-    torch.no_grad(),
-    gpytorch.settings.fast_pred_var(),
-    gpytorch.settings.cholesky_jitter(cholesky_jitter),
-    gpytorch.settings.cholesky_max_tries(cholesky_max_tries),
-):
+with torch.no_grad(), \
+     gpytorch.settings.fast_pred_var(), \
+     gpytorch.settings.cholesky_jitter(cholesky_jitter), \
+     gpytorch.settings.cholesky_max_tries(cholesky_max_tries):
+
     for batch_idx in range(n_batches):
         start_idx = batch_idx * batch_size_pred
         end_idx = min(start_idx + batch_size_pred, len(X_test_t))
@@ -1067,9 +1011,7 @@ with (
         # Sanity check: should match batch size
         expected_size = end_idx - start_idx
         if mean_batch.size != expected_size:
-            print(
-                f"  WARNING: Batch {batch_idx} size mismatch: got {mean_batch.size}, expected {expected_size}"
-            )
+            print(f"  WARNING: Batch {batch_idx} size mismatch: got {mean_batch.size}, expected {expected_size}")
             # Truncate or pad to expected size
             mean_batch = mean_batch[:expected_size]
             std_batch = std_batch[:expected_size]
@@ -1078,15 +1020,13 @@ with (
         std_robust_list.append(std_batch)
 
         if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == n_batches:
-            print(
-                f"  Processed {end_idx:,}/{len(X_test_t):,} samples ({100*end_idx/len(X_test_t):.1f}%)"
-            )
+            print(f"  Processed {end_idx:,}/{len(X_test_t):,} samples ({100*end_idx/len(X_test_t):.1f}%)")
 
 # Concatenate all batches
 mean_robust = np.concatenate(mean_robust_list)
 std_robust = np.concatenate(std_robust_list)
 
-print("✓ Predictions generated")
+print(f"✓ Predictions generated")
 print(f"  Mean range: {mean_robust.min():.2f} → {mean_robust.max():.2f}")
 print(f"  Std range: {std_robust.min():.2f} → {std_robust.max():.2f}")
 
@@ -1099,7 +1039,7 @@ intervals_robust = compute_prediction_intervals(
     std=std_robust,
     confidence_levels=[0.95, 0.99],
     distribution="student_t",
-    nu=nu_final,
+    nu=nu_final
 )
 
 lower_95_robust, upper_95_robust = intervals_robust[0.95]
@@ -1129,12 +1069,11 @@ mean_traditional_list = []
 std_traditional_list = []
 
 # Apply same numerical stability settings as training (device-specific)
-with (
-    torch.no_grad(),
-    gpytorch.settings.fast_pred_var(),
-    gpytorch.settings.cholesky_jitter(cholesky_jitter),
-    gpytorch.settings.cholesky_max_tries(cholesky_max_tries),
-):
+with torch.no_grad(), \
+     gpytorch.settings.fast_pred_var(), \
+     gpytorch.settings.cholesky_jitter(cholesky_jitter), \
+     gpytorch.settings.cholesky_max_tries(cholesky_max_tries):
+
     for batch_idx in range(n_batches):
         start_idx = batch_idx * batch_size_pred
         end_idx = min(start_idx + batch_size_pred, len(X_test_t))
@@ -1155,9 +1094,7 @@ with (
         # Sanity check: should match batch size
         expected_size = end_idx - start_idx
         if mean_batch.size != expected_size:
-            print(
-                f"  WARNING: Batch {batch_idx} size mismatch: got {mean_batch.size}, expected {expected_size}"
-            )
+            print(f"  WARNING: Batch {batch_idx} size mismatch: got {mean_batch.size}, expected {expected_size}")
             # Truncate to expected size
             mean_batch = mean_batch[:expected_size]
             std_batch = std_batch[:expected_size]
@@ -1166,15 +1103,13 @@ with (
         std_traditional_list.append(std_batch)
 
         if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == n_batches:
-            print(
-                f"  Processed {end_idx:,}/{len(X_test_t):,} samples ({100*end_idx/len(X_test_t):.1f}%)"
-            )
+            print(f"  Processed {end_idx:,}/{len(X_test_t):,} samples ({100*end_idx/len(X_test_t):.1f}%)")
 
 # Concatenate all batches
 mean_traditional = np.concatenate(mean_traditional_list)
 std_traditional = np.concatenate(std_traditional_list)
 
-print("✓ Predictions generated")
+print(f"✓ Predictions generated")
 print(f"  Mean range: {mean_traditional.min():.2f} → {mean_traditional.max():.2f}")
 print(f"  Std range: {std_traditional.min():.2f} → {std_traditional.max():.2f}")
 
@@ -1184,7 +1119,7 @@ intervals_traditional = compute_prediction_intervals(
     mean=mean_traditional,
     std=std_traditional,
     confidence_levels=[0.95, 0.99],
-    distribution="gaussian",
+    distribution="gaussian"
 )
 
 lower_95_traditional, upper_95_traditional = intervals_traditional[0.95]
@@ -1194,7 +1129,7 @@ lower_99_traditional, upper_99_traditional = intervals_traditional[0.99]
 q_95_gauss = norm.ppf(0.975)
 q_99_gauss = norm.ppf(0.995)
 
-print("✓ Prediction intervals computed (Gaussian):")
+print(f"✓ Prediction intervals computed (Gaussian):")
 print(f"  95% quantile: ±{q_95_gauss:.3f}")
 print(f"  99% quantile: ±{q_99_gauss:.3f}")
 
@@ -1214,7 +1149,7 @@ metrics_robust = compute_metrics(
     upper_95=upper_95_robust,
     lower_99=lower_99_robust,
     upper_99=upper_99_robust,
-    model_name="Robust (Student-t)",
+    model_name='Robust (Student-t)'
 )
 
 metrics_traditional = compute_metrics(
@@ -1224,11 +1159,11 @@ metrics_traditional = compute_metrics(
     upper_95=upper_95_traditional,
     lower_99=lower_99_traditional,
     upper_99=upper_99_traditional,
-    model_name="Traditional (Gaussian)",
+    model_name='Traditional (Gaussian)'
 )
 
 # Create comparison DataFrame
-metrics_df = pl.DataFrame([metrics_robust, metrics_traditional])
+metrics_df = spark.createDataFrame([metrics_robust, metrics_traditional])
 metrics_df
 
 # %%
@@ -1237,20 +1172,12 @@ print("=" * 70)
 print("MODEL EVALUATION METRICS")
 print("=" * 70)
 
-for metric_name in [
-    "RMSE",
-    "MAE",
-    "R²",
-    "Coverage 95%",
-    "Coverage 99%",
-    "Sharpness 95%",
-    "Sharpness 99%",
-]:
+for metric_name in ['RMSE', 'MAE', 'R²', 'Coverage 95%', 'Coverage 99%', 'Sharpness 95%', 'Sharpness 99%']:
     robust_val = metrics_robust[metric_name]
     trad_val = metrics_traditional[metric_name]
 
     # Format based on metric type
-    if "Coverage" in metric_name:
+    if 'Coverage' in metric_name:
         print(f"{metric_name:20s} | Robust: {robust_val:6.1%} | Traditional: {trad_val:6.1%}")
     else:
         print(f"{metric_name:20s} | Robust: {robust_val:6.3f} | Traditional: {trad_val:6.3f}")
@@ -1263,8 +1190,7 @@ print("=" * 70)
 # %%
 # Run comprehensive diagnostics to understand model behavior
 import sys
-
-sys.path.insert(0, "..")
+sys.path.insert(0, '..')
 from diagnose_gp_results import diagnose_gp_predictions
 
 # Generate diagnostic report
@@ -1275,11 +1201,11 @@ diagnose_gp_predictions(
     model_robust=model_robust,
     model_traditional=model_traditional,
     X_test_t=X_test_t,
-    save_path="../gp_diagnostics.txt",
+    save_path="../gp_diagnostics.txt"
 )
 
 # Display the report
-with open("../gp_diagnostics.txt") as f:
+with open("../gp_diagnostics.txt", "r") as f:
     print(f.read())
 
 # %% [markdown]
@@ -1305,22 +1231,20 @@ observed_quantiles_trad = np.quantile(residuals_traditional, quantiles)
 fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
 # Robust model calibration
-axes[0].scatter(
-    expected_quantiles_robust, observed_quantiles_robust, alpha=0.6, s=30, color="steelblue"
-)
-axes[0].plot([-4, 4], [-4, 4], "r--", linewidth=2, label="Perfect Calibration")
-axes[0].set_xlabel(f"Expected Quantiles (Student-t, ν={nu_final:.2f})", fontsize=12)
-axes[0].set_ylabel("Observed Quantiles (Standardized Residuals)", fontsize=12)
-axes[0].set_title("Robust Model Calibration", fontsize=14, fontweight="bold")
+axes[0].scatter(expected_quantiles_robust, observed_quantiles_robust, alpha=0.6, s=30, color='steelblue')
+axes[0].plot([-4, 4], [-4, 4], 'r--', linewidth=2, label='Perfect Calibration')
+axes[0].set_xlabel(f'Expected Quantiles (Student-t, ν={nu_final:.2f})', fontsize=12)
+axes[0].set_ylabel('Observed Quantiles (Standardized Residuals)', fontsize=12)
+axes[0].set_title('Robust Model Calibration', fontsize=14, fontweight='bold')
 axes[0].legend()
 axes[0].grid(alpha=0.3)
 
 # Traditional model calibration
-axes[1].scatter(expected_quantiles_trad, observed_quantiles_trad, alpha=0.6, s=30, color="coral")
-axes[1].plot([-4, 4], [-4, 4], "r--", linewidth=2, label="Perfect Calibration")
-axes[1].set_xlabel("Expected Quantiles (Gaussian)", fontsize=12)
-axes[1].set_ylabel("Observed Quantiles (Standardized Residuals)", fontsize=12)
-axes[1].set_title("Traditional Model Calibration", fontsize=14, fontweight="bold")
+axes[1].scatter(expected_quantiles_trad, observed_quantiles_trad, alpha=0.6, s=30, color='coral')
+axes[1].plot([-4, 4], [-4, 4], 'r--', linewidth=2, label='Perfect Calibration')
+axes[1].set_xlabel('Expected Quantiles (Gaussian)', fontsize=12)
+axes[1].set_ylabel('Observed Quantiles (Standardized Residuals)', fontsize=12)
+axes[1].set_title('Traditional Model Calibration', fontsize=14, fontweight='bold')
 axes[1].legend()
 axes[1].grid(alpha=0.3)
 
@@ -1342,7 +1266,7 @@ anomalies_99_robust = (y_test < lower_99_robust) | (y_test > upper_99_robust)
 anomalies_95_traditional = (y_test < lower_95_traditional) | (y_test > upper_95_traditional)
 anomalies_99_traditional = (y_test < lower_99_traditional) | (y_test > upper_99_traditional)
 
-print("Anomalies detected:")
+print(f"Anomalies detected:")
 print(f"  Robust (95%): {anomalies_95_robust.sum():,}")
 print(f"  Robust (99%): {anomalies_99_robust.sum():,}")
 print(f"  Traditional (95%): {anomalies_95_traditional.sum():,}")
@@ -1358,30 +1282,30 @@ anomaly_metrics = [
     compute_anomaly_metrics(
         y_true_anomaly=anomaly_test,
         y_pred_anomaly=anomalies_95_robust,
-        model_name="Robust (Student-t)",
-        threshold_name="95% Interval",
+        model_name='Robust (Student-t)',
+        threshold_name='95% Interval'
     ),
     compute_anomaly_metrics(
         y_true_anomaly=anomaly_test,
         y_pred_anomaly=anomalies_99_robust,
-        model_name="Robust (Student-t)",
-        threshold_name="99% Interval",
+        model_name='Robust (Student-t)',
+        threshold_name='99% Interval'
     ),
     compute_anomaly_metrics(
         y_true_anomaly=anomaly_test,
         y_pred_anomaly=anomalies_95_traditional,
-        model_name="Traditional (Gaussian)",
-        threshold_name="95% Interval",
+        model_name='Traditional (Gaussian)',
+        threshold_name='95% Interval'
     ),
     compute_anomaly_metrics(
         y_true_anomaly=anomaly_test,
         y_pred_anomaly=anomalies_99_traditional,
-        model_name="Traditional (Gaussian)",
-        threshold_name="99% Interval",
+        model_name='Traditional (Gaussian)',
+        threshold_name='99% Interval'
     ),
 ]
 
-anomaly_metrics_df = pl.DataFrame(anomaly_metrics)
+anomaly_metrics_df = spark.createDataFrame(anomaly_metrics)
 anomaly_metrics_df
 
 # %% [markdown]
@@ -1394,15 +1318,13 @@ anomaly_scores_traditional = np.abs((y_test - mean_traditional) / std_traditiona
 
 # Compute ROC curves
 fpr_robust, tpr_robust, thresholds_robust = roc_curve(anomaly_test, anomaly_scores_robust)
-fpr_traditional, tpr_traditional, thresholds_traditional = roc_curve(
-    anomaly_test, anomaly_scores_traditional
-)
+fpr_traditional, tpr_traditional, thresholds_traditional = roc_curve(anomaly_test, anomaly_scores_traditional)
 
 # Compute AUC-ROC
 auc_robust = roc_auc_score(anomaly_test, anomaly_scores_robust)
 auc_traditional = roc_auc_score(anomaly_test, anomaly_scores_traditional)
 
-print("AUC-ROC Scores:")
+print(f"AUC-ROC Scores:")
 print(f"  Robust: {auc_robust:.4f}")
 print(f"  Traditional: {auc_traditional:.4f}")
 
@@ -1410,26 +1332,16 @@ print(f"  Traditional: {auc_traditional:.4f}")
 # Plot ROC curves
 fig, ax = plt.subplots(figsize=(10, 8))
 
-ax.plot(
-    fpr_robust,
-    tpr_robust,
-    linewidth=2.5,
-    label=f"Robust (Student-t) - AUC = {auc_robust:.3f}",
-    color="steelblue",
-)
-ax.plot(
-    fpr_traditional,
-    tpr_traditional,
-    linewidth=2.5,
-    label=f"Traditional (Gaussian) - AUC = {auc_traditional:.3f}",
-    color="coral",
-)
-ax.plot([0, 1], [0, 1], "k--", linewidth=1.5, label="Random Classifier", alpha=0.5)
+ax.plot(fpr_robust, tpr_robust, linewidth=2.5,
+        label=f'Robust (Student-t) - AUC = {auc_robust:.3f}', color='steelblue')
+ax.plot(fpr_traditional, tpr_traditional, linewidth=2.5,
+        label=f'Traditional (Gaussian) - AUC = {auc_traditional:.3f}', color='coral')
+ax.plot([0, 1], [0, 1], 'k--', linewidth=1.5, label='Random Classifier', alpha=0.5)
 
-ax.set_xlabel("False Positive Rate", fontsize=13)
-ax.set_ylabel("True Positive Rate", fontsize=13)
-ax.set_title("ROC Curve: Anomaly Detection Performance", fontsize=15, fontweight="bold")
-ax.legend(fontsize=12, loc="lower right")
+ax.set_xlabel('False Positive Rate', fontsize=13)
+ax.set_ylabel('True Positive Rate', fontsize=13)
+ax.set_title('ROC Curve: Anomaly Detection Performance', fontsize=15, fontweight='bold')
+ax.legend(fontsize=12, loc='lower right')
 ax.grid(alpha=0.3)
 
 plt.tight_layout()
@@ -1457,10 +1369,10 @@ anomaly_plot = anomaly_test[plot_start:plot_end]
 fig, ax = plt.subplots(figsize=(18, 6))
 
 # Observations
-ax.plot(X_plot, y_plot, "k.", alpha=0.3, markersize=2, label="Observed", zorder=1)
+ax.plot(X_plot, y_plot, 'k.', alpha=0.3, markersize=2, label='Observed', zorder=1)
 
 # GP mean
-ax.plot(X_plot, mean_plot, "b-", linewidth=2, label="GP Mean (Robust)", zorder=3)
+ax.plot(X_plot, mean_plot, 'b-', linewidth=2, label='GP Mean (Robust)', zorder=3)
 
 # 95% prediction interval
 ax.fill_between(
@@ -1468,9 +1380,9 @@ ax.fill_between(
     lower_95_plot,
     upper_95_plot,
     alpha=0.25,
-    color="steelblue",
-    label="95% Prediction Interval",
-    zorder=2,
+    color='steelblue',
+    label='95% Prediction Interval',
+    zorder=2
 )
 
 # Highlight labeled anomalies
@@ -1478,20 +1390,18 @@ anomaly_mask = anomaly_plot.astype(bool)
 ax.scatter(
     X_plot[anomaly_mask],
     y_plot[anomaly_mask],
-    color="red",
+    color='red',
     s=60,
-    marker="x",
+    marker='x',
     linewidths=2.5,
-    label=f"Labeled Anomalies ({anomaly_mask.sum()})",
-    zorder=4,
+    label=f'Labeled Anomalies ({anomaly_mask.sum()})',
+    zorder=4
 )
 
-ax.set_xlabel("Timestamp", fontsize=12)
-ax.set_ylabel("KPI Value (IOPS)", fontsize=12)
-ax.set_title(
-    "Robust GP: Predictions with Uncertainty Quantification", fontsize=14, fontweight="bold"
-)
-ax.legend(loc="upper right", fontsize=11)
+ax.set_xlabel('Timestamp', fontsize=12)
+ax.set_ylabel('KPI Value (IOPS)', fontsize=12)
+ax.set_title('Robust GP: Predictions with Uncertainty Quantification', fontsize=14, fontweight='bold')
+ax.legend(loc='upper right', fontsize=11)
 ax.grid(alpha=0.3)
 
 plt.tight_layout()
@@ -1518,15 +1428,13 @@ upper_cycle = upper_95_robust[start_idx:end_idx]
 fig, ax = plt.subplots(figsize=(18, 6))
 
 # Observations
-ax.plot(X_cycle, y_cycle, "k.", alpha=0.4, markersize=3, label="Observed")
+ax.plot(X_cycle, y_cycle, 'k.', alpha=0.4, markersize=3, label='Observed')
 
 # GP mean (should capture sawtooth × sine)
-ax.plot(X_cycle, mean_cycle, "b-", linewidth=2.5, label="GP Mean (captures pattern)")
+ax.plot(X_cycle, mean_cycle, 'b-', linewidth=2.5, label='GP Mean (captures pattern)')
 
 # Prediction interval
-ax.fill_between(
-    X_cycle, lower_cycle, upper_cycle, alpha=0.25, color="steelblue", label="95% Interval"
-)
+ax.fill_between(X_cycle, lower_cycle, upper_cycle, alpha=0.25, color='steelblue', label='95% Interval')
 
 # Annotate the 5 sinusoidal oscillations
 if len(X_cycle) > 0:
@@ -1535,21 +1443,14 @@ if len(X_cycle) > 0:
         segment_start = X_cycle[0] + i * cycle_width
         segment_end = segment_start + cycle_width
 
-        ax.axvspan(
-            segment_start,
-            segment_end,
-            alpha=0.08,
-            color=["orange", "green", "blue", "purple", "red"][i],
-        )
+        ax.axvspan(segment_start, segment_end, alpha=0.08,
+                   color=['orange', 'green', 'blue', 'purple', 'red'][i])
 
-ax.set_xlabel("Timestamp", fontsize=12)
-ax.set_ylabel("KPI Value (IOPS)", fontsize=12)
-ax.set_title(
-    "Pattern Reconstruction: Sawtooth Envelope × 5 Sinusoidal Oscillations",
-    fontsize=14,
-    fontweight="bold",
-)
-ax.legend(loc="upper left", fontsize=11)
+ax.set_xlabel('Timestamp', fontsize=12)
+ax.set_ylabel('KPI Value (IOPS)', fontsize=12)
+ax.set_title('Pattern Reconstruction: Sawtooth Envelope × 5 Sinusoidal Oscillations',
+             fontsize=14, fontweight='bold')
+ax.legend(loc='upper left', fontsize=11)
 ax.grid(alpha=0.3)
 
 plt.tight_layout()
@@ -1563,33 +1464,33 @@ plt.show()
 fig, axes = plt.subplots(2, 2, figsize=(16, 10))
 
 # Robust model residuals
-axes[0, 0].scatter(mean_robust, residuals_robust, alpha=0.3, s=10, color="steelblue")
-axes[0, 0].axhline(y=0, color="red", linestyle="--", linewidth=2)
-axes[0, 0].set_xlabel("Predicted Value", fontsize=11)
-axes[0, 0].set_ylabel("Standardized Residuals", fontsize=11)
-axes[0, 0].set_title("Robust: Residuals vs Predicted", fontsize=12, fontweight="bold")
+axes[0, 0].scatter(mean_robust, residuals_robust, alpha=0.3, s=10, color='steelblue')
+axes[0, 0].axhline(y=0, color='red', linestyle='--', linewidth=2)
+axes[0, 0].set_xlabel('Predicted Value', fontsize=11)
+axes[0, 0].set_ylabel('Standardized Residuals', fontsize=11)
+axes[0, 0].set_title('Robust: Residuals vs Predicted', fontsize=12, fontweight='bold')
 axes[0, 0].grid(alpha=0.3)
 
-axes[0, 1].hist(residuals_robust, bins=100, alpha=0.7, color="steelblue", edgecolor="black")
-axes[0, 1].axvline(x=0, color="red", linestyle="--", linewidth=2)
-axes[0, 1].set_xlabel("Standardized Residuals", fontsize=11)
-axes[0, 1].set_ylabel("Frequency", fontsize=11)
-axes[0, 1].set_title("Robust: Residual Distribution", fontsize=12, fontweight="bold")
+axes[0, 1].hist(residuals_robust, bins=100, alpha=0.7, color='steelblue', edgecolor='black')
+axes[0, 1].axvline(x=0, color='red', linestyle='--', linewidth=2)
+axes[0, 1].set_xlabel('Standardized Residuals', fontsize=11)
+axes[0, 1].set_ylabel('Frequency', fontsize=11)
+axes[0, 1].set_title('Robust: Residual Distribution', fontsize=12, fontweight='bold')
 axes[0, 1].grid(alpha=0.3)
 
 # Traditional model residuals
-axes[1, 0].scatter(mean_traditional, residuals_traditional, alpha=0.3, s=10, color="coral")
-axes[1, 0].axhline(y=0, color="red", linestyle="--", linewidth=2)
-axes[1, 0].set_xlabel("Predicted Value", fontsize=11)
-axes[1, 0].set_ylabel("Standardized Residuals", fontsize=11)
-axes[1, 0].set_title("Traditional: Residuals vs Predicted", fontsize=12, fontweight="bold")
+axes[1, 0].scatter(mean_traditional, residuals_traditional, alpha=0.3, s=10, color='coral')
+axes[1, 0].axhline(y=0, color='red', linestyle='--', linewidth=2)
+axes[1, 0].set_xlabel('Predicted Value', fontsize=11)
+axes[1, 0].set_ylabel('Standardized Residuals', fontsize=11)
+axes[1, 0].set_title('Traditional: Residuals vs Predicted', fontsize=12, fontweight='bold')
 axes[1, 0].grid(alpha=0.3)
 
-axes[1, 1].hist(residuals_traditional, bins=100, alpha=0.7, color="coral", edgecolor="black")
-axes[1, 1].axvline(x=0, color="red", linestyle="--", linewidth=2)
-axes[1, 1].set_xlabel("Standardized Residuals", fontsize=11)
-axes[1, 1].set_ylabel("Frequency", fontsize=11)
-axes[1, 1].set_title("Traditional: Residual Distribution", fontsize=12, fontweight="bold")
+axes[1, 1].hist(residuals_traditional, bins=100, alpha=0.7, color='coral', edgecolor='black')
+axes[1, 1].axvline(x=0, color='red', linestyle='--', linewidth=2)
+axes[1, 1].set_xlabel('Standardized Residuals', fontsize=11)
+axes[1, 1].set_ylabel('Frequency', fontsize=11)
+axes[1, 1].set_title('Traditional: Residual Distribution', fontsize=12, fontweight='bold')
 axes[1, 1].grid(alpha=0.3)
 
 plt.tight_layout()
@@ -1603,70 +1504,70 @@ plt.show()
 # %%
 # Create comprehensive comparison table
 comparison_data = {
-    "Metric": [
-        "Training Samples",
-        "Likelihood",
-        "Degrees of Freedom (ν)",
-        "---",
-        "RMSE",
-        "MAE",
-        "R²",
-        "---",
-        "95% Coverage",
-        "99% Coverage",
-        "95% Sharpness",
-        "99% Sharpness",
-        "---",
-        "Precision (95% interval)",
-        "Recall (95% interval)",
-        "F1-Score (95% interval)",
-        "AUC-ROC",
+    'Metric': [
+        'Training Samples',
+        'Likelihood',
+        'Degrees of Freedom (ν)',
+        '---',
+        'RMSE',
+        'MAE',
+        'R²',
+        '---',
+        '95% Coverage',
+        '99% Coverage',
+        '95% Sharpness',
+        '99% Sharpness',
+        '---',
+        'Precision (95% interval)',
+        'Recall (95% interval)',
+        'F1-Score (95% interval)',
+        'AUC-ROC',
     ],
-    "Robust (Student-t)": [
+    'Robust (Student-t)': [
         f"{len(X_train_t):,} (all data)",
-        "Student-t",
-        f"{nu_final:.2f}",
-        "---",
+        'Student-t',
+        f'{nu_final:.2f}',
+        '---',
         f'{metrics_robust["RMSE"]:.3f}',
         f'{metrics_robust["MAE"]:.3f}',
         f'{metrics_robust["R²"]:.3f}',
-        "---",
+        '---',
         f'{metrics_robust["Coverage 95%"]:.1%}',
         f'{metrics_robust["Coverage 99%"]:.1%}',
         f'{metrics_robust["Sharpness 95%"]:.3f}',
         f'{metrics_robust["Sharpness 99%"]:.3f}',
-        "---",
+        '---',
         f'{anomaly_metrics[0]["Precision"]:.3f}',
         f'{anomaly_metrics[0]["Recall"]:.3f}',
         f'{anomaly_metrics[0]["F1-Score"]:.3f}',
-        f"{auc_robust:.3f}",
+        f'{auc_robust:.3f}',
     ],
-    "Traditional (Gaussian)": [
+    'Traditional (Gaussian)': [
         f"{len(X_train_clean_t):,} (exclude anomalies)",
-        "Gaussian",
-        "∞ (normal)",
-        "---",
+        'Gaussian',
+        '∞ (normal)',
+        '---',
         f'{metrics_traditional["RMSE"]:.3f}',
         f'{metrics_traditional["MAE"]:.3f}',
         f'{metrics_traditional["R²"]:.3f}',
-        "---",
+        '---',
         f'{metrics_traditional["Coverage 95%"]:.1%}',
         f'{metrics_traditional["Coverage 99%"]:.1%}',
         f'{metrics_traditional["Sharpness 95%"]:.3f}',
         f'{metrics_traditional["Sharpness 99%"]:.3f}',
-        "---",
+        '---',
         f'{anomaly_metrics[2]["Precision"]:.3f}',
         f'{anomaly_metrics[2]["Recall"]:.3f}',
         f'{anomaly_metrics[2]["F1-Score"]:.3f}',
-        f"{auc_traditional:.3f}",
-    ],
+        f'{auc_traditional:.3f}',
+    ]
 }
 
-comparison_df = pl.DataFrame(comparison_data)
+comparison_df = spark.createDataFrame(comparison_data)
 print("=" * 80)
 print("COMPREHENSIVE MODEL COMPARISON")
 print("=" * 80)
-print(comparison_df.to_pandas().to_string(index=False))
+print(comparison_df.toPandas().to_string(index=False))
 print("=" * 80)
 
 # %% [markdown]

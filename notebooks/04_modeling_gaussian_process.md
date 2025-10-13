@@ -36,7 +36,7 @@ kernelspec:
 ```{code-cell} ipython3
 # Core imports
 import numpy as np
-import polars as pl
+# Polars replaced with PySpark
 
 # PyTorch and GPyTorch
 import torch
@@ -147,13 +147,13 @@ test_pd = pd.read_csv(test_url, header=None, names=['value', 'label'])
 
 # Convert to Polars
 # NOTE: Dataset has no timestamps - we create sequential indices (1-minute intervals)
-train_df = pl.DataFrame({
+train_df = spark.createDataFrame({
     'timestamp': np.arange(len(train_pd)),
     'value': train_pd['value'].values,
     'is_anomaly': train_pd['label'].values.astype(bool)
 })
 
-test_df = pl.DataFrame({
+test_df = spark.createDataFrame({
     'timestamp': np.arange(len(test_pd)),
     'value': test_pd['value'].values,
     'is_anomaly': test_pd['label'].values.astype(bool)
@@ -1177,7 +1177,7 @@ metrics_traditional = compute_metrics(
 )
 
 # Create comparison DataFrame
-metrics_df = pl.DataFrame([metrics_robust, metrics_traditional])
+metrics_df = spark.createDataFrame([metrics_robust, metrics_traditional])
 metrics_df
 ```
 
@@ -1320,7 +1320,7 @@ anomaly_metrics = [
     ),
 ]
 
-anomaly_metrics_df = pl.DataFrame(anomaly_metrics)
+anomaly_metrics_df = spark.createDataFrame(anomaly_metrics)
 anomaly_metrics_df
 ```
 
@@ -1579,11 +1579,11 @@ comparison_data = {
     ]
 }
 
-comparison_df = pl.DataFrame(comparison_data)
+comparison_df = spark.createDataFrame(comparison_data)
 print("=" * 80)
 print("COMPREHENSIVE MODEL COMPARISON")
 print("=" * 80)
-print(comparison_df.to_pandas().to_string(index=False))
+print(comparison_df.toPandas().to_string(index=False))
 print("=" * 80)
 ```
 

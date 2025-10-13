@@ -64,7 +64,7 @@ Per our [timeseries anomaly datasets review](../docs/research/timeseries-anomaly
 ```{code-cell} ipython3
 # Environment setup
 import pandas as pd
-import polars as pl
+# Polars replaced with PySpark
 import numpy as np
 import altair as alt
 import seaborn as sns
@@ -94,7 +94,7 @@ sns.set_theme(style='whitegrid', palette='colorblind')
 plt.rcParams['figure.dpi'] = 100
 
 # Environment info
-pl.DataFrame({
+spark.createDataFrame({
     'Library': ['Pandas', 'Polars', 'NumPy', 'Matplotlib', 'Seaborn', 'Altair'],
     'Version': [pd.__version__, pl.__version__, np.__version__, plt.matplotlib.__version__, sns.__version__, alt.__version__]
 })
@@ -138,7 +138,7 @@ The table below shows key metadata for tracking this specific time series:
 
 ```{code-cell} ipython3
 # Dataset metadata
-pl.DataFrame({
+spark.createDataFrame({
     'Attribute': ['KPI ID', 'Source'],
     'Value': [
         kpi_id,
@@ -151,12 +151,12 @@ This KPI is one of 20 monitored web server metrics from the IOPS dataset, select
 
 ```{code-cell} ipython3
 # Training data preview
-train_df.head(10)
+train_df.limit(10)
 ```
 
 ```{code-cell} ipython3
 # Test data preview
-test_df.head(10)
+test_df.limit(10)
 ```
 
 ## 2. Initial Data Inspection
@@ -168,7 +168,7 @@ Examining data structure, completeness, and anomaly distribution.
 train_nulls = train_df.select(pl.all().null_count()).sum().to_numpy()[0,0]
 test_nulls = test_df.select(pl.all().null_count()).sum().to_numpy()[0,0]
 
-pl.DataFrame({
+spark.createDataFrame({
     'Dataset': ['Training', 'Test'],
     'Total Samples': [len(train_df), len(test_df)],
     'Missing Values': [int(train_nulls), int(test_nulls)],
@@ -203,7 +203,7 @@ for name, df in [('Train', train_df), ('Test', test_df)]:
         'Anomaly %': 100 * df['label'].mean()
     })
 
-pl.DataFrame(summary_data)
+spark.createDataFrame(summary_data)
 ```
 
 **Key Observations**:
@@ -265,7 +265,7 @@ chart
 # Zoom into training data for detailed view
 # Downsample by factor of 20 for cleaner visualization
 downsample_factor = 20
-train_zoom = train_pd.iloc[::downsample_factor].head(1500).copy()  # 30,000 / 20 = 1,500 points
+train_zoom = train_pd.iloc[::downsample_factor].limit(1500).copy()  # 30,000 / 20 = 1,500 points
 train_zoom['timestamp'] = np.arange(len(train_zoom)) * downsample_factor
 
 print(f"Zoomed view: {len(train_zoom):,} samples (downsampled by {downsample_factor}x)")
@@ -299,8 +299,8 @@ chart_zoom
 data_segments = {
     'train': train_df['value'].to_numpy(),
     'test': test_df['value'].to_numpy(),
-    'normal': train_df.filter(pl.col('label') == 0)['value'].to_numpy(),
-    'anomaly': train_df.filter(pl.col('label') == 1)['value'].to_numpy(),
+    'normal': train_df.filter(F.col('label') == 0)['value'].to_numpy(),
+    'anomaly': train_df.filter(F.col('label') == 1)['value'].to_numpy(),
 }
 
 logger.info(f"Data segments created: {', '.join(data_segments.keys())}")
@@ -314,7 +314,7 @@ This segmentation enables distributional comparisons that inform anomaly detecti
 
 ```{code-cell} ipython3
 # Distribution statistics: Normal vs Anomalous
-pl.DataFrame({
+spark.createDataFrame({
     'Period Type': ['Normal', 'Anomalous'],
     'Count': [len(data_segments['normal']), len(data_segments['anomaly'])],
     'Mean': [data_segments['normal'].mean(), data_segments['anomaly'].mean() if len(data_segments['anomaly']) > 0 else None],
@@ -412,7 +412,7 @@ plt.show()
 # Display KS test results as table
 print("Kolmogorov-Smirnov Test Results")
 print("=" * 70)
-ks_df = pl.DataFrame([
+ks_df = spark.createDataFrame([
     {'Comparison': comp, **results}
     for comp, results in ks_results_dict.items()
 ])
@@ -425,7 +425,7 @@ print("\nKullback-Leibler Divergence Results")
 print("=" * 70)
 print("KL(P || Q) measures how distribution Q diverges from reference distribution P")
 print("Higher values indicate greater distributional difference\n")
-kl_df = pl.DataFrame([
+kl_df = spark.createDataFrame([
     {'Comparison': comp, **results}
     for comp, results in kl_results_dict.items()
 ])
@@ -464,8 +464,8 @@ Time series often exhibit repeating patterns (hourly, daily, weekly cycles). Det
 # Combine train and test for comprehensive frequency analysis
 # Using full dataset provides more accurate periodicity detection
 full_df = pl.concat([
-    train_df.with_columns(pl.lit('train').alias('split')),
-    test_df.with_columns(pl.lit('test').alias('split'))
+    train_df.with_columns(F.lit('train').alias('split')),
+    test_df.with_columns(F.lit('test').alias('split'))
 ]).with_columns(
     pl.arange(0, len(train_df) + len(test_df)).alias('timestamp')
 )
@@ -548,9 +548,9 @@ if len(peak_lags) > 0:
             'Pattern Type': ', '.join(pattern_type) if pattern_type else 'Other'
         })
 
-    pl.DataFrame(periodicity_data)
+    spark.createDataFrame(periodicity_data)
 else:
-    pl.DataFrame({'Note': ['No strong periodicities detected (ACF peaks < 0.2)']})
+    spark.createDataFrame({'Note': ['No strong periodicities detected (ACF peaks < 0.2)']})
 ```
 
 **Detected Periodicities**:
@@ -684,7 +684,7 @@ if len(peak_indices) > 0 and len(valid_frequencies) > 0:
             )
         })
 
-    pl.DataFrame(peak_data)
+    spark.createDataFrame(peak_data)
 else:
     # Initialize empty peak variables for downstream cells
     peak_freqs = np.array([])
@@ -692,7 +692,7 @@ else:
     peak_power = np.array([])
     sort_idx = np.array([])
 
-    pl.DataFrame({'Note': ['No significant spectral peaks detected']})
+    spark.createDataFrame({'Note': ['No significant spectral peaks detected']})
 ```
 
 **Spectral Peaks Interpretation**:
@@ -807,7 +807,7 @@ if len(peak_indices) > 0:
         strength_label = "Strong" if strength_seasonal > 0.6 else ("Moderate" if strength_seasonal > 0.3 else "Weak")
 
         # Display metrics
-        stl_metrics_df = pl.DataFrame({
+        stl_metrics_df = spark.createDataFrame({
             'Metric': ['Dominant Period', 'Seasonality Strength', 'Classification', 'Variance Explained'],
             'Value': [
                 f"{dominant_period} {TIME_UNIT}",
@@ -828,7 +828,7 @@ if len(peak_indices) > 0:
         print("  • Insufficient data for chosen period")
         print("→ Consider alternative decomposition methods or non-seasonal models")
 else:
-    no_peaks_df = pl.DataFrame({'Note': ['No spectral peaks detected - STL not applicable']})
+    no_peaks_df = spark.createDataFrame({'Note': ['No spectral peaks detected - STL not applicable']})
     display(no_peaks_df)
     logger.info("No spectral peaks detected - skipping STL decomposition")
 ```
@@ -875,7 +875,7 @@ if len(peak_indices) > 0:
             'residual': result.resid[::sample_step]
         })
 
-        decomp_long = decomp_data.melt(
+        decomp_long = decomp_data.unpivot(
             id_vars=['timestamp'],
             value_vars=['observed', 'trend', 'seasonal', 'residual'],
             var_name='component',
@@ -946,7 +946,7 @@ After subsampling, we retain statistical moments (mean, std, percentiles), autoc
 
 ```{code-cell} ipython3
 # Statistical comparison
-stats_comparison = pl.DataFrame({
+stats_comparison = spark.createDataFrame({
     'Metric': ['Mean', 'Std', 'Variance', 'Min', 'Max', 'Q25', 'Median', 'Q75'],
     'Full Data': [
         train_values.mean(),
@@ -972,7 +972,7 @@ stats_comparison = pl.DataFrame({
 
 # Add percent difference
 stats_comparison = stats_comparison.with_columns(
-    ((pl.col('Subsampled') - pl.col('Full Data')) / pl.col('Full Data') * 100).alias('Diff %')
+    ((F.col('Subsampled') - pl.col('Full Data')) / pl.col('Full Data') * 100).alias('Diff %')
 )
 
 stats_comparison
@@ -1006,7 +1006,7 @@ for lag in lags_to_check:
         'Preserved': 'Yes' if not np.isnan(acf_full) and not np.isnan(acf_sub) and abs(acf_full - acf_sub) < 0.1 else 'N/A'
     })
 
-pl.DataFrame(acf_comparison)
+spark.createDataFrame(acf_comparison)
 ```
 
 ```{code-cell} ipython3
@@ -1085,7 +1085,7 @@ adf_result = adfuller(train_values, autolag='AIC')
 adf_stat, adf_p, adf_lags, adf_nobs, adf_crit, adf_ic = adf_result
 
 # Create and display results table
-adf_results_df = pl.DataFrame({
+adf_results_df = spark.createDataFrame({
     'Metric': ['ADF Statistic', 'p-value', 'Critical Value (1%)', 'Critical Value (5%)', 'Critical Value (10%)'],
     'Value': [
         float(adf_stat),
@@ -1105,13 +1105,13 @@ adf_results_df
 ```{code-cell} ipython3
 # Stationarity interpretation for time series modeling
 if adf_p < 0.05:
-    interpretation_df = pl.DataFrame({
+    interpretation_df = spark.createDataFrame({
         'Assessment': ['Data is stationary'],
         'Modeling Implications': ['Suitable for stationary time series models'],
         'Recommended Approaches': ['AR, MA, ARMA, stationary GP kernels, many ML models']
     })
 else:
-    interpretation_df = pl.DataFrame({
+    interpretation_df = spark.createDataFrame({
         'Assessment': ['Data is non-stationary'],
         'Modeling Implications': ['Requires preprocessing or trend-aware models'],
         'Options': ['1) Difference the series (ARIMA) | 2) Detrend (Prophet, STL) | 3) Use trend-aware methods | 4) Foundation models (handle non-stationarity)']
@@ -1177,7 +1177,7 @@ quality_data = {
     ]
 }
 
-pl.DataFrame(quality_data)
+spark.createDataFrame(quality_data)
 ```
 
 ## 7. Conclusion & Downstream Applications
@@ -1212,7 +1212,7 @@ else:
     dominant_period = None
     periodicity_strength = "None detected"
 
-pl.DataFrame({
+spark.createDataFrame({
     'Characteristic': [
         'Training samples',
         'Test samples',
@@ -1313,7 +1313,7 @@ model_recommendations.append({
     'Next Step': 'Requires feature engineering and hyperparameter tuning'
 })
 
-pl.DataFrame(model_recommendations)
+spark.createDataFrame(model_recommendations)
 ```
 
 ### 3. Forecasting Horizons
@@ -1343,7 +1343,7 @@ horizon_data = {
     ]
 }
 
-pl.DataFrame(horizon_data)
+spark.createDataFrame(horizon_data)
 ```
 
 ### 4. Anomaly Detection Strategies
@@ -1394,12 +1394,12 @@ anomaly_approaches.append({
     'Cons': 'Requires more data, harder to tune'
 })
 
-pl.DataFrame(anomaly_approaches)
+spark.createDataFrame(anomaly_approaches)
 ```
 
 ```{code-cell} ipython3
 # Evaluation framework (applicable to all methods)
-pl.DataFrame({
+spark.createDataFrame({
     'Aspect': ['Test Set', 'Evaluation Metrics', 'Baseline Comparisons', 'Threshold Tuning'],
     'Details': [
         f'{len(test_df):,} samples with {test_df["label"].sum()} labeled anomalies ({100*test_df["label"].mean():.2f}%)',
@@ -1444,7 +1444,7 @@ summary_metrics = {
     ]
 }
 
-pl.DataFrame(summary_metrics)
+spark.createDataFrame(summary_metrics)
 ```
 
 ### Next Steps: Choosing Your Path
