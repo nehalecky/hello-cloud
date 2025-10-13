@@ -7,7 +7,6 @@ Focuses on testing plot_temporal_density and related visualization utilities.
 import matplotlib.pyplot as plt
 import pandas as pd
 import pytest
-from pyspark.sql import functions as F
 
 from hellocloud.analysis.eda import plot_temporal_density
 from hellocloud.spark import get_spark_session

@@ -50,6 +50,16 @@ def set_random_seed():
     np.random.seed(None)
 
 
+@pytest.fixture(scope="session")
+def spark():
+    """Create a SparkSession for testing."""
+    from hellocloud.spark import get_spark_session
+
+    spark = get_spark_session(app_name="pytest")
+    yield spark
+    spark.stop()
+
+
 @pytest.fixture(autouse=True)
 def configure_altair_renderer():
     """Configure Altair to use non-interactive renderer for testing."""

@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from pyspark.sql import DataFrame, functions as F
-from pyspark.sql.types import NumericType, StringType, DateType, TimestampType
+from pyspark.sql import DataFrame
+from pyspark.sql import functions as F
 from sklearn.ensemble import IsolationForest
 
 from hellocloud.spark.session import get_spark_session
@@ -198,7 +198,7 @@ def stratified_column_filter(
     """
     # DROP: Primary keys (high cardinality, no grouping utility)
     drop_primary_keys = (
-        attrs.filter(F.col('cardinality_ratio') > primary_key_threshold)
+        attrs.filter(F.col("cardinality_ratio") > primary_key_threshold)
         .select("column")
         .toPandas()["column"]
         .tolist()
@@ -206,7 +206,7 @@ def stratified_column_filter(
 
     # DROP: Sparse columns (too many nulls)
     drop_sparse = (
-        attrs.filter(F.col('value_density') < sparse_threshold)
+        attrs.filter(F.col("value_density") < sparse_threshold)
         .select("column")
         .toPandas()["column"]
         .tolist()
@@ -215,8 +215,8 @@ def stratified_column_filter(
     # KEEP: Grouping dimensions (low cardinality, highly complete)
     keep_grouping = (
         attrs.filter(
-            (F.col('cardinality_ratio') <= grouping_cardinality)
-            & (F.col('value_density') > grouping_completeness)
+            (F.col("cardinality_ratio") <= grouping_cardinality)
+            & (F.col("value_density") > grouping_completeness)
         )
         .select("column")
         .toPandas()["column"]
@@ -226,9 +226,9 @@ def stratified_column_filter(
     # KEEP: High cardinality resource IDs (if complete)
     keep_resource_ids = (
         attrs.filter(
-            (F.col('cardinality_ratio') > resource_id_min)
-            & (F.col('cardinality_ratio') <= resource_id_max)
-            & (F.col('value_density') > resource_id_completeness)
+            (F.col("cardinality_ratio") > resource_id_min)
+            & (F.col("cardinality_ratio") <= resource_id_max)
+            & (F.col("value_density") > resource_id_completeness)
         )
         .select("column")
         .toPandas()["column"]
@@ -238,9 +238,9 @@ def stratified_column_filter(
     # KEEP: Medium cardinality composite candidates (if good info score)
     keep_composite_candidates = (
         attrs.filter(
-            (F.col('cardinality_ratio') > composite_min)
-            & (F.col('cardinality_ratio') <= composite_max)
-            & (F.col('information_score') > composite_info_score)
+            (F.col("cardinality_ratio") > composite_min)
+            & (F.col("cardinality_ratio") <= composite_max)
+            & (F.col("information_score") > composite_info_score)
         )
         .select("column")
         .toPandas()["column"]
@@ -1657,13 +1657,18 @@ def plot_temporal_density(  # noqa: C901
         # Aggregation mode: show single value per timestamp (original behavior)
         if metric_col:
             daily = (
-                df.groupBy(date_col).agg(F.sum(metric_col).alias("value")).orderBy(date_col).toPandas()
+                df.groupBy(date_col)
+                .agg(F.sum(metric_col).alias("value"))
+                .orderBy(date_col)
+                .toPandas()
             )
             y_col = "value"
             auto_title = f"{metric_col.replace('_', ' ').title()} Over Time"
             y_label = metric_col.replace("_", " ").title()
         else:
-            daily = df.groupBy(date_col).agg(F.count("*").alias("value")).orderBy(date_col).toPandas()
+            daily = (
+                df.groupBy(date_col).agg(F.count("*").alias("value")).orderBy(date_col).toPandas()
+            )
             y_col = "value"
             auto_title = "Temporal Observation Density"
             y_label = "Record Count"
@@ -1767,7 +1772,9 @@ def plot_daily_change_analysis(
     """
     # Aggregate by date
     if metric_col:
-        daily = df.groupBy(date_col).agg(F.sum(metric_col).alias("value")).orderBy(date_col).toPandas()
+        daily = (
+            df.groupBy(date_col).agg(F.sum(metric_col).alias("value")).orderBy(date_col).toPandas()
+        )
         metric_name = metric_col.replace("_", " ").title()
     else:
         daily = df.groupBy(date_col).agg(F.count("*").alias("value")).orderBy(date_col).toPandas()
