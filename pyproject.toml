@@ -37,8 +37,6 @@ dependencies = [
     "loguru>=0.7.0",
     # Visualization (for notebooks)
     "altair>=5.0.0",
-    "ibis-framework[duckdb]>=10.8.0",
-    "duckdb>=1.1.0,<1.2.0",
     "nbconvert>=7.16.6",
     "ipykernel>=6.30.1",
     "seaborn>=0.13.2",

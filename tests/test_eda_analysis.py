@@ -4,26 +4,27 @@ Tests for EDA analysis and visualization functions.
 Focuses on testing plot_temporal_density and related visualization utilities.
 """
 
-import ibis
 import matplotlib.pyplot as plt
 import pandas as pd
 import pytest
+from pyspark.sql import functions as F
 
 from hellocloud.analysis.eda import plot_temporal_density
+from hellocloud.spark import get_spark_session
 
 
 @pytest.fixture
-def con():
-    """Create in-memory DuckDB connection."""
-    return ibis.duckdb.connect()
+def spark():
+    """Get or create Spark session for tests."""
+    return get_spark_session(app_name="test_eda_analysis")
 
 
 @pytest.fixture
-def sample_cost_data(con):
+def sample_cost_data(spark):
     """
     Create sample cost data for testing temporal visualizations.
 
-    Returns table with:
+    Returns DataFrame with:
     - date: Daily timestamps
     - entity_id: Resource identifier
     - cost: Cost values with some variation
@@ -55,7 +56,7 @@ def sample_cost_data(con):
             ],
         }
     )
-    return con.create_table("cost_data", data)
+    return spark.createDataFrame(data)
 
 
 class TestPlotTemporalDensity:
