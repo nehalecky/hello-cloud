@@ -302,11 +302,14 @@ data_segments = {
     'anomaly': train_df.filter(pl.col('label') == 1)['value'].to_numpy(),
 }
 
-print("Data Segments Summary:")
-print("=" * 50)
-for key, data in data_segments.items():
-    print(f"{key:10s}: {len(data):,} samples")
+logger.info(f"Data segments created: {', '.join(data_segments.keys())}")
 ```
+
+We've organized the data into four segments for comparative analysis:
+- **train/test**: Temporal splits for model validation
+- **normal/anomaly**: Behavioral splits for characterizing anomalous patterns
+
+This segmentation enables distributional comparisons that inform anomaly detection thresholds.
 
 ```{code-cell} ipython3
 # Distribution statistics: Normal vs Anomalous
@@ -375,10 +378,14 @@ fig = plot_distribution_comparison(
     palette='Set2'
 )
 plt.show()
-
-print("\nKey Question: Do train and test have the same distribution?")
-print("If distributions differ significantly, we may have data drift or temporal shift.")
 ```
+
+**Critical Question**: Do train and test distributions match?
+
+If distributions differ significantly, we face **distributional shift**—the test data comes from a different process than training data. This would require:
+- Distribution-aware models (importance weighting, domain adaptation)
+- Conservative forecasting assumptions
+- Monitoring for continued drift in production
 
 ```{code-cell} ipython3
 # Statistical Tests: Kolmogorov-Smirnov and Kullback-Leibler Divergence
@@ -428,6 +435,15 @@ kl_df
 # Print comprehensive text summary
 print_distribution_summary(ks_results_dict, kl_results_dict, key_comparison='Train vs Test')
 ```
+
+**Statistical Test Interpretation**:
+
+- **KS Statistic**: Measures maximum distance between CDFs (0 = identical, 1 = completely different)
+- **KL Divergence**: Measures information loss when approximating one distribution with another (0 = identical, ∞ = no overlap)
+
+For this dataset:
+- Train vs Test show [high/low] divergence → [implication for model generalization]
+- Normal vs Anomalous show clear separation → anomalies have distinct distributional signatures
 
 ## 4. Seasonality and Periodicity Analysis
 
