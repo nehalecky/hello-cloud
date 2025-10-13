@@ -200,3 +200,49 @@ class TimeSeries:
             metric_col=self.metric_col,
             time_col=self.time_col,
         )
+
+    def aggregate(self, grain: list[str]) -> "TimeSeries":
+        """
+        Aggregate metric to coarser grain level.
+
+        Sums metric values across entities, grouping by grain + time.
+
+        Args:
+            grain: Column names defining target grain (must be subset of hierarchy)
+
+        Returns:
+            New TimeSeries aggregated to specified grain
+
+        Example:
+            # Aggregate from account+region to just account
+            ts.aggregate(grain=["account"])
+        """
+        from pyspark.sql import functions as F
+
+        # Validate and resolve grain
+        grain_cols = self._resolve_grain(grain)
+
+        # Check if already at requested grain
+        current_grain = [col for col in self.hierarchy if col in self.df.columns]
+        if set(grain_cols) == set(current_grain):
+            logger.info(f"Data already at grain {grain}. Returning copy.")
+            return TimeSeries(
+                df=self.df,
+                hierarchy=self.hierarchy,
+                metric_col=self.metric_col,
+                time_col=self.time_col,
+            )
+
+        # Group by grain + time, sum metric
+        group_cols = grain_cols + [self.time_col]
+        agg_df = self.df.groupBy(*group_cols).agg(F.sum(self.metric_col).alias(self.metric_col))
+
+        # New hierarchy only includes grain columns (in original hierarchy order)
+        new_hierarchy = grain_cols
+
+        return TimeSeries(
+            df=agg_df,
+            hierarchy=new_hierarchy,
+            metric_col=self.metric_col,
+            time_col=self.time_col,
+        )

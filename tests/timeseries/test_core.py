@@ -355,3 +355,97 @@ class TestTimeSeriesSample:
 
         # Should have 2 unique account+region combinations
         assert sampled.df.select("account", "region").distinct().count() == 2
+
+
+class TestTimeSeriesAggregate:
+    """Test TimeSeries aggregation operations."""
+
+    def test_aggregate_to_coarser_grain(self, spark):
+        """Should aggregate metric to coarser grain level."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", 100.0),
+                ("2025-01-01", "AWS", "acc1", "us-west-1", 200.0),
+                ("2025-01-02", "AWS", "acc1", "us-east-1", 150.0),
+            ],
+            ["date", "provider", "account", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account", "region"])
+
+        # Aggregate from account+region to just account
+        agg = ts.aggregate(grain=["account"])
+
+        assert isinstance(agg, TimeSeries)
+        # Should have 2 rows (2 dates for acc1)
+        assert agg.df.count() == 2
+        # Region and provider columns should be removed from DataFrame
+        assert "region" not in agg.df.columns
+        assert "provider" not in agg.df.columns
+        # Hierarchy should only include grain columns
+        assert agg.hierarchy == ["account"]
+        # Should sum costs: 100+200=300 for date 1, 150 for date 2
+        results = agg.df.orderBy("date").collect()
+        assert results[0]["cost"] == 300.0
+        assert results[1]["cost"] == 150.0
+
+    def test_aggregate_preserves_time_dimension(self, spark):
+        """Should preserve time column in aggregation."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", 100.0),
+                ("2025-01-02", "AWS", "acc1", "us-east-1", 150.0),
+            ],
+            ["date", "provider", "account", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account", "region"])
+
+        agg = ts.aggregate(grain=["provider"])
+
+        assert "date" in agg.df.columns
+        assert agg.df.count() == 2  # One per date
+        assert agg.hierarchy == ["provider"]
+
+    def test_aggregate_to_top_level(self, spark):
+        """Should aggregate all the way to top of hierarchy."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", 100.0),
+                ("2025-01-01", "AWS", "acc2", "us-west-1", 200.0),
+                ("2025-01-02", "AWS", "acc1", "us-east-1", 150.0),
+            ],
+            ["date", "provider", "account", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account", "region"])
+
+        # Aggregate to just provider level
+        agg = ts.aggregate(grain=["provider"])
+
+        assert agg.df.count() == 2  # 2 dates
+        assert "account" not in agg.df.columns
+        assert "region" not in agg.df.columns
+        assert agg.hierarchy == ["provider"]
+        results = agg.df.orderBy("date").collect()
+        assert results[0]["cost"] == 300.0  # 100 + 200
+        assert results[1]["cost"] == 150.0
+
+    def test_aggregate_same_grain_returns_copy(self, spark):
+        """Should return copy and log info if already at requested grain."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        # Test that aggregating to the same grain returns a copy
+        agg = ts.aggregate(grain=["provider", "account"])
+
+        # Should return same row count (already at grain)
+        assert agg.df.count() == ts.df.count()
+        # Should be new instance
+        assert agg is not ts
