@@ -261,3 +261,97 @@ class TestTimeSeriesFilter:
 
         with pytest.raises(TimeSeriesError, match="Invalid filter column"):
             ts.filter(invalid_column="value")
+
+
+class TestTimeSeriesSample:
+    """Test TimeSeries sampling operations."""
+
+    def test_sample_single_entity(self, spark):
+        """Should sample single entity at specified grain."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-02", "AWS", "acc1", 110.0),
+                ("2025-01-01", "AWS", "acc2", 200.0),
+                ("2025-01-02", "AWS", "acc2", 220.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        sampled = ts.sample(grain=["account"], n=1)
+
+        assert isinstance(sampled, TimeSeries)
+        # Should have 2 rows (both dates) for the sampled account
+        assert sampled.df.count() == 2
+        # Should only have 1 unique account
+        assert sampled.df.select("account").distinct().count() == 1
+
+    def test_sample_multiple_entities(self, spark):
+        """Should sample N entities at specified grain."""
+        df = spark.createDataFrame(
+            [("2025-01-01", "AWS", f"acc{i}", 100.0 * i) for i in range(10)],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        sampled = ts.sample(grain=["account"], n=3)
+
+        # Should have 3 unique accounts
+        assert sampled.df.select("account").distinct().count() == 3
+
+    def test_sample_more_than_available(self, spark):
+        """Should return all entities if n > available."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-01", "AWS", "acc2", 200.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        # Request more than available - should return all entities
+        sampled = ts.sample(grain=["account"], n=10)
+
+        # Should return all 2 available accounts (not raise error)
+        assert sampled.df.select("account").distinct().count() == 2
+        # Should return all rows
+        assert sampled.df.count() == 2
+
+    def test_sample_default_n_equals_1(self, spark):
+        """Should default to n=1 if not specified."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-01", "AWS", "acc2", 200.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        sampled = ts.sample(grain=["account"])
+
+        assert sampled.df.select("account").distinct().count() == 1
+
+    def test_sample_hierarchical_grain(self, spark):
+        """Should sample at multi-level grain correctly."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", 100.0),
+                ("2025-01-01", "AWS", "acc1", "us-west-1", 200.0),
+                ("2025-01-01", "AWS", "acc2", "us-east-1", 300.0),
+            ],
+            ["date", "provider", "account", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account", "region"])
+
+        sampled = ts.sample(grain=["account", "region"], n=2)
+
+        # Should have 2 unique account+region combinations
+        assert sampled.df.select("account", "region").distinct().count() == 2

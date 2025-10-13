@@ -156,3 +156,47 @@ class TimeSeries:
             metric_col=self.metric_col,
             time_col=self.time_col,
         )
+
+    def sample(self, grain: list[str], n: int = 1) -> "TimeSeries":
+        """
+        Sample n random entities at specified grain level.
+
+        Args:
+            grain: Column names defining the grain (must be subset of hierarchy)
+            n: Number of entities to sample (default: 1)
+
+        Returns:
+            New TimeSeries with sampled entities
+
+        Example:
+            ts.sample(grain=["account", "region"], n=10)
+        """
+        from pyspark.sql import functions as F
+
+        # Validate and resolve grain
+        grain_cols = self._resolve_grain(grain)
+
+        # Get unique entities at grain
+        entities_df = self.df.select(*grain_cols).distinct()
+        total_entities = entities_df.count()
+
+        # Warn if requesting more than available
+        if n > total_entities:
+            logger.warning(
+                f"Requested {n} entities but only {total_entities} exist at grain {grain}. "
+                f"Returning all {total_entities}."
+            )
+            n = total_entities
+
+        # Sample entities randomly
+        sampled_entities = entities_df.orderBy(F.rand()).limit(n)
+
+        # Join back to get full time series for sampled entities
+        sampled_df = self.df.join(sampled_entities, on=grain_cols, how="inner")
+
+        return TimeSeries(
+            df=sampled_df,
+            hierarchy=self.hierarchy,
+            metric_col=self.metric_col,
+            time_col=self.time_col,
+        )
