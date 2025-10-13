@@ -89,3 +89,30 @@ class TimeSeries:
                 raise TimeSeriesError(
                     f"hierarchy column '{col}' not found in DataFrame columns: {list(df_cols)}"
                 )
+
+    def _resolve_grain(self, grain: list[str]) -> list[str]:
+        """
+        Validate grain is subset of hierarchy and return in hierarchy order.
+
+        Args:
+            grain: List of column names defining the grain
+
+        Returns:
+            Grain columns in hierarchy order
+
+        Raises:
+            TimeSeriesError: If grain contains columns not in hierarchy
+        """
+        grain_set = set(grain)
+        hierarchy_set = set(self.hierarchy)
+
+        # Check for invalid columns
+        invalid = grain_set - hierarchy_set
+        if invalid:
+            raise TimeSeriesError(
+                f"Invalid grain columns: {invalid}. "
+                f"Must be subset of hierarchy: {self.hierarchy}"
+            )
+
+        # Return in hierarchy order
+        return [col for col in self.hierarchy if col in grain_set]

@@ -137,3 +137,52 @@ class TestTimeSeriesFactoryMethods:
         # Should default to metric_col="cost", time_col="date"
         assert ts.metric_col == "cost"
         assert ts.time_col == "date"
+
+
+class TestGrainResolution:
+    """Test grain resolution and validation."""
+
+    def test_resolve_grain_returns_ordered_columns(self, spark):
+        """Should return grain columns in hierarchy order."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", "Compute", 100.0),
+            ],
+            ["date", "provider", "account", "region", "product", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account", "region", "product"])
+
+        # Request out-of-order grain
+        grain = ts._resolve_grain(["region", "provider"])
+
+        # Should return in hierarchy order
+        assert grain == ["provider", "region"]
+
+    def test_resolve_grain_validates_subset(self, spark):
+        """Should raise error if grain contains columns not in hierarchy."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        with pytest.raises(TimeSeriesError, match="Invalid grain columns"):
+            ts._resolve_grain(["provider", "invalid_column"])
+
+    def test_resolve_grain_handles_partial_hierarchy(self, spark):
+        """Should handle grain that is partial subset of hierarchy."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", 100.0),
+            ],
+            ["date", "provider", "account", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account", "region"])
+
+        grain = ts._resolve_grain(["account"])
+        assert grain == ["account"]
