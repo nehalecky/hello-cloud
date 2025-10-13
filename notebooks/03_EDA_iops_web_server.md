@@ -73,6 +73,7 @@ from scipy import stats, signal
 from scipy.fft import fft, fftfreq
 from statsmodels.tsa.stattools import acf, pacf, adfuller
 from statsmodels.tsa.seasonal import STL
+from loguru import logger
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -806,7 +807,7 @@ if len(peak_indices) > 0:
         strength_label = "Strong" if strength_seasonal > 0.6 else ("Moderate" if strength_seasonal > 0.3 else "Weak")
 
         # Display metrics
-        pl.DataFrame({
+        stl_metrics_df = pl.DataFrame({
             'Metric': ['Dominant Period', 'Seasonality Strength', 'Classification', 'Variance Explained'],
             'Value': [
                 f"{dominant_period} {TIME_UNIT}",
@@ -815,11 +816,26 @@ if len(peak_indices) > 0:
                 f"{strength_seasonal*100:.1f}%"
             ]
         })
+        display(stl_metrics_df)
+
+        logger.info(f"STL decomposition successful: {strength_label} seasonality ({strength_seasonal:.3f})")
+
+    except Exception as e:
+        logger.warning(f"STL decomposition failed: {str(e)}")
+        print(f"⚠️  STL decomposition failed: {str(e)}")
+        print("Possible reasons:")
+        print("  • Period too short/long for decomposition")
+        print("  • Insufficient data for chosen period")
+        print("→ Consider alternative decomposition methods or non-seasonal models")
+else:
+    no_peaks_df = pl.DataFrame({'Note': ['No spectral peaks detected - STL not applicable']})
+    display(no_peaks_df)
+    logger.info("No spectral peaks detected - skipping STL decomposition")
 ```
 
 **STL Decomposition Results**:
 
-Seasonality explains **{strength_seasonal*100:.1f}%** of the pattern variance (strength = {strength_seasonal:.3f}), classified as **{strength_label}**.
+When peaks are detected, seasonality strength indicates how much of the variance is explained by periodic patterns.
 
 **Interpretation**:
 - **Strength > 0.6**: Seasonal component dominates → seasonal models will perform well
@@ -828,31 +844,16 @@ Seasonality explains **{strength_seasonal*100:.1f}%** of the pattern variance (s
 
 **Modeling Recommendation**: Based on this strength value, choose seasonal models (SARIMA, Prophet) if strong, or non-seasonal/hybrid approaches if weak.
 
-```{code-cell} ipython3
-    except Exception as e:
-        print(f"⚠️  STL decomposition failed: {str(e)}")
-        print("Possible reasons:")
-        print("  • Period too short/long for decomposition")
-        print("  • Insufficient data for chosen period")
-        print("→ Consider alternative decomposition methods or non-seasonal models")
-else:
-    pl.DataFrame({'Note': ['No spectral peaks detected - STL not applicable']})
-```
+If no significant spectral peaks are detected, this indicates:
+1. **Truly irregular behavior**: No fixed cycles (common in event-driven systems)
+2. **High noise-to-signal ratio**: Periodic patterns obscured by variability
+3. **Complex multi-scale dynamics**: Patterns don't conform to simple periodic models
 
-**No Significant Spectral Peaks Detected**
-
-This indicates one of three scenarios:
-1. **Truly irregular behavior**: The time series has no fixed cycles (common in event-driven systems)
-2. **High noise-to-signal ratio**: Periodic patterns exist but are obscured by variability
-3. **Complex multi-scale dynamics**: Patterns exist but don't conform to simple periodic models
-
-**Recommended Approaches**:
+**Recommended Approaches** (when no peaks detected):
 - Non-seasonal ARIMA (captures autocorrelation without fixed periods)
 - Prophet without seasonality (trend + changepoints + noise)
 - Foundation models (TimesFM, Chronos) that learn patterns without explicit periodicity assumptions
 - Local regression (LOESS) or moving averages for smoothing
-
-```
 
 ```{code-cell} ipython3
 # STL Decomposition visualization (if successful)
@@ -1085,8 +1086,8 @@ A stationary time series has:
 adf_result = adfuller(train_values, autolag='AIC')
 adf_stat, adf_p, adf_lags, adf_nobs, adf_crit, adf_ic = adf_result
 
-# Create results table
-pl.DataFrame({
+# Create and display results table
+adf_results_df = pl.DataFrame({
     'Metric': ['ADF Statistic', 'p-value', 'Critical Value (1%)', 'Critical Value (5%)', 'Critical Value (10%)'],
     'Value': [
         float(adf_stat),
@@ -1096,6 +1097,9 @@ pl.DataFrame({
         float(adf_crit["10%"])
     ]
 })
+
+logger.info(f"ADF test completed: p-value = {adf_p:.4f}")
+adf_results_df
 ```
 
 ### Interpretation
@@ -1103,17 +1107,19 @@ pl.DataFrame({
 ```{code-cell} ipython3
 # Stationarity interpretation for time series modeling
 if adf_p < 0.05:
-    pl.DataFrame({
+    interpretation_df = pl.DataFrame({
         'Assessment': ['Data is stationary'],
         'Modeling Implications': ['Suitable for stationary time series models'],
         'Recommended Approaches': ['AR, MA, ARMA, stationary GP kernels, many ML models']
     })
 else:
-    pl.DataFrame({
+    interpretation_df = pl.DataFrame({
         'Assessment': ['Data is non-stationary'],
         'Modeling Implications': ['Requires preprocessing or trend-aware models'],
         'Options': ['1) Difference the series (ARIMA) | 2) Detrend (Prophet, STL) | 3) Use trend-aware methods | 4) Foundation models (handle non-stationarity)']
     })
+
+interpretation_df
 ```
 
 **For this specific dataset:**
