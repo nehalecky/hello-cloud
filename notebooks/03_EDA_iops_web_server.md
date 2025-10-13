@@ -134,8 +134,8 @@ test_df = spark.createDataFrame(test_pd)
 **Timestamp Limitation**: The TSB-UAD dataset provides no actual timestamps—only sequential indices. We create synthetic timestamps assuming 1-minute sampling intervals (documented in TSB-UAD specification).
 
 This gives us:
-- **Training data**: Approximately {len(train_df)/60:.1f} hours ({len(train_df)/1440:.1f} days)
-- **Test data**: Approximately {len(test_df)/60:.1f} hours ({len(test_df)/1440:.1f} days)
+- **Training data**: Approximately {train_df.count()/60:.1f} hours ({train_df.count()/1440:.1f} days)
+- **Test data**: Approximately {test_df.count()/60:.1f} hours ({test_df.count()/1440:.1f} days)
 
 While timestamps are synthetic, the temporal structure and anomaly patterns are preserved from the original production data.
 
@@ -1233,8 +1233,8 @@ This section synthesizes these findings into actionable recommendations for vari
 
 ```{code-cell} ipython3
 # Dataset characteristics for modeling decisions
-n_train = len(train_df)
-n_test = len(test_df)
+n_train = train_df.count()
+n_test = test_df.count()
 total_samples = n_train + n_test
 duration_days = total_samples / 1440  # 1-minute sampling
 
