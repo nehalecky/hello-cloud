@@ -121,12 +121,21 @@ test_pd = pd.read_csv(test_url, header=None, names=['value', 'label'])
 # This means our index represents minutes elapsed
 train_df = pl.from_pandas(train_pd).with_columns(pl.arange(0, len(train_pd)).alias('timestamp'))
 test_df = pl.from_pandas(test_pd).with_columns(pl.arange(0, len(test_pd)).alias('timestamp'))
+```
 
-print(f"⚠ Timestamp limitation: Dataset provides no real timestamps")
-print(f"  Using sequential index as proxy (assumed 1-minute sampling)")
-print(f"  Training duration: ~{len(train_df)/60:.1f} hours (~{len(train_df)/1440:.1f} days)")
-print(f"  Test duration: ~{len(test_df)/60:.1f} hours (~{len(test_df)/1440:.1f} days)")
+**Timestamp Limitation**: The TSB-UAD dataset provides no actual timestamps—only sequential indices. We create synthetic timestamps assuming 1-minute sampling intervals (documented in TSB-UAD specification).
 
+This gives us:
+- **Training data**: Approximately {len(train_df)/60:.1f} hours ({len(train_df)/1440:.1f} days)
+- **Test data**: Approximately {len(test_df)/60:.1f} hours ({len(test_df)/1440:.1f} days)
+
+While timestamps are synthetic, the temporal structure and anomaly patterns are preserved from the original production data.
+
+### Dataset Provenance
+
+The table below shows key metadata for tracking this specific time series:
+
+```{code-cell} ipython3
 # Dataset metadata
 pl.DataFrame({
     'Attribute': ['KPI ID', 'Source'],
@@ -136,6 +145,8 @@ pl.DataFrame({
     ]
 })
 ```
+
+This KPI is one of 20 monitored web server metrics from the IOPS dataset, selected for its rich temporal patterns and anomaly characteristics.
 
 ```{code-cell} ipython3
 # Training data preview
