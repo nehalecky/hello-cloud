@@ -1,5 +1,6 @@
 """Core TimeSeries class for hierarchical time series analysis."""
 
+
 from loguru import logger
 from pyspark.sql import DataFrame
 
@@ -246,3 +247,41 @@ class TimeSeries:
             metric_col=self.metric_col,
             time_col=self.time_col,
         )
+
+    def summary_stats(self, grain: list[str] | None = None) -> DataFrame:
+        """
+        Compute summary statistics for the time series.
+
+        Args:
+            grain: Optional grain to aggregate to before computing stats.
+                  If None, uses current grain of the data.
+
+        Returns:
+            PySpark DataFrame with entity keys and summary statistics
+            (count, mean, std, min, max)
+
+        Example:
+            stats = ts.summary_stats()  # Stats at current grain
+            stats = ts.summary_stats(grain=["account"])  # Aggregate first
+        """
+        from pyspark.sql import functions as F
+
+        # Aggregate to target grain if specified
+        if grain is not None:
+            ts_for_stats = self.aggregate(grain)
+        else:
+            ts_for_stats = self
+
+        # Identify entity columns (hierarchy columns present in data)
+        entity_cols = [col for col in ts_for_stats.hierarchy if col in ts_for_stats.df.columns]
+
+        # Group by entity and compute stats on metric over time
+        stats_df = ts_for_stats.df.groupBy(*entity_cols).agg(
+            F.count(self.metric_col).alias("count"),
+            F.mean(self.metric_col).alias("mean"),
+            F.stddev(self.metric_col).alias("std"),
+            F.min(self.metric_col).alias("min"),
+            F.max(self.metric_col).alias("max"),
+        )
+
+        return stats_df

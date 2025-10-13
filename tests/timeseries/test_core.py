@@ -449,3 +449,97 @@ class TestTimeSeriesAggregate:
         assert agg.df.count() == ts.df.count()
         # Should be new instance
         assert agg is not ts
+
+
+class TestTimeSeriesSummaryStats:
+    """Test TimeSeries summary statistics."""
+
+    def test_summary_stats_returns_dataframe(self, spark):
+        """Should return DataFrame with summary statistics."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-02", "AWS", "acc1", 110.0),
+                ("2025-01-03", "AWS", "acc1", 105.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        stats = ts.summary_stats()
+
+        assert stats is not None
+        # Should have stats columns
+        stats_cols = stats.columns
+        assert "mean" in stats_cols
+        assert "std" in stats_cols
+        assert "min" in stats_cols
+        assert "max" in stats_cols
+        assert "count" in stats_cols
+
+    def test_summary_stats_includes_entity_keys(self, spark):
+        """Should include entity identifier columns in stats output."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-02", "AWS", "acc1", 110.0),
+                ("2025-01-01", "AWS", "acc2", 200.0),
+                ("2025-01-02", "AWS", "acc2", 220.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        stats = ts.summary_stats()
+
+        # Should have entity keys
+        assert "provider" in stats.columns
+        assert "account" in stats.columns
+        # Should have one row per entity
+        assert stats.count() == 2
+
+    def test_summary_stats_at_different_grain(self, spark):
+        """Should compute stats at specified grain level."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", 100.0),
+                ("2025-01-02", "AWS", "acc1", "us-east-1", 110.0),
+                ("2025-01-01", "AWS", "acc1", "us-west-1", 200.0),
+                ("2025-01-02", "AWS", "acc1", "us-west-1", 220.0),
+            ],
+            ["date", "provider", "account", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account", "region"])
+
+        # Stats at account level (should aggregate regions first)
+        stats = ts.summary_stats(grain=["account"])
+
+        assert stats.count() == 1  # One account
+        # Should aggregate: date1: 100+200=300, date2: 110+220=330
+        result = stats.collect()[0]
+        assert result["mean"] == 315.0  # (300 + 330) / 2
+
+    def test_summary_stats_correct_calculations(self, spark):
+        """Should calculate statistics correctly."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-02", "AWS", "acc1", 200.0),
+                ("2025-01-03", "AWS", "acc1", 150.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        stats = ts.summary_stats()
+        result = stats.collect()[0]
+
+        assert result["count"] == 3
+        assert result["mean"] == 150.0
+        assert result["min"] == 100.0
+        assert result["max"] == 200.0
+        assert result["std"] > 0  # Should have standard deviation
