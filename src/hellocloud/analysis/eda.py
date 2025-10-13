@@ -3,27 +3,29 @@ Exploratory Data Analysis utilities for billing and time series data.
 
 Provides reusable functions for schema analysis, information theory calculations,
 temporal normalization patterns, and outlier detection.
-Designed for Ibis Tables with DuckDB backend, focusing on cloud billing data.
+Designed for PySpark DataFrames, focusing on cloud billing data.
 """
 
-import ibis
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from ibis import _
+from pyspark.sql import DataFrame, functions as F
+from pyspark.sql.types import NumericType, StringType, DateType, TimestampType
 from sklearn.ensemble import IsolationForest
+
+from hellocloud.spark.session import get_spark_session
 
 # ============================================================================
 # Schema & Information Theory
 # ============================================================================
 
 
-def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> ibis.Table:
+def attribute_analysis(df: DataFrame, sample_size: int = 50_000) -> DataFrame:
     """
     Comprehensive attribute analysis with information density metrics.
 
-    Fully Ibis-native implementation - takes Ibis Table, returns Ibis Table.
+    Fully PySpark-native implementation - takes DataFrame, returns DataFrame.
 
     Computes metrics for grain discovery and feature selection:
     - Value density: proportion of non-null values (completeness)
@@ -34,22 +36,22 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> ibis.Table:
                          cardinality_ratio, entropy) - all "higher is better"
 
     Args:
-        df: Input Ibis Table to analyze
+        df: Input PySpark DataFrame to analyze
         sample_size: Sample size for entropy calculation (default 50k)
 
     Returns:
-        Ibis Table with columns: column, dtype, value_density, nonzero_density,
+        PySpark DataFrame with columns: column, dtype, value_density, nonzero_density,
         cardinality_ratio, entropy, information_score, sample_value
         Sorted by information_score descending.
 
     Example:
         >>> attrs = hc.utils.attribute_analysis(df)
-        >>> attrs  # Beautiful Ibis table rendering
+        >>> attrs.show()  # Beautiful PySpark table rendering
     """
     schema = df.schema()  # Returns dict of {name: dtype}
-    total_rows = df.count().execute()
+    total_rows = df.count().toPandas()
 
-    # Sample for entropy calculation - keep as Ibis Table
+    # Sample for entropy calculation - keep as PySpark DataFrame
     df_sample_table = df.limit(sample_size)
 
     # Identify numeric columns for nonzero_density calculation
@@ -72,11 +74,11 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> ibis.Table:
     for col in schema.keys():
         # Null count
         null_count = (
-            df.select((df[col].isnull()).sum().name("null_count")).execute()["null_count"].iloc[0]
+            df.select((df[col].isnull()).sum().name("null_count")).toPandas()["null_count"].iloc[0]
         )
 
         # Unique count
-        unique_count = df[col].nunique().execute()
+        unique_count = df[col].nunique().toPandas()
 
         # Value density (complement of null ratio, "higher is better")
         value_density = (total_rows - null_count) / total_rows
@@ -89,7 +91,7 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> ibis.Table:
             # Count zeros - use pandas to count after executing
             # Some columns might have all nulls, handle gracefully
             try:
-                zero_result = df.select((df[col] == 0).sum()).execute()
+                zero_result = df.select((df[col] == 0).sum()).toPandas()
                 # Get the value, handling various return formats
                 if hasattr(zero_result, "iloc"):
                     val = zero_result.iloc[0, 0] if len(zero_result) > 0 else 0
@@ -106,8 +108,8 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> ibis.Table:
         # Cardinality ratio
         cardinality_ratio = unique_count / total_rows
 
-        # Shannon entropy (on sample) - using Ibis Table
-        entropy = shannon_entropy_ibis(df_sample_table, col)
+        # Shannon entropy (on sample) - using PySpark DataFrame
+        entropy = shannon_entropy_spark(df_sample_table, col)
 
         # Information score: harmonic mean of (value_density, nonzero_density,
         # cardinality_ratio, entropy) - all metrics are "higher is better"
@@ -121,7 +123,7 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> ibis.Table:
 
         # Sample value - get first non-null value from sample
         sample_result = (
-            df_sample_table.select(col).filter(df_sample_table[col].notnull()).limit(1).execute()
+            df_sample_table.select(col).filter(df_sample_table[col].notnull()).limit(1).toPandas()
         )
         sample_val = str(sample_result[col].iloc[0])[:50] if len(sample_result) > 0 else "<null>"
 
@@ -138,19 +140,20 @@ def attribute_analysis(df: ibis.Table, sample_size: int = 50_000) -> ibis.Table:
             }
         )
 
-    # Build pandas DataFrame, sort, then convert to Ibis Table for return
+    # Build pandas DataFrame, sort, then convert to PySpark DataFrame for return
     results_df = (
         pd.DataFrame(results)
         .sort_values("information_score", ascending=False)
         .reset_index(drop=True)
     )
 
-    # Return as Ibis Table for beautiful rendering and composability
-    return ibis.memtable(results_df)
+    # Return as PySpark DataFrame for beautiful rendering and composability
+    spark = get_spark_session()
+    return spark.createDataFrame(results_df)
 
 
 def stratified_column_filter(
-    attrs: ibis.Table,
+    attrs: DataFrame,
     primary_key_threshold: float = 0.9,
     sparse_threshold: float = 0.6,
     grouping_cardinality: float = 0.1,
@@ -163,7 +166,7 @@ def stratified_column_filter(
     composite_info_score: float = 0.3,
 ) -> tuple[list[str], list[str]]:
     """
-    Apply stratified filtering to attribute analysis results using Ibis operations.
+    Apply stratified filtering to attribute analysis results using PySpark operations.
 
     Different filtering criteria based on cardinality class:
     - Primary keys (>90%): Always drop (no analytical value)
@@ -173,7 +176,7 @@ def stratified_column_filter(
     - Sparse columns: Drop if value_density < threshold
 
     Args:
-        attrs: Output from attribute_analysis() (Ibis Table)
+        attrs: Output from attribute_analysis() (PySpark DataFrame)
         primary_key_threshold: Cardinality ratio above which to drop (primary keys)
         sparse_threshold: Value density below which to drop (too many nulls)
         grouping_cardinality: Max cardinality for grouping dimensions
@@ -195,52 +198,52 @@ def stratified_column_filter(
     """
     # DROP: Primary keys (high cardinality, no grouping utility)
     drop_primary_keys = (
-        attrs.filter(_.cardinality_ratio > primary_key_threshold)
+        attrs.filter(F.col('cardinality_ratio') > primary_key_threshold)
         .select("column")
-        .execute()["column"]
+        .toPandas()["column"]
         .tolist()
     )
 
     # DROP: Sparse columns (too many nulls)
     drop_sparse = (
-        attrs.filter(_.value_density < sparse_threshold)
+        attrs.filter(F.col('value_density') < sparse_threshold)
         .select("column")
-        .execute()["column"]
+        .toPandas()["column"]
         .tolist()
     )
 
     # KEEP: Grouping dimensions (low cardinality, highly complete)
     keep_grouping = (
         attrs.filter(
-            (_.cardinality_ratio <= grouping_cardinality)
-            & (_.value_density > grouping_completeness)
+            (F.col('cardinality_ratio') <= grouping_cardinality)
+            & (F.col('value_density') > grouping_completeness)
         )
         .select("column")
-        .execute()["column"]
+        .toPandas()["column"]
         .tolist()
     )
 
     # KEEP: High cardinality resource IDs (if complete)
     keep_resource_ids = (
         attrs.filter(
-            (_.cardinality_ratio > resource_id_min)
-            & (_.cardinality_ratio <= resource_id_max)
-            & (_.value_density > resource_id_completeness)
+            (F.col('cardinality_ratio') > resource_id_min)
+            & (F.col('cardinality_ratio') <= resource_id_max)
+            & (F.col('value_density') > resource_id_completeness)
         )
         .select("column")
-        .execute()["column"]
+        .toPandas()["column"]
         .tolist()
     )
 
     # KEEP: Medium cardinality composite candidates (if good info score)
     keep_composite_candidates = (
         attrs.filter(
-            (_.cardinality_ratio > composite_min)
-            & (_.cardinality_ratio <= composite_max)
-            & (_.information_score > composite_info_score)
+            (F.col('cardinality_ratio') > composite_min)
+            & (F.col('cardinality_ratio') <= composite_max)
+            & (F.col('information_score') > composite_info_score)
         )
         .select("column")
-        .execute()["column"]
+        .toPandas()["column"]
         .tolist()
     )
 
@@ -252,7 +255,7 @@ def stratified_column_filter(
 
 
 # Backward compatibility alias
-def comprehensive_schema_analysis(df: ibis.Table) -> ibis.Table:
+def comprehensive_schema_analysis(df: DataFrame) -> DataFrame:
     """
     Deprecated: Use attribute_analysis() instead.
 
@@ -262,14 +265,14 @@ def comprehensive_schema_analysis(df: ibis.Table) -> ibis.Table:
     return attribute_analysis(df)
 
 
-def daily_observation_counts(df: ibis.Table, date_col: str | None = None) -> pd.DataFrame:
+def daily_observation_counts(df: DataFrame, date_col: str | None = None) -> pd.DataFrame:
     """
     Count records per day - simple groupby for distribution analysis.
 
     Auto-detects date column if not specified (looks for Date/Datetime types).
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         date_col: Name of date column to group by (None = auto-detect)
 
     Returns:
@@ -288,15 +291,15 @@ def daily_observation_counts(df: ibis.Table, date_col: str | None = None) -> pd.
             raise ValueError("No Date or Datetime columns found in schema")
         date_col = date_cols[0]  # Use first date column found
 
-    return df.group_by(date_col).agg(count=_.count()).order_by(date_col).execute()
+    return df.groupBy(date_col).agg(F.count("*").alias("count")).orderBy(date_col).toPandas()
 
 
-def numeric_column_summary(df: ibis.Table, null_threshold: float = 95.0) -> pd.DataFrame:
+def numeric_column_summary(df: DataFrame, null_threshold: float = 95.0) -> pd.DataFrame:
     """
     Generate summary statistics for numeric columns, filtering high-null columns.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         null_threshold: Exclude columns with null percentage > this value
 
     Returns:
@@ -307,7 +310,7 @@ def numeric_column_summary(df: ibis.Table, null_threshold: float = 95.0) -> pd.D
         >>> display(numeric_summary)
     """
     schema = df.schema()
-    total_rows = df.count().execute()
+    total_rows = df.count().toPandas()
 
     # Identify numeric columns
     numeric_types = (
@@ -339,7 +342,7 @@ def numeric_column_summary(df: ibis.Table, null_threshold: float = 95.0) -> pd.D
         col_expr = df[col]
 
         # Null count
-        null_count = col_expr.isnull().sum().execute()
+        null_count = col_expr.isnull().sum().toPandas()
         null_pct = (null_count / total_rows) * 100
 
         # Filter by null threshold
@@ -347,14 +350,14 @@ def numeric_column_summary(df: ibis.Table, null_threshold: float = 95.0) -> pd.D
             continue
 
         # Compute all statistics
-        unique_count = col_expr.nunique().execute()
-        min_val = col_expr.min().execute()
-        max_val = col_expr.max().execute()
-        mean_val = col_expr.mean().execute()
-        std_val = col_expr.std().execute()
-        median_val = col_expr.median().execute()
-        q25_val = col_expr.quantile(0.25).execute()
-        q75_val = col_expr.quantile(0.75).execute()
+        unique_count = col_expr.nunique().toPandas()
+        min_val = col_expr.min().toPandas()
+        max_val = col_expr.max().toPandas()
+        mean_val = col_expr.mean().toPandas()
+        std_val = col_expr.std().toPandas()
+        median_val = col_expr.median().toPandas()
+        q25_val = col_expr.quantile(0.25).toPandas()
+        q75_val = col_expr.quantile(0.75).toPandas()
 
         results.append(
             {
@@ -379,13 +382,13 @@ def numeric_column_summary(df: ibis.Table, null_threshold: float = 95.0) -> pd.D
 
 
 def categorical_column_summary(
-    df: ibis.Table, null_threshold: float = 95.0, sample_size: int = 100_000
+    df: DataFrame, null_threshold: float = 95.0, sample_size: int = 100_000
 ) -> pd.DataFrame:
     """
     Generate summary statistics for categorical (string) columns, filtering high-null columns.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         null_threshold: Exclude columns with null percentage > this value
         sample_size: Sample size for top value calculation
 
@@ -397,7 +400,7 @@ def categorical_column_summary(
         >>> display(cat_summary)
     """
     schema = df.schema()
-    total_rows = df.count().execute()
+    total_rows = df.count().toPandas()
 
     # Identify categorical (string) columns
     categorical_cols = [
@@ -408,13 +411,13 @@ def categorical_column_summary(
         return pd.DataFrame()
 
     # Sample for top value calculation
-    df_sample = df.select(categorical_cols).limit(sample_size).execute()
+    df_sample = df.select(categorical_cols).limit(sample_size).toPandas()
 
     # Build summary DataFrame
     results = []
     for col in categorical_cols:
         # Null count from full table
-        null_count = df[col].isnull().sum().execute()
+        null_count = df[col].isnull().sum().toPandas()
         null_pct = (null_count / total_rows) * 100
 
         # Filter by null threshold
@@ -422,7 +425,7 @@ def categorical_column_summary(
             continue
 
         # Unique count from full table
-        unique_count = df[col].nunique().execute()
+        unique_count = df[col].nunique().toPandas()
         cardinality_ratio = unique_count / total_rows
 
         # Get top value from sample
@@ -458,9 +461,9 @@ def categorical_column_summary(
     return pd.DataFrame(results)
 
 
-def shannon_entropy_ibis(table: ibis.Table, column: str) -> float:
+def shannon_entropy_spark(table: DataFrame, column: str) -> float:
     """
-    Compute Shannon entropy for an Ibis Table column using Ibis operations.
+    Compute Shannon entropy for a PySpark DataFrame column.
 
     Shannon entropy measures the information content or "confusion" in a distribution.
     Higher entropy indicates more uniform distribution (more information).
@@ -469,21 +472,21 @@ def shannon_entropy_ibis(table: ibis.Table, column: str) -> float:
     Formula: H(X) = -∑ p_i * log(p_i)
 
     Args:
-        table: Input Ibis Table
+        table: Input PySpark DataFrame
         column: Column name to analyze
 
     Returns:
         Shannon entropy (non-negative float, 0 = no entropy)
 
     Example:
-        >>> entropy = shannon_entropy_ibis(df, 'cloud_provider')
+        >>> entropy = shannon_entropy_spark(df, 'cloud_provider')
         >>> print(f"Entropy: {entropy:.3f}")
     """
-    # Get value counts using Ibis aggregation
+    # Get value counts using PySpark aggregation
     value_counts = (
-        table.group_by(column)
-        .agg(count=ibis._.count())
-        .execute()  # Small result (unique values), OK to materialize
+        table.groupBy(column)
+        .agg(F.count("*").alias("count"))
+        .toPandas()  # Small result (unique values), OK to materialize
     )
 
     if len(value_counts) == 0:
@@ -550,7 +553,7 @@ def shannon_entropy(series: pd.Series) -> float:
     return shannon_entropy_pandas(series)
 
 
-def calculate_attribute_scores(df: ibis.Table, sample_size: int = 100_000) -> pd.DataFrame:
+def calculate_attribute_scores(df: DataFrame, sample_size: int = 100_000) -> pd.DataFrame:
     """
     Calculate information scores for all attributes using harmonic mean.
 
@@ -565,7 +568,7 @@ def calculate_attribute_scores(df: ibis.Table, sample_size: int = 100_000) -> pd
     Harmonic mean ensures attributes must score well on ALL dimensions.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         sample_size: Sample size for entropy calculation (expensive on full dataset)
 
     Returns:
@@ -574,23 +577,23 @@ def calculate_attribute_scores(df: ibis.Table, sample_size: int = 100_000) -> pd
 
     Example:
         >>> scores = calculate_attribute_scores(df, sample_size=100_000)
-        >>> scores.head(10)  # Top 10 most informative attributes
+        >>> scores.limit(10)  # Top 10 most informative attributes
     """
     schema = df.schema()
-    total_rows = df.count().execute()
+    total_rows = df.count().toPandas()
 
     # Sample for entropy calculation
-    df_sample = df.limit(sample_size).execute()
+    df_sample = df.limit(sample_size).toPandas()
 
     # Compute metrics for each attribute
     results = []
     for col in schema.keys():
         # Value density
-        non_null_count = total_rows - df[col].isnull().sum().execute()
+        non_null_count = total_rows - df[col].isnull().sum().toPandas()
         value_density = non_null_count / total_rows
 
         # Cardinality ratio
-        unique_count = df[col].nunique().execute()
+        unique_count = df[col].nunique().toPandas()
         cardinality_ratio = unique_count / total_rows
 
         # Shannon entropy (on sample)
@@ -795,12 +798,12 @@ def infer_column_semantics(column_name: str) -> dict:  # noqa: C901
     }
 
 
-def semantic_column_analysis(df: ibis.Table) -> pd.DataFrame:
+def semantic_column_analysis(df: DataFrame) -> pd.DataFrame:
     """
     Analyze all columns to infer semantic meaning from names.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
 
     Returns:
         pandas DataFrame with columns: column, semantic_category, semantic_subcategory,
@@ -835,14 +838,14 @@ def semantic_column_analysis(df: ibis.Table) -> pd.DataFrame:
 # ============================================================================
 
 
-def time_normalized_size(df: ibis.Table, time_col: str, freq: str) -> pd.DataFrame:
+def time_normalized_size(df: DataFrame, time_col: str, freq: str) -> pd.DataFrame:
     """
     Create normalized time series of record counts by frequency.
 
     Aggregate record counts by time period to understand data collection patterns.
 
     Args:
-        df: Input Ibis Table with temporal data
+        df: Input PySpark DataFrame with temporal data
         time_col: Name of datetime column
         freq: Frequency string for pandas (e.g., '1D', '1W', '4h')
             Note: Uses pandas frequency strings after execution
@@ -855,8 +858,8 @@ def time_normalized_size(df: ibis.Table, time_col: str, freq: str) -> pd.DataFra
         >>> weekly_counts = time_normalized_size(df, 'usage_date', '1W')
     """
     # Execute to pandas and use pandas time operations
-    # Ibis doesn't have a direct equivalent to Polars' dt.round
-    pdf = df.select([time_col]).execute()
+    # PySpark doesn't have a direct equivalent to Polars' dt.round
+    pdf = df.select([time_col]).toPandas()
 
     # Round timestamps using pandas
     pdf["time"] = pdf[time_col].dt.floor(freq)
@@ -869,7 +872,7 @@ def time_normalized_size(df: ibis.Table, time_col: str, freq: str) -> pd.DataFra
 
 
 def align_entity_timeseries(
-    df: ibis.Table,
+    df: DataFrame,
     entity_filter: dict[str, any],
     date_col: str,
     metric_col: str,
@@ -879,7 +882,7 @@ def align_entity_timeseries(
     Align entity time series to complete date range, filling zeros only within entity's active period.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         entity_filter: Dict mapping column names to values for filtering (e.g., {'account': '123', 'region': 'us-east-1'})
         date_col: Name of date column
         metric_col: Name of metric column to aggregate
@@ -898,13 +901,13 @@ def align_entity_timeseries(
         ... )
     """
     # Build filter condition
-    filter_cond = ibis.literal(True)
+    filter_cond = F.lit(True)
     for col, val in entity_filter.items():
-        filter_cond = filter_cond & (df[col] == val)
+        filter_cond = filter_cond & (F.col(col) == val)
 
     # Get entity time series
     entity_ts = (
-        df.filter(filter_cond).group_by(date_col).agg(entity_cost=df[metric_col].sum()).execute()
+        df.filter(filter_cond).groupBy(date_col).agg(entity_cost=df[metric_col].sum()).toPandas()
     )
 
     # Get entity's actual date range
@@ -919,8 +922,8 @@ def align_entity_timeseries(
         df.select(date_col)
         .distinct()
         .filter((df[date_col] >= min_date) & (df[date_col] <= max_date))
-        .order_by(date_col)
-        .execute()
+        .orderBy(date_col)
+        .toPandas()
     )
 
     # Merge and fill zeros only within active range
@@ -932,7 +935,7 @@ def align_entity_timeseries(
 
 
 def entity_normalized_by_day(
-    df: ibis.Table, entity_col: str, metric_col: str, date_col: str = "usage_date"
+    df: DataFrame, entity_col: str, metric_col: str, date_col: str = "usage_date"
 ) -> pd.DataFrame:
     """
     Normalize entity metrics by total daily activity.
@@ -946,7 +949,7 @@ def entity_normalized_by_day(
     3. Stabilizes time series for forecasting
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         entity_col: Column to group by (e.g., 'account_id', 'product_family')
         metric_col: Column to normalize (e.g., 'materialized_discounted_cost')
         date_col: Date column for daily aggregation
@@ -962,17 +965,17 @@ def entity_normalized_by_day(
         ... )
     """
     # Aggregate by entity-day
-    entity_day = df.group_by([date_col, entity_col]).agg(metric_raw=df[metric_col].sum())
+    entity_day = df.groupBy([date_col, entity_col]).agg(metric_raw=df[metric_col].sum())
 
     # Compute daily totals
-    daily_totals = entity_day.group_by(date_col).agg(daily_total=entity_day["metric_raw"].sum())
+    daily_totals = entity_day.groupBy(date_col).agg(daily_total=entity_day["metric_raw"].sum())
 
     # Join and normalize
     result = (
         entity_day.join(daily_totals, date_col)
         .mutate(metric_normalized=entity_day["metric_raw"] / daily_totals["daily_total"])
-        .order_by([date_col, entity_col])
-        .execute()
+        .orderBy([date_col, entity_col])
+        .toPandas()
     )
 
     return result
@@ -984,7 +987,7 @@ def entity_normalized_by_day(
 
 
 def smart_sample(
-    df: ibis.Table, n: int, stratify_col: str | None = None, seed: int = 42
+    df: DataFrame, n: int, stratify_col: str | None = None, seed: int = 42
 ) -> pd.DataFrame:
     """
     Sample DataFrame with optional stratification.
@@ -993,7 +996,7 @@ def smart_sample(
     Stratified sampling (proportional within groups) when stratify_col is provided.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         n: Target sample size
         stratify_col: Optional column for stratified sampling
         seed: Random seed for reproducibility
@@ -1009,8 +1012,8 @@ def smart_sample(
         >>> sample = smart_sample(df, n=100_000, stratify_col='cloud_provider')
     """
     # Execute to pandas for sampling operations
-    total_count = df.count().execute()
-    pdf = df.execute()
+    total_count = df.count().toPandas()
+    pdf = df.toPandas()
 
     if stratify_col:
         # Stratified sampling - proportional within groups
@@ -1181,7 +1184,7 @@ def get_categorical_palette(n_colors: int, palette: str = "husl") -> list:
 
 
 def plot_numeric_distributions(
-    df: ibis.Table,
+    df: DataFrame,
     columns: list[str] | None = None,
     group_by: str | None = None,
     sample_size: int = 50_000,
@@ -1195,7 +1198,7 @@ def plot_numeric_distributions(
     Can group by a categorical variable (e.g., cloud_provider) to compare distributions.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         columns: List of numeric columns to plot (None = auto-detect, max 6)
         group_by: Optional categorical column to group by (e.g., 'cloud_provider')
         sample_size: Sample size for plotting (reduces rendering time)
@@ -1226,7 +1229,7 @@ def plot_numeric_distributions(
         select_cols.append(group_by)
 
     # Sample data - execute to pandas
-    sample_df = df.select(select_cols).limit(sample_size).execute()
+    sample_df = df.select(select_cols).limit(sample_size).toPandas()
 
     # Calculate grid dimensions
     n_cols = len(columns)
@@ -1291,7 +1294,7 @@ def plot_numeric_distributions(
 
 
 def plot_categorical_frequencies(  # noqa: C901
-    df: ibis.Table,
+    df: DataFrame,
     columns: list[str] | None = None,
     top_n: int = 10,
     figsize: tuple[int, int] = (14, 10),
@@ -1306,7 +1309,7 @@ def plot_categorical_frequencies(  # noqa: C901
     of values by showing frequency of top categories.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         columns: List of categorical columns to plot (None = auto-detect)
         top_n: Number of top values to display per column
         figsize: Figure size (width, height)
@@ -1336,17 +1339,17 @@ def plot_categorical_frequencies(  # noqa: C901
     fig, axes = plt.subplots(n_rows, cols_per_row, figsize=figsize)
     axes = axes.flatten() if n_cols > 1 else [axes]
 
-    # Compute value counts using Ibis groupby on full dataset
+    # Compute value counts using PySpark groupby on full dataset
     all_value_counts = {}
     global_max = 0
     for col in columns:
         # Group by column and count, then get top N
         value_counts_df = (
-            df.group_by(col)
-            .agg(count=df.count())
-            .order_by(ibis.desc("count"))
+            df.groupBy(col)
+            .agg(F.count("*").alias("count"))
+            .orderBy(F.desc("count"))
             .limit(top_n)
-            .execute()
+            .toPandas()
         )
         all_value_counts[col] = value_counts_df
         if len(value_counts_df) > 0:
@@ -1566,7 +1569,7 @@ def create_correlation_heatmap(
 
 
 def plot_temporal_density(  # noqa: C901
-    df: ibis.Table,
+    df: DataFrame,
     date_col: str,
     metric_col: str | None = None,
     log_scale: bool = False,
@@ -1586,7 +1589,7 @@ def plot_temporal_density(  # noqa: C901
     - Can include marginal distribution (box/hist/kde) alongside time series
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         date_col: Name of date column
         metric_col: Optional metric column to aggregate (None = count records)
         log_scale: Use logarithmic scale for y-axis
@@ -1623,7 +1626,7 @@ def plot_temporal_density(  # noqa: C901
 
     if show_distribution and metric_col:
         # Distribution mode: show value spread at each timestamp
-        daily = df.select(date_col, metric_col).order_by(date_col).execute()
+        daily = df.select(date_col, metric_col).orderBy(date_col).toPandas()
 
         auto_title = f"{metric_col.replace('_', ' ').title()} Distribution Over Time"
         y_label = metric_col.replace("_", " ").title()
@@ -1654,13 +1657,13 @@ def plot_temporal_density(  # noqa: C901
         # Aggregation mode: show single value per timestamp (original behavior)
         if metric_col:
             daily = (
-                df.group_by(date_col).agg(value=df[metric_col].sum()).order_by(date_col).execute()
+                df.groupBy(date_col).agg(F.sum(metric_col).alias("value")).orderBy(date_col).toPandas()
             )
             y_col = "value"
             auto_title = f"{metric_col.replace('_', ' ').title()} Over Time"
             y_label = metric_col.replace("_", " ").title()
         else:
-            daily = df.group_by(date_col).agg(value=_.count()).order_by(date_col).execute()
+            daily = df.groupBy(date_col).agg(F.count("*").alias("value")).orderBy(date_col).toPandas()
             y_col = "value"
             auto_title = "Temporal Observation Density"
             y_label = "Record Count"
@@ -1735,7 +1738,7 @@ def plot_temporal_density(  # noqa: C901
 
 
 def plot_daily_change_analysis(
-    df: ibis.Table,
+    df: DataFrame,
     date_col: str,
     metric_col: str | None = None,
     highlight_threshold: float | None = None,
@@ -1748,7 +1751,7 @@ def plot_daily_change_analysis(
     business events through sharp changes in daily patterns.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         date_col: Name of date column
         metric_col: Optional metric column to analyze (None = count records)
         highlight_threshold: Percent change threshold to highlight (e.g., 0.30 = 30% drop/gain)
@@ -1764,10 +1767,10 @@ def plot_daily_change_analysis(
     """
     # Aggregate by date
     if metric_col:
-        daily = df.group_by(date_col).agg(value=df[metric_col].sum()).order_by(date_col).execute()
+        daily = df.groupBy(date_col).agg(F.sum(metric_col).alias("value")).orderBy(date_col).toPandas()
         metric_name = metric_col.replace("_", " ").title()
     else:
-        daily = df.group_by(date_col).agg(value=_.count()).order_by(date_col).execute()
+        daily = df.groupBy(date_col).agg(F.count("*").alias("value")).orderBy(date_col).toPandas()
         metric_name = "Record Count"
 
     # Compute day-over-day percent change
@@ -1843,7 +1846,7 @@ def plot_daily_change_analysis(
 
 
 def plot_dimension_cost_summary(
-    df: ibis.Table,
+    df: DataFrame,
     dimensions: list[str],
     cost_col: str,
     top_n: int = 10,
@@ -1857,7 +1860,7 @@ def plot_dimension_cost_summary(
     Uses seaborn for consistent styling and automatic color palettes.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         dimensions: List of dimensional columns to analyze (e.g., ['provider', 'region', 'product'])
         cost_col: Cost column name
         top_n: Number of top values to show per dimension
@@ -1899,11 +1902,11 @@ def plot_dimension_cost_summary(
 
         # Compute top N by cost
         dim_summary = (
-            df.group_by(dim)
-            .agg(total_cost=df[cost_col].sum())
-            .order_by(ibis.desc("total_cost"))
+            df.groupBy(dim)
+            .agg(F.sum(cost_col).alias("total_cost"))
+            .orderBy(F.desc("total_cost"))
             .limit(top_n)
-            .execute()
+            .toPandas()
         )
 
         if len(dim_summary) > 0:
@@ -1944,7 +1947,7 @@ def plot_dimension_cost_summary(
 
 
 def plot_entity_timeseries(
-    df: ibis.Table,
+    df: DataFrame,
     entity_filters: list[dict[str, any]],
     date_col: str,
     metric_col: str,
@@ -1959,7 +1962,7 @@ def plot_entity_timeseries(
     Uses entity filters to select specific entities and plots their metric over time.
 
     Args:
-        df: Input Ibis Table
+        df: Input PySpark DataFrame
         entity_filters: List of dicts mapping column names to values for filtering
                        Example: [{'provider': 'AWS', 'account': '123'}, {'provider': 'Azure', 'account': '456'}]
         date_col: Name of date column
