@@ -77,6 +77,12 @@ from loguru import logger
 import warnings
 warnings.filterwarnings('ignore')
 
+# PySpark imports
+from pyspark.sql import functions as F
+from hellocloud.spark import get_spark_session
+
+spark = get_spark_session(app_name="iops-eda")
+
 # Cloud simulator utilities
 from hellocloud.analysis.distribution import (
     plot_pdf_cdf_comparison,
@@ -92,12 +98,6 @@ alt.data_transformers.disable_max_rows()
 alt.theme.active = 'quartz'  # Updated for Altair 5.5.0+
 sns.set_theme(style='whitegrid', palette='colorblind')
 plt.rcParams['figure.dpi'] = 100
-
-# Environment info
-spark.createDataFrame({
-    'Library': ['Pandas', 'Polars', 'NumPy', 'Matplotlib', 'Seaborn', 'Altair'],
-    'Version': [pd.__version__, pl.__version__, np.__version__, plt.matplotlib.__version__, sns.__version__, alt.__version__]
-})
 ```
 
 ## 1. Dataset Loading
