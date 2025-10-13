@@ -286,9 +286,7 @@ def compute_kl_divergences(
         interpretation = (
             "Very different"
             if kl_forward > 1.0
-            else "Moderately different"
-            if kl_forward > 0.1
-            else "Similar"
+            else "Moderately different" if kl_forward > 0.1 else "Similar"
         )
 
         results[name] = {"KL Divergence": float(kl_forward), "Interpretation": interpretation}
@@ -303,9 +301,7 @@ def compute_kl_divergences(
             interpretation_reverse = (
                 "Very different"
                 if kl_reverse > 1.0
-                else "Moderately different"
-                if kl_reverse > 0.1
-                else "Similar"
+                else "Moderately different" if kl_reverse > 0.1 else "Similar"
             )
 
             results[reverse_name] = {
