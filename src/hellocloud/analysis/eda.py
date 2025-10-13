@@ -2209,3 +2209,46 @@ def plot_grain_persistence_comparison(
 
     plt.tight_layout()
     return fig
+
+
+# ============================================================================
+# Correlation Analysis
+# ============================================================================
+
+
+def correlation_pairs(
+    df: DataFrame, columns: list[str], method: str = "pearson"
+) -> DataFrame:
+    """
+    Compute pairwise correlations for specified columns.
+
+    Returns long-format DataFrame with schema (col1, col2, correlation).
+    Stays entirely in PySpark - no pandas conversion.
+
+    Args:
+        df: Input PySpark DataFrame
+        columns: List of column names to compute correlations for
+        method: Correlation method ('pearson' supported)
+
+    Returns:
+        PySpark DataFrame with columns (col1, col2, correlation)
+        containing all unique pairs and their correlation values.
+
+    Example:
+        >>> corr_df = correlation_pairs(df, ['cost', 'usage', 'duration'])
+        >>> corr_df.filter(F.abs(F.col('correlation')) > 0.7).show()
+    """
+    from itertools import combinations
+    from pyspark.sql import Row
+
+    # Generate all unique pairs
+    pairs = combinations(columns, 2)
+
+    # Compute correlation for each pair
+    correlations = [
+        Row(col1=col1, col2=col2, correlation=df.corr(col1, col2, method=method))
+        for col1, col2 in pairs
+    ]
+
+    # Return as PySpark DataFrame
+    return df.sparkSession.createDataFrame(correlations)
