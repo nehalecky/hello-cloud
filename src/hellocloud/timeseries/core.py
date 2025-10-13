@@ -49,6 +49,24 @@ class TimeSeries:
                 "Creating TimeSeries from empty DataFrame. Operations will return empty results."
             )
 
+    @classmethod
+    def from_dataframe(
+        cls, df: DataFrame, hierarchy: list[str], metric_col: str = "cost", time_col: str = "date"
+    ) -> "TimeSeries":
+        """
+        Factory method to create TimeSeries from DataFrame.
+
+        Args:
+            df: PySpark DataFrame with time series data
+            hierarchy: Ordered key columns (e.g., ["provider", "account"])
+            metric_col: Name of metric column (default: "cost")
+            time_col: Name of timestamp column (default: "date")
+
+        Returns:
+            TimeSeries instance
+        """
+        return cls(df=df, hierarchy=hierarchy, metric_col=metric_col, time_col=time_col)
+
     def _validate_columns(self) -> None:
         """Validate that required columns exist in DataFrame."""
         df_cols = set(self.df.columns)

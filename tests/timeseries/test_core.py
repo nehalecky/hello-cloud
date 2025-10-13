@@ -100,3 +100,40 @@ class TestTimeSeriesValidation:
         assert ts.hierarchy == ["provider"]
         assert ts.metric_col == "cost"
         assert ts.time_col == "date"
+
+
+class TestTimeSeriesFactoryMethods:
+    """Test TimeSeries factory methods."""
+
+    def test_from_dataframe_creates_instance(self, spark):
+        """Should create TimeSeries from DataFrame via factory method."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", 100.0),
+            ],
+            ["date", "provider", "account", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(
+            df, hierarchy=["provider", "account", "region"], metric_col="cost", time_col="date"
+        )
+
+        assert isinstance(ts, TimeSeries)
+        assert ts.hierarchy == ["provider", "account", "region"]
+        assert ts.metric_col == "cost"
+        assert ts.time_col == "date"
+
+    def test_from_dataframe_with_defaults(self, spark):
+        """Should use default column names if not specified."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", 100.0),
+            ],
+            ["date", "provider", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider"])
+
+        # Should default to metric_col="cost", time_col="date"
+        assert ts.metric_col == "cost"
+        assert ts.time_col == "date"
