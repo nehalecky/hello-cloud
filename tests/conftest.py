@@ -45,9 +45,13 @@ pytest.TEST_DATA_DIR = Path(__file__).parent / "test_data"
 def set_random_seed():
     """Automatically set random seed for reproducible tests."""
     np.random.seed(pytest.TEST_SEED)
+    if TORCH_AVAILABLE:
+        torch.manual_seed(pytest.TEST_SEED)
     yield
     # Reset after test
     np.random.seed(None)
+    if TORCH_AVAILABLE:
+        torch.manual_seed(torch.seed())
 
 
 @pytest.fixture(scope="session")
