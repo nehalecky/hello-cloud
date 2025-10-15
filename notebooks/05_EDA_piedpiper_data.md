@@ -7,7 +7,7 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.17.3
 kernelspec:
-  display_name: Python 3 (ipykernel)
+  display_name: .venv
   language: python
   name: python3
 language_info:
@@ -19,7 +19,7 @@ language_info:
   name: python
   nbconvert_exporter: python
   pygments_lexer: ipython3
-  version: 3.11.13
+  version: 3.12.12
 ---
 
 # PiedPiper Dataset - Exploratory Data Analysis
@@ -125,7 +125,7 @@ import hellocloud as hc
 spark = hc.spark.get_spark_session(app_name="piedpiper-eda")
 
 # Configure visualization style
-hc.utils.setup_seaborn_style(style='whitegrid', palette='husl', context='notebook')
+#hc.utils.setup_seaborn_style(style='whitegrid', palette='husl', context='notebook')
 
 hc.configure_notebook_logging()
 logger.info("PiedPiper EDA - Notebook initialized (PySpark + Seaborn)")
@@ -137,7 +137,7 @@ logger.info("PiedPiper EDA - Notebook initialized (PySpark + Seaborn)")
 # Load Parquet file
 DATA_PATH = Path('~/Projects/cloudzero/hello-cloud/data/piedpiper_optimized_daily.parquet').expanduser()
 df = spark.read.parquet(str(DATA_PATH))
-df = df.cache()  # Cache for faster repeated access
+#df = df.cache()  # Cache for faster repeated access
 
 # Basic shape
 total_rows = df.count()
@@ -154,23 +154,33 @@ df.limit(5).toPandas()
 ### 1.3 Temporal Observation Density
 
 ```{code-cell} ipython3
+df.limit(1).toPandas().dtypes
+```
+
+```{code-cell} ipython3
+df.schema
+```
+
+```{code-cell} ipython3
 # Identify date column and stats
-from pyspark.sql.types import DateType, TimestampType
+from re import A
+from pyspark.sql.types import DateType, TimestampType, TimestampNTZType
 
 date_cols = [
     field.name for field in df.schema.fields
-    if isinstance(field.dataType, (DateType, TimestampType))
+    if isinstance(field.dataType, (DateType, TimestampType, TimestampNTZType))
 ]
-logger.info(f"Date/Datetime columns found: {date_cols}")
-logger.info(f"Renaming {date_cols[0]} → date")
-df = df.withColumnRenamed(date_cols[0], 'date')
+date_cols
+# logger.info(f"Date/Datetime columns found: {date_cols}")
+# logger.info(f"Renaming {date_cols[0]} → date")
+# df = df.withColumnRenamed(date_cols[0], 'date')
 
-date_stats = df.agg(
-    F.countDistinct('date').alias('unique_date'),
-    F.min('date').alias('min_date'),
-    F.max('date').alias('max_date')
-)
-date_stats.toPandas()
+# date_stats = df.agg(
+#     F.countDistinct('date').alias('unique_date'),
+#     F.min('date').alias('min_date'),
+#     F.max('date').alias('max_date')
+# )
+# date_stats.toPandas()
 ```
 
 **Noted** Max date spans into the future `2025-12-31`.
@@ -182,8 +192,8 @@ df.transform(hc.transforms.summary_stats(value_col='cost', group_col='date'))
 ```
 
 ```{code-cell} ipython3
-# Plot temporal observation density with seaborn
-fig = hc.utils.plot_temporal_density(
+# Plot temporal observation density with seaborn (enhanced with ConciseDateFormatter and shading)
+fig = hc.analysis.eda.plot_temporal_density(
     df,
     date_col='date',
     log_scale=True,

@@ -12,7 +12,7 @@ kernelspec:
   name: python3
 ---
 
-# Understanding Cloud Workload Signatures: A Comprehensive Guide
+# Understanding Cloud Workload Signatures: A Comprehensive Guide 2
 
 This notebook explores **why** different cloud workload types have distinct resource utilization patterns. We'll examine the underlying technical and business reasons that create these signatures, grounded in empirical research.
 
