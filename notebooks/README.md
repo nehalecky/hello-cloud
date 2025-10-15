@@ -68,15 +68,22 @@ Outputs only appear when you **execute cells** in Jupyter (Lab/Notebook/VSCode).
 
 ### Workflow Options
 
-**Option 1: Cursor + vscode-jupytext-sync Extension** ⭐ **Auto-Sync on Save**
+**Option 1: VSCode/Cursor** ⭐ **Open .ipynb, Edit .md**
 ```bash
-# If extension installed: vscode-jupytext-sync by caenrigen
-# Just edit and save - extension auto-syncs!
-vim notebooks/06_quickstart.md
-# Press Cmd+S → auto-syncs to _build/*.ipynb
+# 1. Ensure pairing is set up (one-time setup)
+uv run jupytext --set-formats notebooks//md:myst,notebooks/_build//ipynb notebooks/_build/*.ipynb
+
+# 2. Open the .ipynb file from _build/ in VSCode
+# File → Open → notebooks/_build/06_quickstart_timeseries_loader.ipynb
+
+# 3. Edit and execute in VSCode's notebook interface
+# 4. When you save, Jupytext auto-syncs changes back to the .md file
+
+# 5. To manually sync if needed:
+uv run jupytext --sync notebooks/_build/06_quickstart_timeseries_loader.ipynb
 ```
 
-**Default behavior:** Syncs automatically when you save `.md` or `.ipynb` files.
+**IMPORTANT:** Open `.ipynb` files from `_build/`, NOT the `.md` files directly. VSCode's Jupyter extension doesn't recognize `.md` files as notebooks.
 
 **Option 2: Jupyter Lab** ⭐ **Auto-Sync on Save**
 ```bash

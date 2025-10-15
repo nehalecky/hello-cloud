@@ -43,6 +43,18 @@ nb NAME:
 nb-test NAME:
     uv run jupytext notebooks/{{NAME}}.md --to ipynb --execute --output /dev/null
 
+# Setup Jupytext pairing for VSCode/Cursor (one-time setup)
+nb-setup-pairing:
+    @echo "Setting up Jupytext pairing for all notebooks..."
+    @mkdir -p notebooks/_build
+    @for ipynb in notebooks/_build/*.ipynb; do \
+        if [ -f "$$ipynb" ]; then \
+            echo "  → $$(basename $$ipynb)"; \
+            uv run jupytext --set-formats notebooks//md:myst,notebooks/_build//ipynb "$$ipynb"; \
+        fi \
+    done
+    @echo "✓ Pairing configured. Open .ipynb files from notebooks/_build/ in VSCode"
+
 # Convert notebook to ipynb (for sharing)
 nb-convert NAME:
     uv run jupytext notebooks/{{NAME}}.md --to ipynb --output notebooks/_build/{{NAME}}.ipynb
