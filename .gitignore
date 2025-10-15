@@ -41,7 +41,9 @@ htmlcov/
 .ipynb_checkpoints/
 # ALL .ipynb files are ignored - MyST markdown (.md) is canonical source
 *.ipynb
-!notebooks/published/*.ipynb  # EXCEPT published notebooks for Colab
+# EXCEPT published notebooks for Colab (must unignore directory first)
+!notebooks/published/
+!notebooks/published/*.ipynb
 *.nbconvert.ipynb  # nbconvert temporary files
 # MyST markdown notebooks are version controlled as the canonical source
 # notebooks/*.md files are the source of truth

@@ -7,12 +7,24 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.17.3
 kernelspec:
-  display_name: Python 3 (ipykernel)
+  display_name: .venv
   language: python
   name: python3
+language_info:
+  codemirror_mode:
+    name: ipython
+    version: 3
+  file_extension: .py
+  mimetype: text/x-python
+  name: python
+  nbconvert_exporter: python
+  pygments_lexer: ipython3
+  version: 3.12.12
 ---
 
 # Quick Start: TimeSeries Loader
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/notebooks/published/06_quickstart_timeseries_loader.ipynb)
 
 ## Overview
 
@@ -46,6 +58,7 @@ except ImportError:
 # Auto-reload: Picks up library changes without kernel restart
 %load_ext autoreload
 %autoreload 2
+%config InlineBackend.figure_formats = ['png', 'retina']
 ```
 
 ```{code-cell} ipython3
@@ -64,7 +77,8 @@ from pyspark.sql import functions as F
 import hellocloud as hc
 
 # Set seaborn theme for publication-quality plots
-sns.set_theme(style="whitegrid")
+
+sns.set_theme()
 
 # Get Spark session
 spark = hc.spark.get_spark_session(app_name="quickstart-timeseries")
@@ -85,7 +99,7 @@ from hellocloud.timeseries import TimeSeries
 # Load raw data
 #data_path = Path("../data/piedpiper_processed/piedpiper_clean")  # Adjust to your data location
 #/cloudzero/hello-cloud/data/piedpiper_optimized_daily.parquet
-data_path = Path("../data/piedpiper_optimized_daily.parquet")
+data_path = Path("../../data/piedpiper_optimized_daily.parquet")
 raw_df = spark.read.parquet(str(data_path))
 
 print(f"Raw data: {raw_df.count():,} records, {len(raw_df.columns)} columns")
@@ -97,196 +111,90 @@ print(f"Raw data: {raw_df.count():,} records, {len(raw_df.columns)} columns")
 ts = PiedPiperLoader.load(raw_df)
 ```
 
-**Key insight**: The `TimeSeries` object wraps the full dataset - no entity splitting. Operations create filtered views on-demand.
+## Temporal Observation Density Analysis
 
----
+  One of the first diagnostic checks for any time series dataset is **observation density** -
+  how consistently are records captured over time?
 
-## 2. Basic Operations
+  ### Why This Matters
 
-### 2.1 Filter to Specific Entity
+  Real-world data collection is messy. Systems fail, APIs timeout, data pipelines have gaps.
+  Before modeling or analysis, you need to understand:
+
+  1. **Data Completeness**: Are there missing dates or sparse periods?
+  2. **Collection Consistency**: Does observation frequency change over time?
+  3. **Quality Issues**: Do sudden drops signal upstream problems?
+
+  ### What the Plot Shows
+
+  The temporal density plot displays:
+  - **Top panel**: Record count per day (with shaded area for visual weight)
+  - **Bottom panel** (optional): Day-over-day percent change
+    - 🟢 Green bars = increases in observations
+    - 🔴 Red bars = decreases in observations
+
+  ### Interpretation Guide
+
+  **Healthy patterns:**
+  - Steady observation counts (flat line)
+  - Small day-to-day variations (<10%)
+  - No sudden drops or gaps
+
+  **Warning signs:**
+  - Sharp drops (>30-50%) suggest data quality issues
+  - Increasing trends may indicate growing system coverage
+  - Periodic spikes/drops might be business cycle effects (weekends, holidays)
 
 ```{code-cell} ipython3
-ts.df.limit(10).toPandas()
+# Overall record density over time.
+ts.plot_temporal_density(show_pct_change=True)
+```
+
+**Observation**: We observe a sharp drop (> 30%) on 2025-10-06, and with data in future. We'll filter the time series to only consider data prior to this date.
+
+```{code-cell} ipython3
+ts = ts.filter_time(end='2025-10-06')
+ts.plot_temporal_density(show_pct_change=True)
 ```
 
 ```{code-cell} ipython3
-# Filter to specific account + region
-ts_filtered = ts.filter(cloud_account_id="123", region="us-east-1")
 
-print(f"Filtered to 1 entity:")
-print(f"  Records: {ts_filtered.df.count():,}")
-print(f"  Date range: {ts_filtered.df.agg(F.min('date'), F.max('date')).collect()[0]}")
 ```
 
-### 2.2 Sample Random Entities
+Now we check record density across the additional distinct keys.
 
 ```{code-cell} ipython3
-# Sample 10 random account+region combinations
-ts_sample = ts.sample(grain=["cloud_account_id", "region"], n=10)
-
-print(f"Sampled 10 entities:")
-print(f"  Unique entities: {ts_sample.df.select('cloud_account_id', 'region').distinct().count()}")
-print(f"  Total records: {ts_sample.df.count():,}")
+ts.plot_density_by_grain(['region', 'product', 'usage', 'provider'], show_pct_change=True)
 ```
 
-### 2.3 Aggregate to Coarser Grain
+We note some loss of distinct entities in the temporal density plot in the product, usage and provieder grains, however, overall data appears to be complete.
+
++++
+
+## Cost Analysis
 
 ```{code-cell} ipython3
-# Roll up from account+region+product to just account level
-ts_account = ts.aggregate(grain=["cloud_account_id"])
-
-print(f"Aggregated to account level:")
-print(f"  Unique accounts: {ts_account.df.select('cloud_account_id').distinct().count()}")
-print(f"  Hierarchy preserved: {ts_account.hierarchy}")
-print(f"  Columns removed: region, product_family, usage_type")
+ts.plot_cost_treemap(['provider', 'region'], top_n=30)
 ```
 
-### 2.4 Summary Statistics
-
 ```{code-cell} ipython3
-# Compute stats across all accounts
-stats = ts_account.summary_stats()
-
-# Show top 5 accounts by mean cost
-stats_pd = stats.toPandas().sort_values('mean', ascending=False).head()
-print("\nTop 5 accounts by average daily cost:")
-print(stats_pd[['cloud_account_id', 'count', 'mean', 'std', 'min', 'max']])
+# 1. Summary statistics (DataFrame)
+stats = ts.cost_summary_by_grain(['region'])
+stats.toPandas().sort_values('total_cost', ascending=False)
 ```
 
----
-
-## 3. Visualization
-
-### 3.1 Single Entity Time Series
-
 ```{code-cell} ipython3
-# Get one entity for visualization
-ts_single = ts.sample(grain=["cloud_account_id", "region"], n=1)
-
-# Convert to pandas for plotting
-pdf = ts_single.df.toPandas()
-pdf['date'] = pd.to_datetime(pdf['date'])
-
-# Create plot
-fig, ax = plt.subplots(figsize=(12, 6))
-ax.plot(pdf['date'], pdf['cost'], linewidth=2, color='steelblue')
-
-# Automatic date formatting (adapts to date range)
-locator = ax.xaxis.get_major_locator()
-ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
-
-ax.set_ylabel('Cost ($)', fontsize=12)
-ax.set_xlabel('Date', fontsize=12)
-ax.set_title('Daily Cost - Single Entity', fontsize=14, fontweight='bold')
-ax.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
+# 2. Box plot - Daily cost distributions
+ts.plot_cost_distribution(['provider'], top_n=15, min_cost=10, log_scale=True)
 ```
 
-**Date formatting**: `ConciseDateFormatter` automatically adapts labels based on date range:
-- **< 1 week**: Shows days (Mon, Tue, ...)
-- **1-4 weeks**: Shows days + month
-- **1-12 months**: Shows months
-- **> 1 year**: Shows years
-
-### 3.2 Multiple Entities Comparison
-
 ```{code-cell} ipython3
-# Sample 5 accounts for comparison
-ts_multi = ts.aggregate(grain=["cloud_account_id"]).sample(grain=["cloud_account_id"], n=5)
-
-# Convert to pandas
-pdf_multi = ts_multi.df.toPandas()
-pdf_multi['date'] = pd.to_datetime(pdf_multi['date'])
-
-# Create plot with one line per account
-fig, ax = plt.subplots(figsize=(12, 6))
-
-for account_id in pdf_multi['cloud_account_id'].unique():
-    account_data = pdf_multi[pdf_multi['cloud_account_id'] == account_id]
-    ax.plot(account_data['date'], account_data['cost'],
-            label=f"Account {account_id}", linewidth=2, alpha=0.7)
-
-# Date formatting
-locator = ax.xaxis.get_major_locator()
-ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
-
-ax.set_ylabel('Cost ($)', fontsize=12)
-ax.set_xlabel('Date', fontsize=12)
-ax.set_title('Daily Cost - Multiple Accounts', fontsize=14, fontweight='bold')
-ax.legend(title='Account', bbox_to_anchor=(1.05, 1), loc='upper left')
-ax.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
+ # 3. Time series trends - Top spenders over time
+ts.plot_cost_trends(['region'], top_n=5, show_total=True, log_scale=True)
 ```
 
-### 3.3 Stacked Area Plot (Hierarchical View)
-
 ```{code-cell} ipython3
-# Aggregate to top 5 accounts, pivot for stacking
-ts_top5 = ts.aggregate(grain=["cloud_account_id"]).sample(grain=["cloud_account_id"], n=5)
-pdf_top5 = ts_top5.df.toPandas()
-pdf_top5['date'] = pd.to_datetime(pdf_top5['date'])
 
-# Pivot to wide format for stacking
-pivot = pdf_top5.pivot(index='date', columns='cloud_account_id', values='cost').fillna(0)
-
-# Create stacked area plot
-fig, ax = plt.subplots(figsize=(12, 6))
-ax.stackplot(pivot.index, *[pivot[col] for col in pivot.columns],
-             labels=pivot.columns, alpha=0.7)
-
-# Date formatting
-locator = ax.xaxis.get_major_locator()
-ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
-
-ax.set_ylabel('Cost ($)', fontsize=12)
-ax.set_xlabel('Date', fontsize=12)
-ax.set_title('Stacked Daily Cost - Top 5 Accounts', fontsize=14, fontweight='bold')
-ax.legend(title='Account', bbox_to_anchor=(1.05, 1), loc='upper left')
-ax.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
-```
-
----
-
-## 4. Advanced: Custom Plotting with Pass-Through
-
-The plotting examples above use standard matplotlib. You can customize further by:
-
-```{code-cell} ipython3
-# Example: Custom styling with matplotlib kwargs
-fig, ax = plt.subplots(figsize=(12, 6))
-pdf_single = ts_single.df.toPandas()
-pdf_single['date'] = pd.to_datetime(pdf_single['date'])
-
-# Plot with custom styling
-ax.plot(pdf_single['date'], pdf_single['cost'],
-        color='darkred',           # Custom color
-        linewidth=3,               # Thicker line
-        linestyle='--',            # Dashed line
-        marker='o',                # Add markers
-        markersize=4,              # Marker size
-        alpha=0.8,                 # Transparency
-        label='Daily Cost')
-
-# Add reference lines
-mean_cost = pdf_single['cost'].mean()
-ax.axhline(y=mean_cost, color='gray', linestyle=':',
-           label=f'Mean: ${mean_cost:.2f}', alpha=0.7)
-
-# Date formatting
-locator = ax.xaxis.get_major_locator()
-ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
-
-ax.set_ylabel('Cost ($)', fontsize=12)
-ax.set_xlabel('Date', fontsize=12)
-ax.set_title('Custom Styled Plot', fontsize=14, fontweight='bold')
-ax.legend()
-ax.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
 ```
 
 **Key pattern**: Create the `ax` object, customize as needed, return `ax` for further manipulation.
