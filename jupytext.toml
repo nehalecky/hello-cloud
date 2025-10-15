@@ -1,7 +1,0 @@
-# Jupytext Configuration
-# Keeps .md files as source of truth, generates .ipynb in _build/ directory
-
-# Default formats for notebooks directory
-[formats]
-"notebooks/" = "md:myst"           # Source format (version controlled)
-"notebooks/_build/" = "ipynb"      # Generated notebooks (gitignored)

@@ -2,6 +2,18 @@
 
 This repository uses **MyST Markdown** as the canonical source for all notebooks, with automatic `.ipynb` generation for interactive work.
 
+## 🎯 Quick Start (TL;DR)
+
+```bash
+# Edit .md files in Cursor, sync to .ipynb for execution
+uv run jupytext --sync notebooks/YOUR_NOTEBOOK.md
+
+# Open the generated .ipynb in Cursor or Jupyter Lab
+# Kernel should auto-select as "Python 3 (ipykernel)"
+```
+
+**Workflow:** Edit `.md` (clean, version-controlled) → Sync → Execute `.ipynb` (gitignored artifact)
+
 ## 📁 Directory Structure
 
 ```
@@ -26,19 +38,66 @@ notebooks/
 - `notebooks/_build/*.ipynb` - Generated notebooks (recreated from .md)
 - `.ipynb_checkpoints/` - Jupyter temporary files
 
-## 🔄 MyST → Jupyter Workflow
+## 🔄 Jupytext Workflow (MyST ↔ Jupyter)
 
-**👉 See [WORKFLOW.md](WORKFLOW.md) for the complete hot reload workflow!**
+**Configuration:** All pairing handled by `pyproject.toml` → `[tool.jupytext.formats]`
 
-### Quick Start
-
-```bash
-# Use the helper script
-./scripts/notebook-workflow.sh lab
-
-# Or launch directly
-uv run jupyter lab notebooks/
+```toml
+[tool.jupytext.formats]
+"notebooks/" = "md:myst"        # Source (version controlled)
+"notebooks/_build/" = "ipynb"   # Generated (gitignored)
 ```
+
+### Understanding Content vs Outputs
+
+`★ Insight ─────────────────────────────────────`
+**What Jupytext Syncs (Bidirectional):**
+- ✅ Code cells (Python code)
+- ✅ Markdown cells (documentation)
+- ✅ Cell metadata (tags, settings)
+
+**What Jupytext Does NOT Sync:**
+- ❌ Cell outputs (plots, tables, print statements)
+- ❌ Execution counts (`[1]`, `[2]`, etc.)
+- ❌ Kernel state
+
+**Mental Model:** `.md` = source code | `.ipynb` = source + execution results
+
+Outputs only appear when you **execute cells** in Jupyter (Lab/Notebook/VSCode).
+`─────────────────────────────────────────────────`
+
+### Workflow Options
+
+**Option 1: Cursor + vscode-jupytext-sync Extension** ⭐ **Auto-Sync on Save**
+```bash
+# If extension installed: vscode-jupytext-sync by caenrigen
+# Just edit and save - extension auto-syncs!
+vim notebooks/06_quickstart.md
+# Press Cmd+S → auto-syncs to _build/*.ipynb
+```
+
+**Default behavior:** Syncs automatically when you save `.md` or `.ipynb` files.
+
+**Option 2: Jupyter Lab** ⭐ **Auto-Sync on Save**
+```bash
+# Jupyter Lab has Jupytext integration built-in
+uv run jupyter lab
+
+# Open .md file directly - Jupyter shows it as notebook
+# Syncs to _build/*.ipynb automatically on save
+```
+
+**Option 3: Manual CLI Sync**
+```bash
+# Sync specific notebook
+uv run jupytext --sync notebooks/06_quickstart.md
+
+# Sync all notebooks
+uv run jupytext --sync notebooks/*.md
+```
+
+**Option 4: VSCode Task (Keyboard Shortcut)** *(optional setup)*
+Add `.vscode/tasks.json` for **Cmd+Shift+B** sync shortcut (see [WORKFLOW.md](WORKFLOW.md)).
 
 ### Hot Reload Pattern ⚡ (Eliminates Kernel Restarts)
 
@@ -50,11 +109,11 @@ Add this to the **top of your notebook** to auto-reload library code when edited
 ```
 
 **Now you can:**
-1. Edit `src/cloud_sim/` modules with Claude Code
+1. Edit `src/hellocloud/` modules with Claude Code
 2. Changes are picked up automatically
 3. **No kernel restart needed** - keeps trained models, loaded data intact!
 
-Jupytext manages `.md` ↔ `.ipynb` syncing automatically via `jupytext.toml`.
+**👉 See [WORKFLOW.md](WORKFLOW.md) for detailed development patterns.**
 
 ## 🧬 MyST Format Benefits
 
@@ -142,16 +201,81 @@ mv existing_notebook.md notebooks/
 
 ## 🔧 Configuration
 
-- **Global**: `.jupytext.toml` - Project defaults
-- **Per-file**: YAML frontmatter in MyST files - Kernel selection
-- **Pairing**: Set with `jupytext --set-formats md:myst,ipynb file.md`
+**Primary Config:** `pyproject.toml` (standard Python PEP 518)
+
+```toml
+[tool.jupytext]
+notebook_metadata_filter = "-all"
+cell_metadata_filter = "-all"
+
+[tool.jupytext.formats]
+"notebooks/" = "md:myst"        # Source directory
+"notebooks/_build/" = "ipynb"   # Build directory
+```
+
+**Why `pyproject.toml`?**
+- ✅ Works with Jupytext CLI, Jupyter Lab, AND VSCode extensions
+- ✅ Standard Python project config (one file for everything)
+- ✅ Recognized by all modern Python tools
+
+**Legacy Config Files (NOT USED):**
+- `.jupytext.toml` - CLI-only, doesn't work with Jupyter (deprecated)
+- `jupytext.toml` - Redundant with `pyproject.toml`
 
 ## 📋 File Lifecycle
 
-1. **Create**: Write MyST markdown
-2. **Develop**: Generate .ipynb, work in Jupyter
-3. **Commit**: Only MyST (.md) goes to git
-4. **Share**: Others run `jupytext --to ipynb` to get .ipynb
-5. **Collaborate**: Everyone works from same MyST source
+1. **Create**: Write MyST markdown (`.md`)
+2. **Develop**: Sync to `.ipynb`, work in Jupyter
+3. **Execute**: Run cells → outputs appear in `.ipynb` only
+4. **Commit**: Only MyST (`.md`) goes to git
+5. **Publish**: CI/Quarto executes notebooks and generates outputs at build time
 
 **Result**: Clean git history, reproducible notebooks, no merge conflicts! 🎉
+
+## 📤 Publishing Notebooks with Outputs
+
+**Key Insight:** Outputs (plots, tables) are **execution artifacts**, not source code.
+
+### Recommended Approach: Execute at Build Time
+
+**Our setup (Quarto):**
+```bash
+quarto render docs/
+# Quarto reads .md files, executes them, captures outputs, renders HTML
+```
+
+**Benefits:**
+- ✅ Git tracks `.md` only (clean, small commits)
+- ✅ Outputs always up-to-date (regenerated on each build)
+- ✅ No stale outputs (code and results always match)
+
+**Alternative: Execute on CI/CD:**
+```bash
+# In GitHub Actions
+uv run jupyter nbconvert --to notebook --execute notebooks/*.md
+# Deploys executed .ipynb files to GitHub Pages
+```
+
+### Local Verification Workflow
+
+```bash
+# 1. Edit .md file in Cursor
+vim notebooks/06_quickstart.md
+
+# 2. Sync to .ipynb
+uv run jupytext --sync notebooks/06_quickstart.md
+
+# 3. Execute in Jupyter Lab (verify outputs look good)
+uv run jupyter lab notebooks/_build/06_quickstart.ipynb
+
+# 4. Discard .ipynb (gitignored, will be regenerated)
+git status  # Only .md file shows as modified
+
+# 5. Commit .md only
+git add notebooks/06_quickstart.md
+git commit -m "docs: update quickstart analysis"
+
+# 6. CI/Quarto regenerates outputs at publish time
+```
+
+**Why this works:** The `.ipynb` in `_build/` is ephemeral - used for local execution, discarded, regenerated fresh at publish time.
