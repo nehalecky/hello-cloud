@@ -543,3 +543,386 @@ class TestTimeSeriesSummaryStats:
         assert result["min"] == 100.0
         assert result["max"] == 200.0
         assert result["std"] > 0  # Should have standard deviation
+
+
+class TestTimeSeriesPlotTemporalDensity:
+    """Test TimeSeries plot_temporal_density visualization method."""
+
+    def test_returns_matplotlib_figure(self, spark):
+        """Should return matplotlib Figure object."""
+        import matplotlib.pyplot as plt
+
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-02", "AWS", "acc1", 110.0),
+                ("2025-01-03", "AWS", "acc1", 105.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        fig = ts.plot_temporal_density()
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_grain_context_in_subtitle(self, spark):
+        """Should include grain context in subtitle."""
+        import matplotlib.pyplot as plt
+
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", 100.0),
+                ("2025-01-02", "AWS", "acc1", "us-east-1", 110.0),
+                ("2025-01-01", "AWS", "acc2", "us-west-1", 200.0),
+            ],
+            ["date", "provider", "account", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account", "region"])
+
+        fig = ts.plot_temporal_density()
+
+        # Verify subtitle contains grain info
+        ax = fig.axes[0]
+        texts = [t.get_text() for t in ax.texts]
+        # Should have subtitle with grain format like "provider-account-region"
+        subtitle_found = any("provider-account-region" in text for text in texts)
+        assert subtitle_found, "Grain context not found in subtitle"
+
+        # Should mention entity count
+        entity_count_found = any("entities" in text.lower() for text in texts)
+        assert entity_count_found, "Entity count not found in subtitle"
+
+        plt.close(fig)
+
+    def test_passes_kwargs_to_eda_function(self, spark):
+        """Should pass kwargs to underlying eda.plot_temporal_density function."""
+        import matplotlib.pyplot as plt
+
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-02", "AWS", "acc1", 1000.0),  # Large value for log scale testing
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        # Test that log_scale parameter is passed through
+        fig = ts.plot_temporal_density(log_scale=True)
+
+        ax = fig.axes[0]
+        assert ax.get_yscale() == "log"
+
+        plt.close(fig)
+
+    def test_custom_title_overrides_default(self, spark):
+        """Should allow custom title to override default."""
+        import matplotlib.pyplot as plt
+
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        custom_title = "My Custom Plot Title"
+        fig = ts.plot_temporal_density(title=custom_title)
+
+        ax = fig.axes[0]
+        assert ax.get_title() == custom_title
+
+        plt.close(fig)
+
+
+class TestTimeSeriesWithDf:
+    """Test TimeSeries with_df helper method."""
+
+    def test_preserves_metadata(self, spark):
+        """Should preserve hierarchy, metric_col, time_col metadata."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-02", "AWS", "acc1", 110.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+
+        # Create filtered DataFrame
+        filtered_df = df.filter("cost > 100")
+        ts_filtered = ts.with_df(filtered_df)
+
+        # Should preserve metadata
+        assert ts_filtered.hierarchy == ["provider", "account"]
+        assert ts_filtered.metric_col == "cost"
+        assert ts_filtered.time_col == "date"
+        assert ts_filtered.df.count() == 1
+
+    def test_returns_new_instance(self, spark):
+        """Should return new TimeSeries instance, not modify original."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+        filtered_df = df.filter("cost > 50")
+        ts_new = ts.with_df(filtered_df)
+
+        assert ts is not ts_new
+        assert ts.df.count() == 1
+        assert ts_new.df.count() == 1
+
+
+class TestTimeSeriesFilterTime:
+    """Test TimeSeries filter_time method."""
+
+    def test_filter_before(self, spark):
+        """Should filter to times before specified date (exclusive)."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-05", "AWS", "acc1", 110.0),
+                ("2025-01-10", "AWS", "acc1", 120.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+        ts_filtered = ts.filter_time(before="2025-01-10")
+
+        assert ts_filtered.df.count() == 2
+        dates = [row["date"] for row in ts_filtered.df.collect()]
+        assert "2025-01-01" in dates
+        assert "2025-01-05" in dates
+        assert "2025-01-10" not in dates
+
+    def test_filter_after(self, spark):
+        """Should filter to times after specified date (inclusive)."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-05", "AWS", "acc1", 110.0),
+                ("2025-01-10", "AWS", "acc1", 120.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+        ts_filtered = ts.filter_time(after="2025-01-05")
+
+        assert ts_filtered.df.count() == 2
+        dates = [row["date"] for row in ts_filtered.df.collect()]
+        assert "2025-01-01" not in dates
+        assert "2025-01-05" in dates
+        assert "2025-01-10" in dates
+
+    def test_filter_range_start_end(self, spark):
+        """Should filter to time range with start (inclusive) and end (exclusive)."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-05", "AWS", "acc1", 110.0),
+                ("2025-01-10", "AWS", "acc1", 120.0),
+                ("2025-01-15", "AWS", "acc1", 130.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+        ts_filtered = ts.filter_time(start="2025-01-05", end="2025-01-15")
+
+        assert ts_filtered.df.count() == 2
+        dates = [row["date"] for row in ts_filtered.df.collect()]
+        assert "2025-01-01" not in dates
+        assert "2025-01-05" in dates
+        assert "2025-01-10" in dates
+        assert "2025-01-15" not in dates
+
+    def test_preserves_metadata(self, spark):
+        """Should preserve hierarchy, metric_col, time_col."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", "us-east-1", 100.0),
+                ("2025-01-10", "AWS", "acc1", "us-east-1", 110.0),
+            ],
+            ["date", "provider", "account", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account", "region"])
+        ts_filtered = ts.filter_time(before="2025-01-05")
+
+        assert ts_filtered.hierarchy == ["provider", "account", "region"]
+        assert ts_filtered.metric_col == "cost"
+        assert ts_filtered.time_col == "date"
+
+    def test_returns_new_instance(self, spark):
+        """Should return new instance, not modify original."""
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "acc1", 100.0),
+                ("2025-01-10", "AWS", "acc1", 110.0),
+            ],
+            ["date", "provider", "account", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "account"])
+        ts_filtered = ts.filter_time(before="2025-01-05")
+
+        assert ts is not ts_filtered
+        assert ts.df.count() == 2  # Original unchanged
+        assert ts_filtered.df.count() == 1  # Filtered has less
+
+
+class TestTimeSeriesPlotEntityCounts:
+    """Test TimeSeries plot_entity_counts method."""
+
+    def test_returns_matplotlib_figure(self, spark):
+        """Should return matplotlib Figure object."""
+        import matplotlib.pyplot as plt
+
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "us-east-1", "EC2", 100.0),
+                ("2025-01-01", "AWS", "us-west-1", "S3", 50.0),
+                ("2025-01-02", "AWS", "us-east-1", "EC2", 110.0),
+            ],
+            ["date", "provider", "region", "product", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "region", "product"])
+
+        fig = ts.plot_entity_counts(["region", "product"])
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_creates_box_plot_for_each_dimension(self, spark):
+        """Should create box plot with one box per dimension."""
+        import matplotlib.pyplot as plt
+
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "us-east-1", "EC2", 100.0),
+                ("2025-01-02", "AWS", "us-east-1", "EC2", 110.0),
+            ],
+            ["date", "provider", "region", "product", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "region", "product"])
+
+        fig = ts.plot_entity_counts(["region", "product"])
+
+        # Should have created axes with box plots
+        ax = fig.axes[0]
+        assert ax.get_xlabel() == "Dimension"
+        assert ax.get_ylabel() == "Entity Count"
+
+        plt.close(fig)
+
+    def test_log_scale_parameter(self, spark):
+        """Should apply log scale when requested."""
+        import matplotlib.pyplot as plt
+
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "us-east-1", "EC2", 100.0),
+                ("2025-01-02", "AWS", "us-east-1", "EC2", 110.0),
+            ],
+            ["date", "provider", "region", "product", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "region", "product"])
+
+        fig = ts.plot_entity_counts(["region", "product"], log_scale=True)
+
+        ax = fig.axes[0]
+        assert ax.get_yscale() == "log"
+
+        plt.close(fig)
+
+    def test_custom_title(self, spark):
+        """Should allow custom title."""
+        import matplotlib.pyplot as plt
+
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "us-east-1", "EC2", 100.0),
+            ],
+            ["date", "provider", "region", "product", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "region", "product"])
+
+        custom_title = "My Custom Entity Count Plot"
+        fig = ts.plot_entity_counts(["region"], title=custom_title)
+
+        ax = fig.axes[0]
+        assert ax.get_title() == custom_title
+
+        plt.close(fig)
+
+
+class TestPlotCostDistribution:
+    """Test cost distribution plotting."""
+
+    def test_min_cost_filter(self, spark):
+        """Should filter out daily costs below min_cost threshold."""
+        import matplotlib.pyplot as plt
+        import pandas as pd
+
+        # Create data with mix of high and low costs
+        df = spark.createDataFrame(
+            [
+                ("2025-01-01", "AWS", "us-east-1", 100.0),
+                ("2025-01-02", "AWS", "us-east-1", 5.0),  # Below threshold
+                ("2025-01-03", "AWS", "us-east-1", 120.0),
+                ("2025-01-04", "AWS", "us-east-1", 3.0),  # Below threshold
+                ("2025-01-05", "AWS", "us-east-1", 110.0),
+                ("2025-01-01", "Azure", "us-west-2", 50.0),
+                ("2025-01-02", "Azure", "us-west-2", 2.0),  # Below threshold
+                ("2025-01-03", "Azure", "us-west-2", 55.0),
+            ],
+            ["date", "provider", "region", "cost"],
+        )
+
+        ts = TimeSeries.from_dataframe(df, hierarchy=["provider", "region"])
+
+        # Plot with min_cost filter
+        fig = ts.plot_cost_distribution(["provider"], top_n=2, min_cost=10.0)
+
+        # Verify plot was created
+        assert isinstance(fig, plt.Figure)
+
+        # Get the box plot data
+        ax = fig.axes[0]
+
+        # Each box plot has a "boxes" collection with quartile data
+        # We should verify that the min values displayed are >= 10.0
+        # The y-data from the box plot should not contain values below 10.0
+
+        # Get all y-data from the plot (lines, boxes, whiskers, etc.)
+        all_y_data = []
+        for line in ax.get_lines():
+            y_data = line.get_ydata()
+            all_y_data.extend(y_data)
+
+        # Filter out NaN values
+        all_y_data = [y for y in all_y_data if not pd.isna(y)]
+
+        # Verify no values below threshold (with small tolerance for floating point)
+        min_value = min(all_y_data) if all_y_data else float("inf")
+        assert min_value >= 10.0, f"Found value {min_value} below min_cost threshold of 10.0"
+
+        plt.close(fig)
