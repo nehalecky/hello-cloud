@@ -1,3 +1,17 @@
+---
+jupytext:
+  formats: notebooks//md:myst,notebooks/_build//ipynb
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.17.3
+kernelspec:
+  display_name: python3
+  language: python
+  name: python3
+---
+
 # Understanding Cloud Workload Signatures: A Comprehensive Guide
 
 This notebook explores **why** different cloud workload types have distinct resource utilization patterns. We'll examine the underlying technical and business reasons that create these signatures, grounded in empirical research.

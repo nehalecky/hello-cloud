@@ -140,7 +140,9 @@ docs = [
 ]
 
 [tool.jupytext]
-notebook_metadata_filter = "-all"
+# Keep minimal metadata for VSCode Jupytext Sync extension compatibility
+# Filter out noise (execution_count, widgets, etc.) but keep essentials
+notebook_metadata_filter = "jupytext,kernelspec,language_info,-widgets,-toc"
 cell_metadata_filter = "-all"
 
 [tool.jupytext.formats]

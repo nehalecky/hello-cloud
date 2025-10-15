@@ -1,3 +1,17 @@
+---
+jupytext:
+  formats: notebooks//md:myst,notebooks/_build//ipynb
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.17.3
+kernelspec:
+  display_name: Python 3 (ipykernel)
+  language: python
+  name: python3
+---
+
 # Gaussian Process Modeling for IOPS Web Server KPI
 
 **Objective:** Build a robust Gaussian Process model for operational time series forecasting and anomaly detection using GPyTorch with sparse variational approximations.
