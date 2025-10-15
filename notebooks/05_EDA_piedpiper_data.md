@@ -24,6 +24,8 @@ language_info:
 
 # PiedPiper Dataset - Exploratory Data Analysis
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/notebooks/published/05_EDA_piedpiper_data.ipynb)
+
 ## Overview
 
 This notebook supports exploratory analysis for PiedPiper billing data, including:

@@ -24,6 +24,8 @@ language_info:
 
 # IOPS Time Series Forecasting: Baseline Models & Future Approaches
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/notebooks/published/07_forecasting_comparison.ipynb)
+
 **Objective:** Build end-to-end forecasting workflow with working baselines and placeholders for sophisticated models.
 
 **Dataset:** IOPS KPI from TSB-UAD benchmark (295K samples, 205 days at 1-minute intervals)
