@@ -1,14 +1,15 @@
 ---
 jupytext:
+  formats: notebooks//md:myst,notebooks/_build//ipynb
   text_representation:
     extension: .md
     format_name: myst
     format_version: 0.13
     jupytext_version: 1.17.3
 kernelspec:
-  name: python3
   display_name: Python 3 (ipykernel)
   language: python
+  name: python3
 ---
 
 # Quick Start: TimeSeries Loader
@@ -29,6 +30,23 @@ This notebook demonstrates the `TimeSeries` loader for hierarchical time series 
 ---
 
 ## Setup
+
+```{code-cell} ipython3
+# Environment Setup
+# Local: Uses installed hellocloud
+# Colab: Installs from GitHub
+try:
+    import hellocloud
+except ImportError:
+    !pip install -q git+https://github.com/nehalecky/hello-cloud.git
+    import hellocloud
+```
+
+```{code-cell} ipython3
+# Auto-reload: Picks up library changes without kernel restart
+%load_ext autoreload
+%autoreload 2
+```
 
 ```{code-cell} ipython3
 # Standard imports
@@ -65,7 +83,9 @@ from hellocloud.io import PiedPiperLoader
 from hellocloud.timeseries import TimeSeries
 
 # Load raw data
-data_path = Path("data/piedpiper_clean")  # Adjust to your data location
+#data_path = Path("../data/piedpiper_processed/piedpiper_clean")  # Adjust to your data location
+#/cloudzero/hello-cloud/data/piedpiper_optimized_daily.parquet
+data_path = Path("../data/piedpiper_optimized_daily.parquet")
 raw_df = spark.read.parquet(str(data_path))
 
 print(f"Raw data: {raw_df.count():,} records, {len(raw_df.columns)} columns")
@@ -73,13 +93,8 @@ print(f"Raw data: {raw_df.count():,} records, {len(raw_df.columns)} columns")
 
 ```{code-cell} ipython3
 # Load into TimeSeries with defaults
+# Loader logs all transformations (filtering, renaming, dropping columns)
 ts = PiedPiperLoader.load(raw_df)
-
-print(f"TimeSeries created:")
-print(f"  Hierarchy: {ts.hierarchy}")
-print(f"  Metric: {ts.metric_col}")
-print(f"  Time: {ts.time_col}")
-print(f"  Records: {ts.df.count():,}")
 ```
 
 **Key insight**: The `TimeSeries` object wraps the full dataset - no entity splitting. Operations create filtered views on-demand.
@@ -89,6 +104,10 @@ print(f"  Records: {ts.df.count():,}")
 ## 2. Basic Operations
 
 ### 2.1 Filter to Specific Entity
+
+```{code-cell} ipython3
+ts.df.limit(10).toPandas()
+```
 
 ```{code-cell} ipython3
 # Filter to specific account + region

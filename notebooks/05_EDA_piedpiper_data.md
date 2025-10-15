@@ -1,14 +1,25 @@
 ---
 jupytext:
+  formats: notebooks//md:myst,notebooks/_build//ipynb
   text_representation:
     extension: .md
     format_name: myst
     format_version: 0.13
     jupytext_version: 1.17.3
 kernelspec:
-  name: python3
   display_name: Python 3 (ipykernel)
   language: python
+  name: python3
+language_info:
+  codemirror_mode:
+    name: ipython
+    version: 3
+  file_extension: .py
+  mimetype: text/x-python
+  name: python
+  nbconvert_exporter: python
+  pygments_lexer: ipython3
+  version: 3.11.13
 ---
 
 # PiedPiper Dataset - Exploratory Data Analysis
@@ -60,6 +71,41 @@ This is the **grain discovery problem** - finding the most granular combination 
 ## Part 1: Data Loading & Schema Analysis
 
 ### 1.1 Import Dependencies
+
+```{code-cell} ipython3
+# Environment Setup
+# Local: Uses installed hellocloud
+# Colab: Installs from GitHub
+try:
+    import hellocloud
+except ImportError:
+    !pip install -q git+https://github.com/nehalecky/hello-cloud.git
+    import hellocloud
+```
+
+```{code-cell} ipython3
+# Auto-reload: Picks up library changes without kernel restart
+%load_ext autoreload
+%autoreload 2
+```
+
+```{code-cell} ipython3
+# Data Configuration
+# Update this path to point to your PiedPiper dataset (raw parquet file)
+from pathlib import Path
+
+# Option 1: Local path (default)
+data_path = Path("data/piedpiper.parquet")
+
+# Option 2: Colab - Upload file or mount Google Drive
+# from google.colab import drive
+# drive.mount('/content/drive')
+# data_path = Path("/content/drive/MyDrive/datasets/piedpiper.parquet")
+
+# Option 3: Download from URL (if publicly hosted)
+# !wget https://example.com/piedpiper.parquet -O piedpiper.parquet
+# data_path = Path("piedpiper.parquet")
+```
 
 ```{code-cell} ipython3
 from pathlib import Path

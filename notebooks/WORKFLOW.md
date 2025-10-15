@@ -12,6 +12,317 @@
 uv run jupyter lab notebooks/
 ```
 
+## Jupytext + Cursor Integration
+
+### Understanding the Architecture
+
+**Source Format:** MyST Markdown (`.md`) - clean, version-controlled
+**Execution Format:** Jupyter Notebook (`.ipynb`) - generated in `_build/`
+
+```
+notebooks/06_quickstart.md         # Edit this (Git tracks)
+      ↕ (sync)
+notebooks/_build/06_quickstart.ipynb  # Execute this (gitignored)
+```
+
+**Configuration:** All managed in `pyproject.toml`:
+
+```toml
+[tool.jupytext.formats]
+"notebooks/" = "md:myst"        # Source directory
+"notebooks/_build/" = "ipynb"   # Build directory
+```
+
+### Content vs Outputs: What Gets Synced?
+
+`★ Insight ─────────────────────────────────────`
+**Jupytext syncs SOURCE CODE, not EXECUTION RESULTS**
+
+**What syncs (bidirectional):**
+- ✅ Code cells (Python code)
+- ✅ Markdown cells (documentation)
+- ✅ Cell metadata (tags, settings)
+
+**What does NOT sync:**
+- ❌ Cell outputs (plots, tables, print statements)
+- ❌ Execution counts (`[1]`, `[2]`, etc.)
+- ❌ Kernel state
+
+**Mental model:** `.md` = source code | `.ipynb` = source + execution results
+
+To get outputs in `.ipynb`, you must **execute cells** in Jupyter (Lab/Notebook/Cursor).
+`─────────────────────────────────────────────────`
+
+### Four Ways to Work with Notebooks
+
+#### **Option 1: Cursor + vscode-jupytext-sync Extension** ⭐ **AUTO-SYNC**
+
+```bash
+# If extension installed: vscode-jupytext-sync by caenrigen
+# Just edit and save - no manual sync needed!
+vim notebooks/06_quickstart.md
+# Press Cmd+S → auto-syncs to _build/*.ipynb
+```
+
+**How it works:**
+- Extension watches file saves (`.md` and `.ipynb`)
+- Automatically runs `uv run jupytext --sync` on save
+- **Identical behavior to Jupyter Lab** - fully automatic!
+
+**To verify extension is working:**
+```bash
+# Edit .md file, save, then check:
+ls -l notebooks/_build/06_quickstart.ipynb
+# Timestamp should be updated!
+```
+
+- ✅ Best for: Full Cursor workflow with zero manual steps
+- ✅ Bidirectional: Edit `.md` OR `.ipynb`, both auto-sync
+
+#### **Option 2: Jupyter Lab** ⭐ **AUTO-SYNC**
+
+```bash
+uv run jupyter lab
+```
+
+- **Open `.md` files directly** - Jupyter Lab renders them as notebooks
+- **Auto-sync on save** - Changes to `.md` sync to `.ipynb` automatically
+- **Bidirectional** - Edit in Jupyter UI, changes sync to `.md`
+- ✅ Best for: Iterative development, running code, seeing outputs
+
+#### **Option 3: Manual CLI Sync** (No Extension Required)
+
+```bash
+# 1. Edit .md file in Cursor
+vim notebooks/06_quickstart.md
+
+# 2. Manually sync to .ipynb
+uv run jupytext --sync notebooks/06_quickstart.md
+
+# 3. Open .ipynb in Cursor's Jupyter extension
+# 4. Execute cells with project kernel (Python 3 in .venv)
+```
+
+- **No extension required** - Works out of the box
+- **Explicit control** - You decide when to sync
+- ✅ Best for: Minimal setup, explicit workflow
+
+#### **Option 4: VSCode Task (Keyboard Shortcut)** *(Optional Setup)*
+
+Add to `.vscode/tasks.json`:
+
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "JupyText Sync",
+      "type": "shell",
+      "command": "uv run jupytext --sync ${file}",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "never"
+      }
+    }
+  ]
+}
+```
+
+Then press **Cmd+Shift+B** (Mac) or **Ctrl+Shift+B** (Windows/Linux) to sync!
+
+- **One-key sync** - Fastest workflow
+- **Silent execution** - No terminal clutter
+- ✅ Best for: Rapid iteration in Cursor
+
+### Kernel Selection in Cursor
+
+When opening `.ipynb` files in Cursor:
+
+1. Click "Select Kernel" in top-right
+2. Choose **"Python 3"** or **"Python 3.12.x (.venv)"**
+3. Kernel is project-local (`.venv/share/jupyter/kernels/python3`)
+
+**Why it works:**
+- `ipykernel` installed in `.venv/` registers kernel automatically
+- Cursor's Jupyter extension discovers it
+- No manual `ipykernel install` needed!
+
+**Config:** Ensure `.vscode/settings.json` has:
+
+```json
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "jupyter.notebookFileRoot": "${workspaceFolder}",
+  "notebook.defaultKernel": "python3"
+}
+```
+
+### How Jupytext Sync is Triggered
+
+**Jupytext is NOT a background daemon** - it's a CLI tool that runs when explicitly invoked:
+
+| Option | Trigger | Who Invokes Jupytext | Auto or Manual? |
+|--------|---------|---------------------|-----------------|
+| **vscode-jupytext-sync** | File save | VSCode extension | ✅ Automatic |
+| **Jupyter Lab** | File save | Jupyter contents manager | ✅ Automatic |
+| **Manual CLI** | You type command | Shell | ⚠️ Manual |
+| **VSCode Task** | You press hotkey | VSCode shell task | ⚠️ Manual |
+| **Pre-commit Hook** | `git commit` | Git pre-commit framework | ✅ Automatic |
+
+**Key insight:** No continuous background sync - files can drift out of sync between triggers.
+
+### Automation Options
+
+#### **Option A: Auto-Sync on Save** ⭐ **Recommended**
+
+**Use vscode-jupytext-sync extension OR Jupyter Lab:**
+- ✅ **Zero manual steps** - Just edit and save
+- ✅ **Bidirectional** - Edit `.md` or `.ipynb`, both stay in sync
+- ✅ **Familiar workflow** - Identical to regular file editing
+
+**Trade-offs:**
+- ⚠️ Files sync even if you didn't want them to (e.g., WIP notebooks)
+- ⚠️ Extension dependency (but Jupyter Lab built-in)
+
+#### **Option B: Manual Sync** (Current Setup if No Extension)
+
+**Use CLI or VSCode task:**
+```bash
+uv run jupytext --sync notebooks/06_quickstart.md
+# Or press Cmd+Shift+B (if task configured)
+```
+
+- ✅ **Full control** - Sync only when you want
+- ✅ **No surprises** - Explicit, predictable
+- ✅ **Works without extension** - Just CLI tool
+
+**Trade-offs:**
+- ⚠️ Must remember to sync before executing `.ipynb`
+- ⚠️ Must remember to sync before committing
+
+#### **Option C: Pre-commit Hook** (Team/CI Workflows)
+
+Add to `.pre-commit-config.yaml`:
+```yaml
+repos:
+  - repo: https://github.com/mwouts/jupytext
+    rev: v1.17.3
+    hooks:
+      - id: jupytext
+        args: [--sync]
+```
+
+- ✅ **Enforced consistency** - Cannot commit out-of-sync notebooks
+- ✅ **Works with any editing workflow** - Syncs at commit time
+- ✅ **Team safety net** - Catches forgotten syncs
+
+**Trade-offs:**
+- ⚠️ Slower commits (~1-3 seconds per commit)
+- ⚠️ Always syncs all notebooks (can't selectively skip)
+
+**Recommendation:**
+- **Solo dev, iterating:** Use Option A (auto-sync extension) or B (manual)
+- **Team, CI/CD:** Use Option A or B + Option C (pre-commit hook as safety net)
+
+---
+
+## Publishing Notebooks for Google Colab
+
+Once you've executed notebooks and verified outputs, publish them for Colab users.
+
+### Quick Workflow (Default)
+
+Assumes notebooks already executed with outputs in `_build/`:
+
+```bash
+# 1. Edit and execute notebook in Jupyter Lab
+just lab
+# Run cells, verify outputs
+
+# 2. Publish (copies executed notebook to published/)
+just nb-publish 06_quickstart_timeseries_loader
+
+# 3. Commit and push
+git add notebooks/06_quickstart_timeseries_loader.md  # source
+git add notebooks/published/06_quickstart_timeseries_loader.ipynb  # published
+git commit -m "docs: update quickstart tutorial"
+git push
+```
+
+**Batch publishing:**
+```bash
+# Publish all notebooks at once
+just nb-publish-all
+
+# Or publish and commit in one step
+just nb-publish-commit "docs: update tutorials"
+git push
+```
+
+### Clean Rebuild (Optional)
+
+For CI or guaranteed fresh execution:
+
+```bash
+# Execute from scratch and publish
+just nb-publish-clean 06_quickstart_timeseries_loader
+
+# Or all notebooks
+just nb-publish-all-clean
+```
+
+**When to use clean rebuild:**
+- First time publishing a notebook
+- Verifying notebooks work from clean state
+- CI/CD pipelines
+- Outputs might be stale or incomplete
+
+### How Publishing Works
+
+**Fast path (default):**
+1. Syncs `.md` to `.ipynb` (Jupytext)
+2. Copies `_build/*.ipynb` to `published/`
+3. Assumes you already executed in Jupyter (outputs present)
+
+**Clean path:**
+1. Syncs `.md` to `.ipynb` (Jupytext)
+2. Executes notebook with `jupyter nbconvert --execute`
+3. Saves to `published/` with fresh outputs
+
+### Colab Integration
+
+Published notebooks include setup cells that auto-install `hellocloud`:
+
+```python
+# Environment Setup (in all notebooks)
+try:
+    import hellocloud
+except ImportError:
+    !pip install -q git+https://github.com/nehalecky/hello-cloud.git
+    import hellocloud
+```
+
+**Users click Colab badge → Notebook opens with outputs → Library installs → Works!**
+
+### PiedPiper Dataset
+
+The PiedPiper notebook (05) requires users to provide their own data:
+
+```python
+# Data Configuration (in notebook 05)
+data_path = Path("data/piedpiper.parquet")
+
+# Users can adapt:
+# - Upload to Colab Files panel
+# - Mount Google Drive
+# - Download from their own source
+```
+
+---
+
 ## The Hot Reload Pattern ⚡
 
 This eliminates kernel restarts when editing library code with Claude Code.

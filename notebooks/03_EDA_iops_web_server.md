@@ -1,14 +1,25 @@
 ---
 jupytext:
+  formats: notebooks//md:myst,notebooks/_build//ipynb
   text_representation:
     extension: .md
     format_name: myst
     format_version: 0.13
     jupytext_version: 1.17.3
 kernelspec:
-  name: python3
   display_name: Python 3 (ipykernel)
   language: python
+  name: python3
+language_info:
+  codemirror_mode:
+    name: ipython
+    version: 3
+  file_extension: .py
+  mimetype: text/x-python
+  name: python
+  nbconvert_exporter: python
+  pygments_lexer: ipython3
+  version: 3.11.13
 ---
 
 # IOPS Web Server Time Series: Exploratory Data Analysis
@@ -54,6 +65,17 @@ Per our [timeseries anomaly datasets review](../docs/research/timeseries-anomaly
 3. **Assess data quality**: Validate completeness and modeling suitability
 4. **Evaluate computational requirements**: Determine dataset characteristics affecting model scalability
 5. **Provide modeling recommendations**: Inform forecasting and anomaly detection strategies
+
+```{code-cell} ipython3
+# Environment Setup
+# Local: Uses installed hellocloud
+# Colab: Installs from GitHub
+try:
+    import hellocloud
+except ImportError:
+    !pip install -q git+https://github.com/nehalecky/hello-cloud.git
+    import hellocloud
+```
 
 ```{code-cell} ipython3
 # Auto-reload: Picks up library changes without kernel restart
@@ -669,7 +691,6 @@ We analyze periods between {min_period:.1f} to {max_period:.1f} {TIME_UNIT}, fil
 - DC component (frequency = 0, represents overall mean)
 - Very high frequencies (< 2 samples, likely noise)
 - Very low frequencies (> dataset_length/2, insufficient cycles to detect)
-
 
 ```{code-cell} ipython3
 # Detect spectral peaks to identify dominant periodicities

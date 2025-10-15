@@ -1,12 +1,13 @@
 ---
 jupytext:
+  formats: notebooks//md:myst,notebooks/_build//ipynb
   text_representation:
     extension: .md
     format_name: myst
     format_version: 0.13
     jupytext_version: 1.17.3
 kernelspec:
-  display_name: python3
+  display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
@@ -32,6 +33,17 @@ kernelspec:
 ---
 
 ## 1. Environment Setup
+
+```{code-cell} ipython3
+# Environment Setup
+# Local: Uses installed hellocloud
+# Colab: Installs from GitHub
+try:
+    import hellocloud
+except ImportError:
+    !pip install -q git+https://github.com/nehalecky/hello-cloud.git
+    import hellocloud
+```
 
 ```{code-cell} ipython3
 # Core imports

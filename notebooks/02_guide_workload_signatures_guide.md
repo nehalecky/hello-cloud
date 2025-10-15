@@ -1,5 +1,6 @@
 ---
 jupytext:
+  formats: notebooks//md:myst,notebooks/_build//ipynb
   text_representation:
     extension: .md
     format_name: myst
@@ -14,6 +15,17 @@ kernelspec:
 # Understanding Cloud Workload Signatures: A Comprehensive Guide
 
 This notebook explores **why** different cloud workload types have distinct resource utilization patterns. We'll examine the underlying technical and business reasons that create these signatures, grounded in empirical research.
+
+```{code-cell} ipython3
+# Environment Setup
+# Local: Uses installed hellocloud
+# Colab: Installs from GitHub
+try:
+    import hellocloud
+except ImportError:
+    !pip install -q git+https://github.com/nehalecky/hello-cloud.git
+    import hellocloud
+```
 
 ```{code-cell} ipython3
 # Auto-reload: Picks up library changes without kernel restart
