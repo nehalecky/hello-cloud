@@ -2,6 +2,11 @@
 # Install just: brew install just
 # Run: just <command>
 
+# Internal: Publishing configuration (not documented - for flexibility)
+_PUBLISH_DIR := "notebooks/published"
+_GITHUB_REPO := "nehalecky/hello-cloud"
+_GITHUB_BRANCH := "master"
+
 # Show available commands
 default:
     @just --list
@@ -135,3 +140,94 @@ clean:
 
 # Full workflow: clean, install, check
 all: clean install check
+
+# ==============================================================================
+# Notebook Publishing (Colab)
+# ==============================================================================
+
+# Publish notebook (copy from _build/ - assumes already executed)
+# Usage: just nb-publish 06_quickstart_timeseries_loader
+nb-publish NAME:
+    @echo "📦 Publishing {{NAME}}..."
+    @mkdir -p {{_PUBLISH_DIR}}
+    @# Sync content first
+    @uv run jupytext --sync notebooks/{{NAME}}.md
+    @# Copy executed notebook
+    @cp notebooks/_build/{{NAME}}.ipynb {{_PUBLISH_DIR}}/
+    @echo "✓ Published to {{_PUBLISH_DIR}}/{{NAME}}.ipynb"
+    @just _nb-colab-url {{NAME}}
+
+# Publish notebook (execute from scratch for clean rebuild)
+# Usage: just nb-publish-clean 06_quickstart_timeseries_loader
+nb-publish-clean NAME:
+    @echo "📦 Publishing {{NAME}} (clean execution)..."
+    @mkdir -p {{_PUBLISH_DIR}}
+    @uv run jupytext --sync notebooks/{{NAME}}.md
+    @uv run jupyter nbconvert --to notebook --execute \
+        notebooks/_build/{{NAME}}.ipynb \
+        --output-dir={{_PUBLISH_DIR}}
+    @echo "✓ Published to {{_PUBLISH_DIR}}/{{NAME}}.ipynb"
+    @just _nb-colab-url {{NAME}}
+
+# Publish all notebooks (copy from _build/)
+# Usage: just nb-publish-all
+nb-publish-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "📦 Publishing all notebooks..."
+    mkdir -p {{_PUBLISH_DIR}}
+
+    notebooks=(
+        "02_guide_workload_signatures_guide"
+        "03_EDA_iops_web_server"
+        "04_modeling_gaussian_process"
+        "05_EDA_piedpiper_data"
+        "06_quickstart_timeseries_loader"
+    )
+
+    for notebook in "${notebooks[@]}"; do
+        echo "  → $notebook"
+        uv run jupytext --sync "notebooks/$notebook.md"
+        cp "notebooks/_build/$notebook.ipynb" {{_PUBLISH_DIR}}/
+    done
+
+    echo "✓ Published ${#notebooks[@]} notebooks to {{_PUBLISH_DIR}}/"
+
+# Publish all notebooks (execute from scratch)
+# Usage: just nb-publish-all-clean
+nb-publish-all-clean:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "📦 Publishing all notebooks (clean execution)..."
+    mkdir -p {{_PUBLISH_DIR}}
+
+    notebooks=(
+        "02_guide_workload_signatures_guide"
+        "03_EDA_iops_web_server"
+        "04_modeling_gaussian_process"
+        "05_EDA_piedpiper_data"
+        "06_quickstart_timeseries_loader"
+    )
+
+    for notebook in "${notebooks[@]}"; do
+        echo "  → $notebook"
+        uv run jupytext --sync "notebooks/$notebook.md"
+        uv run jupyter nbconvert --to notebook --execute \
+            "notebooks/_build/$notebook.ipynb" \
+            --output-dir={{_PUBLISH_DIR}} \
+            2>&1 | grep -v "WARNING" || true
+    done
+
+    echo "✓ Published ${#notebooks[@]} notebooks to {{_PUBLISH_DIR}}/"
+
+# Publish and commit all notebooks
+# Usage: just nb-publish-commit "docs: update tutorials"
+nb-publish-commit MESSAGE="docs: update published notebooks":
+    @just nb-publish-all
+    @git add {{_PUBLISH_DIR}}/*.ipynb
+    @git commit -m "{{MESSAGE}}"
+    @echo "✓ Committed. Push with: git push"
+
+# Internal: Generate Colab URL
+_nb-colab-url NAME:
+    @echo "🔗 https://colab.research.google.com/github/{{_GITHUB_REPO}}/blob/{{_GITHUB_BRANCH}}/{{_PUBLISH_DIR}}/{{NAME}}.ipynb"

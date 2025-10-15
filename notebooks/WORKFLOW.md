@@ -227,6 +227,102 @@ repos:
 - **Solo dev, iterating:** Use Option A (auto-sync extension) or B (manual)
 - **Team, CI/CD:** Use Option A or B + Option C (pre-commit hook as safety net)
 
+---
+
+## Publishing Notebooks for Google Colab
+
+Once you've executed notebooks and verified outputs, publish them for Colab users.
+
+### Quick Workflow (Default)
+
+Assumes notebooks already executed with outputs in `_build/`:
+
+```bash
+# 1. Edit and execute notebook in Jupyter Lab
+just lab
+# Run cells, verify outputs
+
+# 2. Publish (copies executed notebook to published/)
+just nb-publish 06_quickstart_timeseries_loader
+
+# 3. Commit and push
+git add notebooks/06_quickstart_timeseries_loader.md  # source
+git add notebooks/published/06_quickstart_timeseries_loader.ipynb  # published
+git commit -m "docs: update quickstart tutorial"
+git push
+```
+
+**Batch publishing:**
+```bash
+# Publish all notebooks at once
+just nb-publish-all
+
+# Or publish and commit in one step
+just nb-publish-commit "docs: update tutorials"
+git push
+```
+
+### Clean Rebuild (Optional)
+
+For CI or guaranteed fresh execution:
+
+```bash
+# Execute from scratch and publish
+just nb-publish-clean 06_quickstart_timeseries_loader
+
+# Or all notebooks
+just nb-publish-all-clean
+```
+
+**When to use clean rebuild:**
+- First time publishing a notebook
+- Verifying notebooks work from clean state
+- CI/CD pipelines
+- Outputs might be stale or incomplete
+
+### How Publishing Works
+
+**Fast path (default):**
+1. Syncs `.md` to `.ipynb` (Jupytext)
+2. Copies `_build/*.ipynb` to `published/`
+3. Assumes you already executed in Jupyter (outputs present)
+
+**Clean path:**
+1. Syncs `.md` to `.ipynb` (Jupytext)
+2. Executes notebook with `jupyter nbconvert --execute`
+3. Saves to `published/` with fresh outputs
+
+### Colab Integration
+
+Published notebooks include setup cells that auto-install `hellocloud`:
+
+```python
+# Environment Setup (in all notebooks)
+try:
+    import hellocloud
+except ImportError:
+    !pip install -q git+https://github.com/nehalecky/hello-cloud.git
+    import hellocloud
+```
+
+**Users click Colab badge → Notebook opens with outputs → Library installs → Works!**
+
+### PiedPiper Dataset
+
+The PiedPiper notebook (05) requires users to provide their own data:
+
+```python
+# Data Configuration (in notebook 05)
+data_path = Path("data/piedpiper.parquet")
+
+# Users can adapt:
+# - Upload to Colab Files panel
+# - Mount Google Drive
+# - Download from their own source
+```
+
+---
+
 ## The Hot Reload Pattern ⚡
 
 This eliminates kernel restarts when editing library code with Claude Code.

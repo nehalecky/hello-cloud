@@ -1,16 +1,3 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.17.3
-kernelspec:
-  display_name: python3
-  language: python
-  name: python3
----
-
 # Gaussian Process Modeling for IOPS Web Server KPI
 
 **Objective:** Build a robust Gaussian Process model for operational time series forecasting and anomaly detection using GPyTorch with sparse variational approximations.
@@ -32,6 +19,17 @@ kernelspec:
 ---
 
 ## 1. Environment Setup
+
+```{code-cell} ipython3
+# Environment Setup
+# Local: Uses installed hellocloud
+# Colab: Installs from GitHub
+try:
+    import hellocloud
+except ImportError:
+    !pip install -q git+https://github.com/nehalecky/hello-cloud.git
+    import hellocloud
+```
 
 ```{code-cell} ipython3
 # Core imports

@@ -279,3 +279,66 @@ git commit -m "docs: update quickstart analysis"
 ```
 
 **Why this works:** The `.ipynb` in `_build/` is ephemeral - used for local execution, discarded, regenerated fresh at publish time.
+
+---
+
+## 📤 Publishing for Google Colab
+
+For interactive tutorials, publish executed notebooks to `published/` directory.
+
+### Quick Publish (Default)
+
+Assumes notebooks already executed in Jupyter:
+
+```bash
+# Publish single notebook (copy from _build/)
+just nb-publish 06_quickstart_timeseries_loader
+
+# Or publish all
+just nb-publish-all
+
+# Commit and push
+git add notebooks/*.md notebooks/published/*.ipynb
+git commit -m "docs: update tutorials"
+git push
+```
+
+### Clean Rebuild (Optional)
+
+Execute from scratch for guaranteed fresh outputs:
+
+```bash
+# Clean execution + publish
+just nb-publish-clean 06_quickstart_timeseries_loader
+
+# Or all notebooks
+just nb-publish-all-clean
+```
+
+**When to use:** First publication, CI/CD, or verifying clean execution.
+
+### Library Access in Colab
+
+All notebooks include setup cells that auto-install `hellocloud`:
+
+```python
+# Environment Setup (in all notebooks)
+try:
+    import hellocloud
+except ImportError:
+    !pip install -q git+https://github.com/nehalecky/hello-cloud.git
+    import hellocloud
+```
+
+**Users click badge → Opens with outputs → Library auto-installs → Works!**
+
+### Published Directory Structure
+
+```
+notebooks/
+├── *.md                    # Source (edit these!)
+├── _build/*.ipynb          # Working files (gitignored)
+└── published/*.ipynb       # Colab distribution (Git tracked)
+```
+
+**IMPORTANT:** `published/*.ipynb` are generated artifacts. Always edit `.md` source files!
