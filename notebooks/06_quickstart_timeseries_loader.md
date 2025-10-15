@@ -186,8 +186,6 @@ stats.toPandas().sort_values('total_cost', ascending=False)
 ts.plot_cost_distribution(['provider'], top_n=15, min_cost=10, log_scale=True)
 ```
 
-
-
 ```{code-cell} ipython3
  # 3. Time series trends - Top spenders over time
 ts.plot_cost_trends(['region'], top_n=5, show_total=True, log_scale=True)

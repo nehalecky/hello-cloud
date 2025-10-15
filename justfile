@@ -195,6 +195,7 @@ nb-publish-all:
         "04_modeling_gaussian_process"
         "05_EDA_piedpiper_data"
         "06_quickstart_timeseries_loader"
+        "07_forecasting_comparison"
     )
 
     for notebook in "${notebooks[@]}"; do
@@ -219,6 +220,7 @@ nb-publish-all-clean:
         "04_modeling_gaussian_process"
         "05_EDA_piedpiper_data"
         "06_quickstart_timeseries_loader"
+        "07_forecasting_comparison"
     )
 
     for notebook in "${notebooks[@]}"; do
