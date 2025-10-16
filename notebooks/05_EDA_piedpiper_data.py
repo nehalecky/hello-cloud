@@ -111,15 +111,18 @@ data_path = Path("data/piedpiper.parquet")
 
 # %%
 from pathlib import Path
+from datetime import date, datetime, timedelta
+from pyspark.sql import functions as F
+from pyspark.sql import Window
+import numpy as np
+import pandas as pd
 
 # Set matplotlib backend before importing pyplot
 import matplotlib
-import pandas as pd
-from pyspark.sql import functions as F
-
-matplotlib.use("Agg")  # Non-interactive backend for testing
+matplotlib.use('Agg')  # Non-interactive backend for testing
 
 import matplotlib.pyplot as plt
+import seaborn as sns
 from loguru import logger
 
 # Import hellocloud with namespace access
@@ -129,7 +132,7 @@ import hellocloud as hc
 spark = hc.spark.get_spark_session(app_name="piedpiper-eda")
 
 # Configure visualization style
-# hc.utils.setup_seaborn_style(style='whitegrid', palette='husl', context='notebook')
+#hc.utils.setup_seaborn_style(style='whitegrid', palette='husl', context='notebook')
 
 hc.configure_notebook_logging()
 logger.info("PiedPiper EDA - Notebook initialized (PySpark + Seaborn)")
@@ -139,17 +142,15 @@ logger.info("PiedPiper EDA - Notebook initialized (PySpark + Seaborn)")
 
 # %%
 # Load Parquet file
-DATA_PATH = Path(
-    "~/Projects/cloudzero/hello-cloud/data/piedpiper_optimized_daily.parquet"
-).expanduser()
+DATA_PATH = Path('~/Projects/cloudzero/hello-cloud/data/piedpiper_optimized_daily.parquet').expanduser()
 df = spark.read.parquet(str(DATA_PATH))
-# df = df.cache()  # Cache for faster repeated access
+#df = df.cache()  # Cache for faster repeated access
 
 # Basic shape
 total_rows = df.count()
 total_cols = len(df.columns)
 logger.info(f"Dataset: {total_rows:,} rows × {total_cols} columns")
-logger.info("Backend: PySpark (distributed analytical engine)")
+logger.info(f"Backend: PySpark (distributed analytical engine)")
 
 # Preview
 df.limit(5).toPandas()
@@ -167,22 +168,21 @@ _ = df.schema  # Preview schema
 
 # %%
 # Identify date column and rename to 'date' for consistency
-from pyspark.sql.types import DateType, TimestampNTZType, TimestampType
+from pyspark.sql.types import DateType, TimestampType, TimestampNTZType
 
 date_cols = [
-    field.name
-    for field in df.schema.fields
+    field.name for field in df.schema.fields
     if isinstance(field.dataType, DateType | TimestampType | TimestampNTZType)
 ]
 
 logger.info(f"Date/Datetime columns found: {date_cols}")
 logger.info(f"Renaming {date_cols[0]} → date")
-df = df.withColumnRenamed(date_cols[0], "date")
+df = df.withColumnRenamed(date_cols[0], 'date')
 
 date_stats = df.agg(
-    F.countDistinct("date").alias("unique_dates"),
-    F.min("date").alias("min_date"),
-    F.max("date").alias("max_date"),
+    F.countDistinct('date').alias('unique_dates'),
+    F.min('date').alias('min_date'),
+    F.max('date').alias('max_date')
 )
 date_stats.toPandas()
 
@@ -192,12 +192,15 @@ date_stats.toPandas()
 # Let's inspect the temporal record density and plot.
 
 # %%
-df.transform(hc.transforms.summary_stats(value_col="materialized_cost", group_col="date"))
+df.transform(hc.transforms.summary_stats(value_col='materialized_cost', group_col='date'))
 
 # %%
 # Plot temporal observation density with seaborn (enhanced with ConciseDateFormatter and shading)
 fig = hc.analysis.eda.plot_temporal_density(
-    df, date_col="date", log_scale=True, title="Temporal Observation Density"
+    df,
+    date_col='date',
+    log_scale=True,
+    title='Temporal Observation Density'
 )
 plt.show()
 
@@ -208,16 +211,23 @@ plt.show()
 # Compute day-over-day percent change using transform pattern
 from hellocloud.transforms import pct_change
 
-daily_counts = df.groupBy("date").agg(F.count("*").alias("count")).orderBy("date")
+daily_counts = (
+    df.groupBy('date')
+    .agg(F.count('*').alias('count'))
+    .orderBy('date')
+)
 
-daily_with_change = daily_counts.transform(pct_change(value_col="count", order_col="date"))
+daily_with_change = daily_counts.transform(
+    pct_change(value_col='count', order_col='date')
+)
 
 # Find largest drops (most negative percent changes)
 largest_drops = (
-    daily_with_change.filter(F.col("pct_change").isNotNull())
-    .orderBy("pct_change")
+    daily_with_change
+    .filter(F.col('pct_change').isNotNull())
+    .orderBy('pct_change')
     .limit(5)
-    .select("date", "count", "pct_change")
+    .select('date', 'count', 'pct_change')
 )
 
 logger.info("Largest day-over-day drops:")
@@ -229,25 +239,26 @@ largest_drops.toPandas()
 # %%
 # Find earliest date with >30% drop (pct_change returns decimal, so -0.30 for -30%)
 cutoff_date_result = (
-    daily_with_change.filter(F.col("pct_change") < -0.30)
-    .orderBy("date")
+    daily_with_change
+    .filter(F.col('pct_change') < -0.30)
+    .orderBy('date')
     .limit(1)
-    .select("date")
+    .select('date')
     .toPandas()
 )
 
-CUTOFF_DATE = cutoff_date_result["date"].iloc[0]
+CUTOFF_DATE = cutoff_date_result['date'].iloc[0]
 logger.info(f"Cutoff date detected: {CUTOFF_DATE}")
 
 # Apply filter to PySpark DataFrame
-df = df.filter(F.col("date") < CUTOFF_DATE)
+df = df.filter(F.col('date') < CUTOFF_DATE)
 
 # Compute stats
 stats = df.agg(
-    F.count("*").alias("rows"),
-    F.countDistinct("date").alias("days"),
-    F.min("date").alias("start"),
-    F.max("date").alias("end"),
+    F.count('*').alias('rows'),
+    F.countDistinct('date').alias('days'),
+    F.min('date').alias('start'),
+    F.max('date').alias('end')
 )
 stats.toPandas()
 
@@ -313,7 +324,7 @@ drop_cols, keep_cols = hc.analysis.stratified_column_filter(
     resource_id_completeness=0.95,
     composite_min=0.1,
     composite_max=0.5,
-    composite_info_score=0.3,
+    composite_info_score=0.3
 )
 
 logger.info(f"\n🗑️  Dropping {len(drop_cols)} columns: {sorted(drop_cols)}")
@@ -336,7 +347,8 @@ df = df_filtered
 from pyspark.sql.types import StringType
 
 categorical_cols = [
-    field.name for field in df.schema.fields if isinstance(field.dataType, StringType)
+    field.name for field in df.schema.fields
+    if isinstance(field.dataType, StringType)
 ]
 
 logger.info(f"\n📊 Categorical Columns ({len(categorical_cols)}):")
@@ -375,7 +387,7 @@ logger.info("✅ Categorical columns identified for visualization")
 
 # %%
 # Identify all cost columns
-cost_columns = [c for c in df.columns if "cost" in c.lower()]
+cost_columns = [c for c in df.columns if 'cost' in c.lower()]
 
 logger.info(f"\n💰 Cost Columns Found: {len(cost_columns)}")
 logger.info(f"   {cost_columns}")
@@ -383,46 +395,43 @@ logger.info(f"   {cost_columns}")
 # %%
 # Compute pairwise correlations for all cost column pairs
 from itertools import combinations
-
 import pandas as pd
 
 # Compute correlations using PySpark
 corr_results = []
 for col1, col2 in combinations(cost_columns, 2):
     corr_val = df.stat.corr(col1, col2)
-    corr_results.append(
-        {
-            "pair": f"{col1} ↔ {col2}",
-            "col1": col1,
-            "col2": col2,
-            "correlation": corr_val,
-            "abs_correlation": abs(corr_val),
-        }
-    )
+    corr_results.append({
+        'pair': f"{col1} ↔ {col2}",
+        'col1': col1,
+        'col2': col2,
+        'correlation': corr_val,
+        'abs_correlation': abs(corr_val)
+    })
 
-corr_df = pd.DataFrame(corr_results).sort_values("abs_correlation", ascending=False)
+corr_df = pd.DataFrame(corr_results).sort_values('abs_correlation', ascending=False)
 
-logger.info("\n📊 Cost Column Pairwise Correlations:")
-corr_df[["pair", "correlation", "abs_correlation"]]
+logger.info(f"\n📊 Cost Column Pairwise Correlations:")
+corr_df[['pair', 'correlation', 'abs_correlation']]
 
 # %%
 # Analyze correlation statistics
-min_corr = corr_df["abs_correlation"].min()
-max_corr = corr_df["abs_correlation"].max()
-mean_corr = corr_df["abs_correlation"].mean()
+min_corr = corr_df['abs_correlation'].min()
+max_corr = corr_df['abs_correlation'].max()
+mean_corr = corr_df['abs_correlation'].mean()
 
-logger.info("\n📈 Pairwise Correlation Statistics:")
+logger.info(f"\n📈 Pairwise Correlation Statistics:")
 logger.info(f"   Min |r|: {min_corr:.4f}")
 logger.info(f"   Max |r|: {max_corr:.4f}")
 logger.info(f"   Mean |r|: {mean_corr:.4f}")
 
 if min_corr > 0.95:
-    logger.info("\n✅ All pairwise correlations |r| > 0.95")
-    logger.info("   → Cost columns are redundant representations")
-    logger.info("   → Safe to keep only one: materialized_cost")
+    logger.info(f"\n✅ All pairwise correlations |r| > 0.95")
+    logger.info(f"   → Cost columns are redundant representations")
+    logger.info(f"   → Safe to keep only one: materialized_cost")
 else:
-    logger.warning("\n⚠️  Some correlations |r| < 0.95")
-    logger.warning("   → Review which cost columns differ significantly")
+    logger.warning(f"\n⚠️  Some correlations |r| < 0.95")
+    logger.warning(f"   → Review which cost columns differ significantly")
 
 # %% [markdown]
 # **Decision**: Keep `materialized_cost` (base cost, no accounting adjustments), rename to `cost` for simplicity.
@@ -433,36 +442,32 @@ else:
 
 # %%
 # Keep only materialized_cost and rename to 'cost'
-redundant_cost_cols = [c for c in cost_columns if c != "materialized_cost"]
+redundant_cost_cols = [c for c in cost_columns if c != 'materialized_cost']
 
 # Execute single-pass filtering & track reduction
 cols_before = len(df.columns)
-df = df.drop(*redundant_cost_cols).withColumnRenamed("materialized_cost", "cost")
+df = df.drop(*redundant_cost_cols).withColumnRenamed('materialized_cost', 'cost')
 cols_after = len(df.columns)
 reduction_ratio = (cols_before - cols_after) / cols_before
 
-logger.info(
-    f"\n📉 Column Reduction: {cols_before} → {cols_after} ({reduction_ratio:.1%} reduction)"
-)
+logger.info(f"\n📉 Column Reduction: {cols_before} → {cols_after} ({reduction_ratio:.1%} reduction)")
 logger.info(f"✅ Tidy schema ready: {cols_after} informative columns")
-logger.info("✅ Renamed: materialized_cost → cost")
+logger.info(f"✅ Renamed: materialized_cost → cost")
 
 # %%
 # Explain remaining data structure
 remaining_cols = df.columns
 
 logger.info(f"\n📦 Remaining Data Structure ({cols_after} columns):")
-logger.info("\n   Temporal: usage_date")
-logger.info("\n   Cloud Dimensions:")
-logger.info("      - cloud_provider, cloud_account_id, region")
-logger.info("      - availability_zone, product_family, usage_type")
-logger.info("\n   Resource Identifiers:")
-logger.info("      - resource_id, service_code, operation")
-logger.info("\n   Cost Metric:")
-logger.info("      - cost (base materialized cost, no adjustments)")
-logger.info(
-    f"\n   Other: {[c for c in remaining_cols if c not in ['usage_date', 'cloud_provider', 'cloud_account_id', 'region', 'availability_zone', 'product_family', 'usage_type', 'resource_id', 'service_code', 'operation', 'cost']]}"
-)
+logger.info(f"\n   Temporal: usage_date")
+logger.info(f"\n   Cloud Dimensions:")
+logger.info(f"      - cloud_provider, cloud_account_id, region")
+logger.info(f"      - availability_zone, product_family, usage_type")
+logger.info(f"\n   Resource Identifiers:")
+logger.info(f"      - resource_id, service_code, operation")
+logger.info(f"\n   Cost Metric:")
+logger.info(f"      - cost (base materialized cost, no adjustments)")
+logger.info(f"\n   Other: {[c for c in remaining_cols if c not in ['usage_date', 'cloud_provider', 'cloud_account_id', 'region', 'availability_zone', 'product_family', 'usage_type', 'resource_id', 'service_code', 'operation', 'cost']]}")
 
 # %%
 # TODO: Implement plot_dimension_cost_summary in hellocloud.analysis.eda
@@ -478,18 +483,14 @@ logger.info(
 # plt.show()
 
 # Compute cardinalities in single query
-dim_stats = (
-    df.agg(
-        F.countDistinct("cloud_provider").alias("providers"),
-        F.countDistinct("cloud_account_id").alias("accounts"),
-        F.countDistinct("region").alias("regions"),
-        F.countDistinct("product_family").alias("products"),
-    )
-    .toPandas()
-    .iloc[0]
-)
+dim_stats = df.agg(
+    F.countDistinct('cloud_provider').alias('providers'),
+    F.countDistinct('cloud_account_id').alias('accounts'),
+    F.countDistinct('region').alias('regions'),
+    F.countDistinct('product_family').alias('products')
+).toPandas().iloc[0]
 
-logger.info("\n📊 Dimensional Summary:")
+logger.info(f"\n📊 Dimensional Summary:")
 logger.info(f"   Providers: {dim_stats['providers']}")
 logger.info(f"   Accounts: {dim_stats['accounts']}")
 logger.info(f"   Regions: {dim_stats['regions']}")
@@ -505,27 +506,28 @@ logger.info(f"   Products: {dim_stats['products']}")
 # %%
 # Daily aggregates
 daily_summary = (
-    df.groupBy("date")
+    df
+    .groupBy('date')
     .agg(
-        F.count("*").alias("record_count"),
-        F.sum("cost").alias("total_cost"),
-        F.stddev("cost").alias("cost_std"),
+        F.count('*').alias('record_count'),
+        F.sum('cost').alias('total_cost'),
+        F.stddev('cost').alias('cost_std')
     )
-    .orderBy("date")
+    .orderBy('date')
     .toPandas()
 )
 
 # Visualize
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6))
-ax1.plot(daily_summary["date"], daily_summary["record_count"], marker="o")
-ax1.set_ylabel("Daily Records")
-ax1.set_title("Data Volume Over Time")
+ax1.plot(daily_summary['date'], daily_summary['record_count'], marker='o')
+ax1.set_ylabel('Daily Records')
+ax1.set_title('Data Volume Over Time')
 ax1.grid(True, alpha=0.3)
 
-ax2.plot(daily_summary["date"], daily_summary["cost_std"], marker="o", color="red")
-ax2.set_xlabel("Date")
-ax2.set_ylabel("Cost Std Dev")
-ax2.set_title("Cost Variability Over Time")
+ax2.plot(daily_summary['date'], daily_summary['cost_std'], marker='o', color='red')
+ax2.set_xlabel('Date')
+ax2.set_ylabel('Cost Std Dev')
+ax2.set_title('Cost Variability Over Time')
 ax2.grid(True, alpha=0.3)
 
 plt.tight_layout()
@@ -541,7 +543,6 @@ plt.show()
 #
 # ### 2.1 Helper Functions
 
-
 # %%
 def grain_persistence_stats(df, grain_cols, cost_col, min_days=30):
     """
@@ -551,32 +552,41 @@ def grain_persistence_stats(df, grain_cols, cost_col, min_days=30):
         dict: Entity count, stability percentage, median/mean persistence days
     """
     # Compute entity-level persistence
-    entity_stats = df.groupBy(grain_cols).agg(
-        F.countDistinct("date").alias("days_present"), F.sum(cost_col).alias("total_cost")
+    entity_stats = (
+        df
+        .groupBy(grain_cols)
+        .agg(
+            F.countDistinct('date').alias('days_present'),
+            F.sum(cost_col).alias('total_cost')
+        )
     )
 
     # Compute summary statistics
-    summary = entity_stats.agg(
-        F.count("*").alias("total_entities"),
-        F.sum(F.when(F.col("days_present") >= min_days, 1).otherwise(0)).alias("stable_entities"),
-        F.expr("percentile_approx(days_present, 0.5)").alias("median_days"),
-        F.avg("days_present").alias("mean_days"),
-    ).toPandas()
+    summary = (
+        entity_stats
+        .agg(
+            F.count('*').alias('total_entities'),
+            F.sum(F.when(F.col('days_present') >= min_days, 1).otherwise(0)).alias('stable_entities'),
+            F.expr('percentile_approx(days_present, 0.5)').alias('median_days'),
+            F.avg('days_present').alias('mean_days')
+        )
+        .toPandas()
+    )
 
     # Extract scalars and compute derived metrics
-    total = int(summary["total_entities"].iloc[0])
-    stable = int(summary["stable_entities"].iloc[0])
+    total = int(summary['total_entities'].iloc[0])
+    stable = int(summary['stable_entities'].iloc[0])
 
     return {
-        "entities": total,
-        "stable_count": stable,
-        "stable_pct": round(100.0 * stable / total, 1) if total > 0 else 0.0,
-        "median_days": int(summary["median_days"].iloc[0]),
-        "mean_days": round(summary["mean_days"].iloc[0], 1),
+        'entities': total,
+        'stable_count': stable,
+        'stable_pct': round(100.0 * stable / total, 1) if total > 0 else 0.0,
+        'median_days': int(summary['median_days'].iloc[0]),
+        'mean_days': round(summary['mean_days'].iloc[0], 1)
     }
 
 
-def entity_timeseries_normalized(df, entity_cols, time_col, metric_col, freq="1d"):
+def entity_timeseries_normalized(df, entity_cols, time_col, metric_col, freq='1d'):
     """
     Compute entity-normalized time series: x_{e,t} / sum_{e'} x_{e',t}
 
@@ -585,19 +595,25 @@ def entity_timeseries_normalized(df, entity_cols, time_col, metric_col, freq="1d
     """
     # Entity-period aggregation (with time rounding)
     entity_period = (
-        df.withColumn("time", F.date_trunc("day", F.col(time_col)))
-        .groupBy(["time"] + entity_cols)
-        .agg(F.sum(metric_col).alias("metric"))
+        df
+        .withColumn('time', F.date_trunc('day', F.col(time_col)))
+        .groupBy(['time'] + entity_cols)
+        .agg(F.sum(metric_col).alias('metric'))
     )
 
     # Period totals
-    period_totals = entity_period.groupBy("time").agg(F.sum("metric").alias("period_total"))
+    period_totals = (
+        entity_period
+        .groupBy('time')
+        .agg(F.sum('metric').alias('period_total'))
+    )
 
     # Normalize: entity / total
     return (
-        entity_period.join(period_totals, "time")
-        .withColumn("normalized", F.col("metric") / F.col("period_total"))
-        .orderBy(["time"] + entity_cols)
+        entity_period
+        .join(period_totals, 'time')
+        .withColumn('normalized', F.col('metric') / F.col('period_total'))
+        .orderBy(['time'] + entity_cols)
         .toPandas()
     )
 
@@ -610,27 +626,22 @@ def entity_timeseries_normalized(df, entity_cols, time_col, metric_col, freq="1d
 # %%
 # Grain candidates: coarse → fine granularity
 grain_candidates = [
-    ("Provider + Account", ["cloud_provider", "cloud_account_id"]),
-    ("Account + Region", ["cloud_provider", "cloud_account_id", "region"]),
-    ("Account + Product", ["cloud_provider", "cloud_account_id", "product_family"]),
-    (
-        "Account + Region + Product",
-        ["cloud_provider", "cloud_account_id", "region", "product_family"],
-    ),
-    (
-        "Account + Region + Product + Usage",
-        ["cloud_provider", "cloud_account_id", "region", "product_family", "usage_type"],
-    ),
+    ('Provider + Account', ['cloud_provider', 'cloud_account_id']),
+    ('Account + Region', ['cloud_provider', 'cloud_account_id', 'region']),
+    ('Account + Product', ['cloud_provider', 'cloud_account_id', 'product_family']),
+    ('Account + Region + Product', ['cloud_provider', 'cloud_account_id', 'region', 'product_family']),
+    ('Account + Region + Product + Usage', ['cloud_provider', 'cloud_account_id', 'region', 'product_family', 'usage_type'])
 ]
 
 # Compute persistence for all candidates (functional composition)
 grain_results = [
-    {"Grain": name, **grain_persistence_stats(df, cols, "cost")} for name, cols in grain_candidates
+    {'Grain': name, **grain_persistence_stats(df, cols, 'cost')}
+    for name, cols in grain_candidates
 ]
 
 grain_comparison = pd.DataFrame(grain_results)
 
-logger.info("\n📊 Grain Persistence Comparison (37 days, ≥30 day threshold):")
+logger.info(f"\n📊 Grain Persistence Comparison (37 days, ≥30 day threshold):")
 logger.info(f"\n{grain_comparison[['Grain', 'entities', 'stable_pct', 'median_days']]}")
 
 # TODO: Implement plot_grain_persistence_comparison in hellocloud.analysis.eda
@@ -649,24 +660,22 @@ logger.info(f"\n{grain_comparison[['Grain', 'entities', 'stable_pct', 'median_da
 
 # %%
 # Select optimal grain: most granular with ≥70% stability
-viable = grain_comparison[grain_comparison["stable_pct"] >= 70.0]
+viable = grain_comparison[grain_comparison['stable_pct'] >= 70.0]
 
 if len(viable) > 0:
-    optimal = viable.sort_values("entities", ascending=False).head(1)
+    optimal = viable.sort_values('entities', ascending=False).head(1)
 else:
     logger.warning("No grain achieves 70% stability threshold")
-    optimal = grain_comparison.sort_values("stable_pct", ascending=False).head(1)
+    optimal = grain_comparison.sort_values('stable_pct', ascending=False).head(1)
 
-OPTIMAL_GRAIN = optimal["Grain"].iloc[0]
+OPTIMAL_GRAIN = optimal['Grain'].iloc[0]
 
 # Reconstruct OPTIMAL_COLS by looking up in grain_candidates
 OPTIMAL_COLS = [cols for name, cols in grain_candidates if name == OPTIMAL_GRAIN][0]
 
 logger.info(f"\n✅ Optimal Grain: {OPTIMAL_GRAIN}")
 logger.info(f"   Total entities: {optimal['entities'].iloc[0]:,}")
-logger.info(
-    f"   Stable (≥30 days): {optimal['stable_count'].iloc[0]:,} ({optimal['stable_pct'].iloc[0]:.0f}%)"
-)
+logger.info(f"   Stable (≥30 days): {optimal['stable_count'].iloc[0]:,} ({optimal['stable_pct'].iloc[0]:.0f}%)")
 logger.info(f"   Median persistence: {optimal['median_days'].iloc[0]} days")
 
 # %% [markdown]
@@ -683,17 +692,21 @@ logger.info(f"   Median persistence: {optimal['median_days'].iloc[0]} days")
 # %%
 # Get top 10 stable, high-cost entities at optimal grain
 top_entities = (
-    df.groupBy(OPTIMAL_COLS)
-    .agg(F.countDistinct("date").alias("days_present"), F.sum("cost").alias("total_cost"))
-    .filter(F.col("days_present") >= 30)
-    .orderBy(F.desc("total_cost"))
+    df
+    .groupBy(OPTIMAL_COLS)
+    .agg(
+        F.countDistinct('date').alias('days_present'),
+        F.sum('cost').alias('total_cost')
+    )
+    .filter(F.col('days_present') >= 30)
+    .orderBy(F.desc('total_cost'))
     .limit(10)
     .toPandas()
 )
 
 # Pareto analysis
-total_cost = df.agg(F.sum("cost").alias("total")).toPandas()["total"].iloc[0]
-top_10_cost = top_entities["total_cost"].sum()
+total_cost = df.agg(F.sum('cost').alias('total')).toPandas()['total'].iloc[0]
+top_10_cost = top_entities['total_cost'].sum()
 
 logger.info(f"\n💰 Top 10 Entities at {OPTIMAL_GRAIN}:")
 logger.info(f"   Drive {top_10_cost / total_cost * 100:.1f}% of total spend")
@@ -724,8 +737,8 @@ entity_filters = [
 # )
 # plt.show()
 
-logger.info("\n📈 Time series validation complete")
-logger.info("   - Top entities show stable, trackable patterns")
+logger.info(f"\n📈 Time series validation complete")
+logger.info(f"   - Top entities show stable, trackable patterns")
 logger.info(f"   - Suitable for forecasting at {OPTIMAL_GRAIN} grain")
 
 # %% [markdown]
@@ -812,7 +825,8 @@ df.limit(10).toPandas()
 from pyspark.sql.types import StringType
 
 categorical_cols = [
-    field.name for field in df.schema.fields if isinstance(field.dataType, StringType)
+    field.name for field in df.schema.fields
+    if isinstance(field.dataType, StringType)
 ]
 
 logger.info(f"\n🔍 Analyzing hierarchy among {len(categorical_cols)} categorical attributes:")
@@ -832,10 +846,10 @@ compound_keys = []
 # Test different compound key candidates based on discovered hierarchy
 # Use actual attributes from graph roots and their descendants
 key_candidates = [
-    ["provider"],
-    ["provider", "account"],
-    ["provider", "account", "region"],
-    ["provider", "account", "region", "service"],
+    ['provider'],
+    ['provider', 'account'],
+    ['provider', 'account', 'region'],
+    ['provider', 'account', 'region', 'service'],
 ]
 
 for keys in key_candidates:
@@ -849,32 +863,34 @@ for keys in key_candidates:
     unique_combos = df.select(valid_keys).distinct().count()
 
     # Count total records per combination (mean entity size)
-    entity_sizes_df = df.groupBy(valid_keys).agg(F.count("*").alias("record_count")).toPandas()
-    entity_sizes = entity_sizes_df["record_count"].mean()
-
-    compound_keys.append(
-        {
-            "key": " → ".join(valid_keys),
-            "unique_entities": unique_combos,
-            "mean_records_per_entity": entity_sizes,
-        }
+    entity_sizes_df = (
+        df.groupBy(valid_keys)
+        .agg(F.count('*').alias('record_count'))
+        .toPandas()
     )
+    entity_sizes = entity_sizes_df['record_count'].mean()
+
+    compound_keys.append({
+        'key': ' → '.join(valid_keys),
+        'unique_entities': unique_combos,
+        'mean_records_per_entity': entity_sizes
+    })
 
 key_df = pd.DataFrame(compound_keys)
 
-logger.info("\n🔑 Compound Key Analysis:")
+logger.info(f"\n🔑 Compound Key Analysis:")
 key_df  # noqa: B018 - Display in notebook
 
 # %%
-logger.info("\n💡 Insights:")
-logger.info("   • Cardinality hierarchy reveals natural parent-child relationships")
-logger.info("   • Functional dependencies identify 1:1 mappings (compound key components)")
-logger.info("   • Graph structure shows minimal DAG (transitive reduction)")
-logger.info("   • Compound keys enable entity-level time series at different grains")
-logger.info("\n📊 Next: Use hierarchy for:")
-logger.info("   • Hierarchical forecasting (aggregate/disaggregate along tree)")
-logger.info("   • Feature engineering (rollup features from child to parent)")
-logger.info("   • Anomaly detection (detect violations of expected parent-child relationships)")
+logger.info(f"\n💡 Insights:")
+logger.info(f"   • Cardinality hierarchy reveals natural parent-child relationships")
+logger.info(f"   • Functional dependencies identify 1:1 mappings (compound key components)")
+logger.info(f"   • Graph structure shows minimal DAG (transitive reduction)")
+logger.info(f"   • Compound keys enable entity-level time series at different grains")
+logger.info(f"\n📊 Next: Use hierarchy for:")
+logger.info(f"   • Hierarchical forecasting (aggregate/disaggregate along tree)")
+logger.info(f"   • Feature engineering (rollup features from child to parent)")
+logger.info(f"   • Anomaly detection (detect violations of expected parent-child relationships)")
 
 # %% [markdown]
 # ### 5.6 Export to HuggingFace Dataset
@@ -917,7 +933,7 @@ logger.info("   • Anomaly detection (detect violations of expected parent-chil
 # logger.info(f"\n🌲 Hierarchy metadata: See Part 5 for discovered attribute DAG")
 
 logger.info("\n✅ EDA Complete - Dataset ready for modeling")
-logger.info("   PySpark DataFrame maintained in memory (use .toPandas() for small samples)")
+logger.info(f"   PySpark DataFrame maintained in memory (use .toPandas() for small samples)")
 
 # %%
 # Show sample of final dataset
