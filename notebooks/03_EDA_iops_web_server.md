@@ -89,6 +89,9 @@ import pandas as pd
 import numpy as np
 import altair as alt
 import seaborn as sns
+# Set non-interactive backend BEFORE importing pyplot to prevent GUI windows during testing
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy import stats, signal
 from scipy.fft import fft, fftfreq
