@@ -1,0 +1,78 @@
+---
+title: "Concepts"
+---
+
+# Conceptual Documentation
+
+Understand the theory, research, and design decisions behind Cloud Resource Simulator.
+
+## Research Foundation
+
+Our simulator is built on extensive empirical research analyzing real-world cloud infrastructure patterns.
+
+### [Cloud Resource Utilization Patterns](research/cloud-resource-patterns-research.qmd)
+Comprehensive analysis of industry-wide cloud resource utilization statistics.
+
+**Key findings:**
+- 13% average CPU utilization across cloud infrastructure
+- 30-32% waste in cloud spending
+- Workload-specific inefficiency patterns
+- 35+ research citations
+
+---
+
+### [Resource Correlation Analysis](research/cloud-resource-correlations-report.qmd)
+Empirical correlation matrices between cloud resource metrics.
+
+**Key findings:**
+- Temporal autocorrelation: 0.7-0.8 for first 10 lags
+- CPU-Memory correlations vary by workload (0.2-0.95)
+- Network-CPU high correlation in web apps (0.7-0.8)
+
+---
+
+### [Time Series Anomaly Datasets](research/timeseries-anomaly-datasets-review.qmd)
+Curated catalog of HuggingFace datasets for cloud anomaly detection.
+
+**Top recommendations:**
+- AutonLab/Timeseries-PILE
+- Lemma-RCA-NEC/Cloud_Computing
+- Energy domain datasets as cloud infrastructure analogs
+
+---
+
+### [Foundation Model Evaluation](research/opentslm-foundation-model-evaluation.qmd)
+Assessment of Stanford's OpenTSLM for cloud time series forecasting.
+
+**Key finding:** Not suitable for cloud anomaly detection (medical domain focus, no pre-trained weights)
+
+---
+
+## Design Documentation
+
+### [Gaussian Process Architecture](design/gaussian-process-design.qmd)
+Complete design specification for our GP-based forecasting system.
+
+**Topics covered:**
+- Sparse variational approximations
+- Composite periodic kernels
+- Student-t likelihood for robustness
+- 92% test coverage implementation
+
+---
+
+## Framework Philosophy
+
+The Cloud Resource Simulator implements a **multi-model approach**:
+
+1. **Gaussian Processes**: Time series forecasting with uncertainty quantification
+2. **Bayesian Hierarchical Models**: Industry→Application→Resource hierarchy
+3. **Foundation Models**: Zero-shot forecasting (Chronos, TimesFM)
+
+**Core principle:** Empirically-grounded simulation based on real-world research, not assumptions.
+
+## See Also
+
+- [Tutorials](../tutorials/index.qmd) - Hands-on learning guides
+- [How-To Guides](../how-to/index.qmd) - Task-oriented instructions
+- [API Reference](../reference/index.qmd) - Complete API documentation

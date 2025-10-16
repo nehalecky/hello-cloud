@@ -1,0 +1,1954 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://nehalecky.github.io/hello-cloud/concepts/design/gaussian-process-design/">
+      
+      
+        <link rel="prev" href="../../research/opentslm-foundation-model-evaluation/">
+      
+      
+        <link rel="next" href="../../../reference/">
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.22">
+    
+    
+      
+        <title>Gaussian Process Modeling Design Narrative - Hello Cloud</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.84d31ad4.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#gaussian-process-modeling-design-narrative" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Hello Cloud" class="md-header__button md-logo" aria-label="Hello Cloud" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Hello Cloud
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Gaussian Process Modeling Design Narrative
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/nehalecky/hello-cloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Hello Cloud" class="md-nav__button md-logo" aria-label="Hello Cloud" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Hello Cloud
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/nehalecky/hello-cloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Notebooks
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Notebooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Notebooks
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/02_guide_workload_signatures_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Understanding Cloud Workload Signatures: A Comprehensive Guide 2
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/03_EDA_iops_web_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    IOPS Web Server Time Series: Exploratory Data Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/04_modeling_gaussian_process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Gaussian Process Modeling for IOPS Web Server KPI
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/05_EDA_piedpiper_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PiedPiper Dataset - Exploratory Data Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/06_quickstart_timeseries_loader/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quick Start: TimeSeries Loader
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/07_forecasting_comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    IOPS Time Series Forecasting: Baseline Models &amp; Future Approaches
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Research
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Research
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/cloud-resource-patterns-research/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cloud Resource Usage Patterns and Signatures: Technical Research Report
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/cloud-resource-correlations-report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cloud Resource Metrics Correlation Patterns: Empirical Research Report
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/timeseries-anomaly-datasets-review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Hugging Face Datasets for Cloud Resource Anomaly Detection
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/opentslm-foundation-model-evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    OpenTSLM Foundation Model Evaluation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Design
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Gaussian Process Modeling Design Narrative
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Gaussian Process Modeling Design Narrative
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-problem-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Problem Context
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Problem Context">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      Objective
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataset-characteristics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dataset Characteristics
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-challenge" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Challenge
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-architecture-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Architecture Decisions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Architecture Decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-composite-periodic-kernel-kernelspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.1 Composite Periodic Kernel (kernels.py)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-sparse-variational-gp-modelspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.2 Sparse Variational GP (models.py)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-robust-likelihood-student-t-vs-gaussian" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.3 Robust Likelihood (Student-t vs Gaussian)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-training-strategy-trainingpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Training Strategy (training.py)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Training Strategy (training.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-mini-batch-variational-inference" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.1 Mini-Batch Variational Inference
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-numerical-stability" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.2 Numerical Stability
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-evaluation-strategy-evaluationpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Evaluation Strategy (evaluation.py)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Evaluation Strategy (evaluation.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-dual-metrics-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.1 Dual Metrics Approach
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-anomaly-detection-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.2 Anomaly Detection Metrics
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-production-deployment-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Production Deployment Considerations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Production Deployment Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-device-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.1 Device Compatibility
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-model-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.2 Model Persistence
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-prediction-at-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.3 Prediction at Scale
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-library-usage-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Library Usage Examples
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Library Usage Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-basic-training-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      6.1 Basic Training Workflow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-evaluation-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      6.2 Evaluation Workflow
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Lessons Learned
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Lessons Learned">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-numerical-stability-is-critical" class="md-nav__link">
+    <span class="md-ellipsis">
+      7.1 Numerical Stability is Critical
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-batched-predictions-prevent-memory-exhaustion" class="md-nav__link">
+    <span class="md-ellipsis">
+      7.2 Batched Predictions Prevent Memory Exhaustion
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-train-on-all-data-including-anomalies" class="md-nav__link">
+    <span class="md-ellipsis">
+      7.3 Train on All Data (Including Anomalies)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-code-organization" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Code Organization
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Code Organization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#module-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Module Structure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test Coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. References
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. References">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-research" class="md-nav__link">
+    <span class="md-ellipsis">
+      Core Research
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dataset
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Documentation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-problem-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Problem Context
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Problem Context">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      Objective
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataset-characteristics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dataset Characteristics
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-challenge" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Challenge
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-architecture-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Architecture Decisions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Architecture Decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-composite-periodic-kernel-kernelspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.1 Composite Periodic Kernel (kernels.py)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-sparse-variational-gp-modelspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.2 Sparse Variational GP (models.py)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-robust-likelihood-student-t-vs-gaussian" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.3 Robust Likelihood (Student-t vs Gaussian)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-training-strategy-trainingpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Training Strategy (training.py)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Training Strategy (training.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-mini-batch-variational-inference" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.1 Mini-Batch Variational Inference
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-numerical-stability" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.2 Numerical Stability
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-evaluation-strategy-evaluationpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Evaluation Strategy (evaluation.py)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Evaluation Strategy (evaluation.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-dual-metrics-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.1 Dual Metrics Approach
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-anomaly-detection-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.2 Anomaly Detection Metrics
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-production-deployment-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Production Deployment Considerations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Production Deployment Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-device-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.1 Device Compatibility
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-model-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.2 Model Persistence
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-prediction-at-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.3 Prediction at Scale
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-library-usage-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Library Usage Examples
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Library Usage Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-basic-training-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      6.1 Basic Training Workflow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-evaluation-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      6.2 Evaluation Workflow
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Lessons Learned
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Lessons Learned">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-numerical-stability-is-critical" class="md-nav__link">
+    <span class="md-ellipsis">
+      7.1 Numerical Stability is Critical
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-batched-predictions-prevent-memory-exhaustion" class="md-nav__link">
+    <span class="md-ellipsis">
+      7.2 Batched Predictions Prevent Memory Exhaustion
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-train-on-all-data-including-anomalies" class="md-nav__link">
+    <span class="md-ellipsis">
+      7.3 Train on All Data (Including Anomalies)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-code-organization" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Code Organization
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Code Organization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#module-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Module Structure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test Coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. References
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. References">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-research" class="md-nav__link">
+    <span class="md-ellipsis">
+      Core Research
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dataset
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Documentation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="gaussian-process-modeling-design-narrative">Gaussian Process Modeling Design Narrative</h1>
+<p><strong>Purpose:</strong> This document explains the design decisions and modeling philosophy behind our Gaussian Process implementation for cloud resource anomaly detection.</p>
+<hr />
+<h2 id="1-problem-context">1. Problem Context</h2>
+<h3 id="objective"><strong>Objective</strong></h3>
+<p>Build production-ready Gaussian Process models for:
+- Time series forecasting with uncertainty quantification
+- Anomaly detection via prediction intervals
+- Pattern learning from operational cloud metrics</p>
+<h3 id="dataset-characteristics"><strong>Dataset Characteristics</strong></h3>
+<ul>
+<li><strong>Training:</strong> 146,255 samples with 285 labeled anomalies (0.19%)</li>
+<li><strong>Testing:</strong> 149,130 samples with 991 labeled anomalies (0.66%)</li>
+<li><strong>KPI:</strong> IOPS (I/O operations per second) from production web server</li>
+<li><strong>Source:</strong> <a href="https://huggingface.co/datasets/AutonLab/Timeseries-PILE">HuggingFace Timeseries-PILE dataset</a></li>
+</ul>
+<h3 id="key-challenge"><strong>Key Challenge</strong></h3>
+<p>The dataset exhibits a <strong>two-scale periodic pattern</strong>:
+- <strong>SLOW component:</strong> Sawtooth envelope (~1250 timesteps ≈ 21 hours)
+- <strong>FAST component:</strong> Sinusoidal carrier (~250 timesteps ≈ 4 hours)</p>
+<p><strong>Operational interpretation:</strong> Daily accumulation pattern with overnight resets, plus regular micro-cycles within operational windows.</p>
+<hr />
+<h2 id="2-architecture-decisions">2. Architecture Decisions</h2>
+<h3 id="21-composite-periodic-kernel-kernelspy"><strong>2.1 Composite Periodic Kernel</strong> (<code>kernels.py</code>)</h3>
+<p><strong>Design Choice:</strong> Additive kernel structure (not multiplicative)</p>
+<pre><code class="language-python">K(x1, x2) = K_slow(x1, x2) + K_fast(x1, x2) + K_rbf(x1, x2)
+</code></pre>
+<p><strong>Rationale:</strong>
+1. <strong>Captures multi-scale patterns:</strong> Sawtooth × sinusoidal interaction requires two periodic components
+2. <strong>Numerical stability:</strong> Additive structure more stable than multiplicative
+3. <strong>Fixed lengthscales:</strong> Period lengths are domain-driven (1250, 250 steps), not learned
+4. <strong>Learnable outputscales:</strong> Allow model to weight each component's contribution</p>
+<p><strong>Implementation:</strong> <code>CompositePeriodicKernel</code> in <code>src/cloud_sim/ml_models/gaussian_process/kernels.py</code></p>
+<p><strong>Research Foundation:</strong>
+- Composite kernels: Rasmussen &amp; Williams (2006), "Gaussian Processes for Machine Learning"
+- Domain knowledge: EDA revealed specific periods from autocorrelation analysis</p>
+<hr />
+<h3 id="22-sparse-variational-gp-modelspy"><strong>2.2 Sparse Variational GP</strong> (<code>models.py</code>)</h3>
+<p><strong>Design Choice:</strong> Variational inference with inducing points</p>
+<p><strong>Complexity reduction:</strong> O(n³) → O(nm²) where m &lt;&lt; n</p>
+<p><strong>Rationale:</strong>
+1. <strong>Scalability:</strong> 146K samples require sparse approximation (exact GP infeasible)
+2. <strong>Inducing points:</strong> M=200 points provide sufficient coverage while remaining tractable
+3. <strong>Learn locations:</strong> Inducing points optimized during training (not fixed)
+4. <strong>Cholesky variational distribution:</strong> Full covariance over inducing points</p>
+<p><strong>Implementation:</strong> <code>SparseGPModel</code> in <code>src/cloud_sim/ml_models/gaussian_process/models.py</code></p>
+<p><strong>Research Foundation:</strong>
+- Sparse GPs (SVGP): Hensman et al. (2013), "Gaussian Processes for Big Data"
+- GPyTorch library: Production-proven (Uber, Meta, Amazon)</p>
+<hr />
+<h3 id="23-robust-likelihood-student-t-vs-gaussian"><strong>2.3 Robust Likelihood</strong> (Student-t vs Gaussian)</h3>
+<p><strong>Design Choice:</strong> Student-t likelihood with ν=4</p>
+<p><strong>Philosophy comparison:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Robust (Recommended)</th>
+<th>Traditional (Baseline)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Training Data</strong></td>
+<td>ALL 146,255 samples</td>
+<td>145,970 samples (exclude anomalies)</td>
+</tr>
+<tr>
+<td><strong>Likelihood</strong></td>
+<td>Student-t (ν=4)</td>
+<td>Gaussian</td>
+</tr>
+<tr>
+<td><strong>Philosophy</strong></td>
+<td>Outliers are real data</td>
+<td>Outliers corrupt training</td>
+</tr>
+<tr>
+<td><strong>Robustness</strong></td>
+<td>Heavy tails handle extremes</td>
+<td>Assumes normality</td>
+</tr>
+<tr>
+<td><strong>Production</strong></td>
+<td>Trained on operational reality</td>
+<td>Trained on sanitized data</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rationale:</strong>
+1. <strong>Heavy tails:</strong> Student-t distribution naturally handles occasional spikes
+2. <strong>Train on all data:</strong> Anomalies are part of operational reality
+3. <strong>Automatic robustness:</strong> Outliers contribute less to parameter learning
+4. <strong>ν=4:</strong> Balanced between robustness and efficiency</p>
+<p><strong>Mathematical formulation:</strong></p>
+<p>$$
+p(y | \mu, \sigma, \nu) = \frac{\Gamma(\frac{\nu+1}{2})}{\Gamma(\frac{\nu}{2})\sqrt{\pi\nu}\sigma} \left(1 + \frac{1}{\nu}\left(\frac{y-\mu}{\sigma}\right)^2\right)^{-\frac{\nu+1}{2}}
+$$</p>
+<p><strong>Implementation:</strong> Compatible with both <code>StudentTLikelihood</code> and <code>GaussianLikelihood</code></p>
+<p><strong>Research Foundation:</strong>
+- Student-t Processes: Shah et al. (2014)
+- Empirical finding: 4× larger variance in anomalous periods (see EDA notebook)</p>
+<hr />
+<h2 id="3-training-strategy-trainingpy">3. Training Strategy (<code>training.py</code>)</h2>
+<h3 id="31-mini-batch-variational-inference"><strong>3.1 Mini-Batch Variational Inference</strong></h3>
+<p><strong>Design Choice:</strong> Batch size 2048 with variational ELBO</p>
+<p><strong>Rationale:</strong>
+1. <strong>Memory efficiency:</strong> Process large dataset in manageable chunks
+2. <strong>ELBO objective:</strong> Variational lower bound on marginal likelihood
+3. <strong>Adaptive optimization:</strong> Adam optimizer with lr=0.01
+4. <strong>Convergence:</strong> 100 epochs typically sufficient</p>
+<p><strong>Training complexity:</strong> O(nm² * batches) per epoch</p>
+<hr />
+<h3 id="32-numerical-stability"><strong>3.2 Numerical Stability</strong></h3>
+<p><strong>Design Choice:</strong> Maximum stability settings</p>
+<pre><code class="language-python">with gpytorch.settings.cholesky_jitter(1e-3), \
+     gpytorch.settings.cholesky_max_tries(10), \
+     gpytorch.settings.cg_tolerance(1e-2):
+    # Training loop
+</code></pre>
+<p><strong>Rationale:</strong>
+1. <strong>Cholesky jitter:</strong> Add 1e-3 to diagonal for PSD guarantee
+2. <strong>Max tries:</strong> Retry Cholesky decomposition up to 10 times
+3. <strong>CG tolerance:</strong> Relaxed conjugate gradient convergence
+4. <strong>Production-critical:</strong> Prevents training crashes from numerical issues</p>
+<p><strong>Lesson learned:</strong> Initial implementation crashed with <code>NotPSDError</code>. These settings prevent failures.</p>
+<hr />
+<h2 id="4-evaluation-strategy-evaluationpy">4. Evaluation Strategy (<code>evaluation.py</code>)</h2>
+<h3 id="41-dual-metrics-approach"><strong>4.1 Dual Metrics Approach</strong></h3>
+<p><strong>Design Choice:</strong> Both point accuracy AND uncertainty quality</p>
+<p><strong>Point accuracy metrics:</strong>
+- RMSE: Root mean squared error
+- MAE: Mean absolute error
+- R²: Variance explained</p>
+<p><strong>Uncertainty quality metrics:</strong>
+- <strong>Coverage:</strong> Fraction of points in prediction interval (should match nominal 95%/99%)
+- <strong>Sharpness:</strong> Average interval width (narrower is better IF well-calibrated)</p>
+<p><strong>Rationale:</strong>
+A good probabilistic forecast must be BOTH accurate AND well-calibrated.</p>
+<hr />
+<h3 id="42-anomaly-detection-metrics"><strong>4.2 Anomaly Detection Metrics</strong></h3>
+<p><strong>Design Choice:</strong> Detection via prediction intervals</p>
+<p><strong>Method:</strong> Flag anomalies as points outside 95% (or 99%) interval</p>
+<pre><code class="language-python">anomalies_detected = (y_test &lt; lower_95) | (y_test &gt; upper_95)
+</code></pre>
+<p><strong>Metrics:</strong>
+- <strong>Precision:</strong> Fraction of detections that are true anomalies
+- <strong>Recall:</strong> Fraction of true anomalies detected
+- <strong>F1-Score:</strong> Harmonic mean balancing precision/recall
+- <strong>AUC-ROC:</strong> Overall discriminative ability</p>
+<p><strong>Threshold tuning:</strong> 95% vs 99% interval trades precision for recall</p>
+<hr />
+<h2 id="5-production-deployment-considerations">5. Production Deployment Considerations</h2>
+<h3 id="51-device-compatibility"><strong>5.1 Device Compatibility</strong></h3>
+<p><strong>Apple Silicon (MPS) limitation:</strong>
+- ❌ <strong>NOT USED</strong> for GP training
+- <strong>Reason:</strong> GPyTorch requires float64 for Cholesky decomposition, but MPS only supports float32
+- <strong>Workaround:</strong> CPU locally, CUDA GPU in Colab for training</p>
+<p><strong>Recommendation:</strong> Train on Google Colab with GPU, deploy models for CPU inference</p>
+<hr />
+<h3 id="52-model-persistence"><strong>5.2 Model Persistence</strong></h3>
+<p><strong>Design Choice:</strong> Checkpoint includes full state</p>
+<pre><code class="language-python">checkpoint = {
+    'model_state_dict': model.state_dict(),
+    'likelihood_state_dict': likelihood.state_dict(),
+    'inducing_points': inducing_points,
+    'losses': training_losses,
+    'final_nu': likelihood.deg_free.item(),  # If Student-t
+    'metadata': {...}
+}
+</code></pre>
+<p><strong>Rationale:</strong> Reproducible loading without re-architecture decisions</p>
+<hr />
+<h3 id="53-prediction-at-scale"><strong>5.3 Prediction at Scale</strong></h3>
+<p><strong>Design Choice:</strong> Batched predictions (4096 samples per batch)</p>
+<p><strong>Rationale:</strong>
+1. <strong>Memory management:</strong> 149K test samples cause exhaustion if processed at once
+2. <strong>Progress tracking:</strong> Report every 10 batches
+3. <strong>Numerical stability:</strong> Same jitter settings as training</p>
+<p><strong>Implementation:</strong> See <code>training.py</code> for batched prediction pattern</p>
+<hr />
+<h2 id="6-library-usage-examples">6. Library Usage Examples</h2>
+<h3 id="61-basic-training-workflow"><strong>6.1 Basic Training Workflow</strong></h3>
+<pre><code class="language-python">from cloud_sim.ml_models.gaussian_process import (
+    CompositePeriodicKernel,
+    SparseGPModel,
+    initialize_inducing_points,
+    train_gp_model,
+    save_model,
+    load_model,
+)
+import gpytorch
+
+# Initialize inducing points
+inducing_points = initialize_inducing_points(
+    X_train=X_train_norm,
+    num_inducing=200,
+    method=&quot;evenly_spaced&quot;
+)
+
+# Create model
+model = SparseGPModel(
+    inducing_points=inducing_points,
+    slow_period=1250 / X_range,
+    fast_period=250 / X_range,
+    rbf_lengthscale=0.1
+)
+
+# Create likelihood (robust approach)
+likelihood = gpytorch.likelihoods.StudentTLikelihood(
+    deg_free_prior=gpytorch.priors.NormalPrior(4.0, 1.0)
+)
+
+# Train
+losses = train_gp_model(
+    model=model,
+    likelihood=likelihood,
+    X_train=X_train,
+    y_train=y_train,
+    n_epochs=100,
+    batch_size=2048
+)
+
+# Save
+save_model(
+    model=model,
+    likelihood=likelihood,
+    save_path=&quot;../models/gp_robust_model.pth&quot;,
+    losses=losses
+)
+</code></pre>
+<h3 id="62-evaluation-workflow"><strong>6.2 Evaluation Workflow</strong></h3>
+<pre><code class="language-python">from cloud_sim.ml_models.gaussian_process import (
+    compute_metrics,
+    compute_anomaly_metrics,
+    compute_prediction_intervals,
+)
+
+# Compute prediction intervals
+intervals = compute_prediction_intervals(
+    mean=predictions_mean,
+    std=predictions_std,
+    confidence_levels=[0.95, 0.99],
+    distribution=&quot;student_t&quot;,
+    nu=4.0
+)
+
+lower_95, upper_95 = intervals[0.95]
+lower_99, upper_99 = intervals[0.99]
+
+# Evaluate accuracy + calibration
+metrics = compute_metrics(
+    y_true=y_test,
+    y_pred=predictions_mean,
+    lower_95=lower_95,
+    upper_95=upper_95,
+    lower_99=lower_99,
+    upper_99=upper_99,
+    model_name=&quot;Robust GP&quot;
+)
+
+# Evaluate anomaly detection
+anomalies_pred = (y_test &lt; lower_95) | (y_test &gt; upper_95)
+
+anomaly_metrics = compute_anomaly_metrics(
+    y_true_anomaly=anomaly_labels,
+    y_pred_anomaly=anomalies_pred,
+    model_name=&quot;Robust GP&quot;,
+    threshold_name=&quot;95% Interval&quot;
+)
+</code></pre>
+<hr />
+<h2 id="7-lessons-learned">7. Lessons Learned</h2>
+<h3 id="71-numerical-stability-is-critical"><strong>7.1 Numerical Stability is Critical</strong></h3>
+<p><strong>Problem encountered:</strong> Training crashed with <code>NotPSDError</code> on Cholesky decomposition</p>
+<p><strong>Solution:</strong> Maximum jitter settings + retry logic</p>
+<p><strong>Takeaway:</strong> Always use stability settings in production GP training</p>
+<hr />
+<h3 id="72-batched-predictions-prevent-memory-exhaustion"><strong>7.2 Batched Predictions Prevent Memory Exhaustion</strong></h3>
+<p><strong>Problem encountered:</strong> Kernel crashed predicting on 149K samples at once</p>
+<p><strong>Solution:</strong> Process in batches of 4096 with progress tracking</p>
+<p><strong>Takeaway:</strong> Never process full test set at once in production</p>
+<hr />
+<h3 id="73-train-on-all-data-including-anomalies"><strong>7.3 Train on All Data (Including Anomalies)</strong></h3>
+<p><strong>Conventional wisdom:</strong> Remove outliers before training</p>
+<p><strong>Our approach:</strong> Train on all data with robust likelihood</p>
+<p><strong>Result:</strong> Better calibration, more realistic uncertainty</p>
+<p><strong>Takeaway:</strong> Student-t likelihood eliminates need for pre-filtering</p>
+<hr />
+<h2 id="8-code-organization">8. Code Organization</h2>
+<h3 id="module-structure"><strong>Module Structure</strong></h3>
+<pre><code>src/cloud_sim/ml_models/gaussian_process/
+├── __init__.py            # Public API exports
+├── kernels.py             # CompositePeriodicKernel
+├── models.py              # SparseGPModel + inducing point utils
+├── training.py            # train_gp_model, save_model, load_model
+└── evaluation.py          # Comprehensive metrics
+</code></pre>
+<h3 id="test-coverage"><strong>Test Coverage</strong></h3>
+<pre><code>tests/ml_models/
+├── __init__.py
+├── test_gaussian_process_kernels.py      # 18 tests, 100% coverage
+├── test_gaussian_process_models.py       # 19 tests, 100% coverage
+├── test_gaussian_process_evaluation.py   # 19 tests, 100% coverage
+└── test_gaussian_process_training.py     # 11 tests, 84% coverage
+</code></pre>
+<p><strong>Overall GP module coverage:</strong> <strong>92%</strong> (exceeds 70% requirement)</p>
+<hr />
+<h2 id="9-references">9. References</h2>
+<h3 id="core-research"><strong>Core Research</strong></h3>
+<ul>
+<li><strong>GPyTorch:</strong> https://gpytorch.ai/</li>
+<li><strong>Sparse GPs (SVGP):</strong> Hensman et al. (2013), "Gaussian Processes for Big Data"</li>
+<li><strong>Student-t Processes:</strong> Shah et al. (2014)</li>
+<li><strong>Composite Kernels:</strong> Rasmussen &amp; Williams (2006), "Gaussian Processes for Machine Learning"</li>
+</ul>
+<h3 id="dataset"><strong>Dataset</strong></h3>
+<ul>
+<li><strong>HuggingFace Timeseries-PILE:</strong> https://huggingface.co/datasets/AutonLab/Timeseries-PILE</li>
+<li><strong>IOPS Web Server KPI:</strong> <code>KPI-05f10d3a-239c-3bef-9bdc-a2feeb0037aa</code></li>
+</ul>
+<h3 id="related-documentation"><strong>Related Documentation</strong></h3>
+<ul>
+<li><strong>EDA Notebook:</strong> <code>notebooks/03_iops_web_server_eda.ipynb</code> (pattern discovery)</li>
+<li><strong>GP Notebook (runbook):</strong> <code>notebooks/04_gaussian_process_modeling.md</code> (demonstrates library usage)</li>
+<li><strong>Research Foundation:</strong> <code>docs/research/timeseries-anomaly-datasets-review.md</code></li>
+</ul>
+<hr />
+<p><strong>Next Steps:</strong>
+- Deploy model via FastAPI endpoint
+- Integrate with monitoring dashboard
+- A/B test against existing anomaly detection
+- Collect feedback from operations team</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.instant", "navigation.tracking", "search.suggest"], "search": "../../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  </body>
+</html>

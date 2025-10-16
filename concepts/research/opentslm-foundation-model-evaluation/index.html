@@ -1,0 +1,2152 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://nehalecky.github.io/hello-cloud/concepts/research/opentslm-foundation-model-evaluation/">
+      
+      
+        <link rel="prev" href="../timeseries-anomaly-datasets-review/">
+      
+      
+        <link rel="next" href="../../design/gaussian-process-design/">
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.22">
+    
+    
+      
+        <title>OpenTSLM Foundation Model Evaluation - Hello Cloud</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.84d31ad4.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#opentslm-foundation-model-evaluation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Hello Cloud" class="md-header__button md-logo" aria-label="Hello Cloud" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Hello Cloud
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              OpenTSLM Foundation Model Evaluation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/nehalecky/hello-cloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Hello Cloud" class="md-nav__button md-logo" aria-label="Hello Cloud" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Hello Cloud
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/nehalecky/hello-cloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Notebooks
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Notebooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Notebooks
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/02_guide_workload_signatures_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Understanding Cloud Workload Signatures: A Comprehensive Guide 2
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/03_EDA_iops_web_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    IOPS Web Server Time Series: Exploratory Data Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/04_modeling_gaussian_process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Gaussian Process Modeling for IOPS Web Server KPI
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/05_EDA_piedpiper_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PiedPiper Dataset - Exploratory Data Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/06_quickstart_timeseries_loader/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quick Start: TimeSeries Loader
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../notebooks/published/07_forecasting_comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    IOPS Time Series Forecasting: Baseline Models &amp; Future Approaches
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Research
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Research
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cloud-resource-patterns-research/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cloud Resource Usage Patterns and Signatures: Technical Research Report
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cloud-resource-correlations-report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cloud Resource Metrics Correlation Patterns: Empirical Research Report
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../timeseries-anomaly-datasets-review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Hugging Face Datasets for Cloud Resource Anomaly Detection
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    OpenTSLM Foundation Model Evaluation
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    OpenTSLM Foundation Model Evaluation
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Executive Summary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#research-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      Research Context
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Research Context">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Motivation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-question" class="md-nav__link">
+    <span class="md-ellipsis">
+      Research Question
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#investigation-methodology" class="md-nav__link">
+    <span class="md-ellipsis">
+      Investigation Methodology
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Investigation Methodology">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-repository-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase 1: Repository Analysis
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-model-weights-investigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase 2: Model Weights Investigation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-architecture-requirements-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase 3: Architecture &amp; Requirements Analysis
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Findings
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Findings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#critical-limitation-no-pre-trained-weights-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      Critical Limitation: No Pre-trained Weights Available
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-mismatch-medical-focus" class="md-nav__link">
+    <span class="md-ellipsis">
+      Domain Mismatch: Medical Focus
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architecture-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architecture Analysis
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Model Components
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Training Requirements
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Training Requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hardware-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hardware Requirements
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#software-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Software Dependencies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training-pipeline-5-stages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Training Pipeline (5 Stages)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applicability-assessment-for-cloud-resource-simulator" class="md-nav__link">
+    <span class="md-ellipsis">
+      Applicability Assessment for Cloud Resource Simulator
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Applicability Assessment for Cloud Resource Simulator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#alignment-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alignment Analysis
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strengths-for-cloud-use-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Strengths for Cloud Use Case
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#critical-limitations-for-cloud-use-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Critical Limitations for Cloud Use Case
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-approaches-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alternative Approaches Recommended
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#repository-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      Repository Information
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Repository Information">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#forked-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      Forked Repository
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#repository-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Repository Structure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#additional-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Resources
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision &amp; Next Steps
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision &amp; Next Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-not-pursuing-opentslm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision: Not Pursuing OpenTSLM
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rationale" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rationale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recommended-next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recommended Next Steps
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lessons Learned
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lessons Learned">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#for-future-model-evaluations" class="md-nav__link">
+    <span class="md-ellipsis">
+      For Future Model Evaluations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-methodology-success" class="md-nav__link">
+    <span class="md-ellipsis">
+      Research Methodology Success
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="References">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opentslm-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      OpenTSLM Resources
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#related-foundation-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Foundation Models
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medical-time-series-datasets-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      Medical Time Series Datasets (Context)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloud-anomaly-detection-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloud Anomaly Detection Resources
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Design
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/gaussian-process-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Gaussian Process Modeling Design Narrative
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Executive Summary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#research-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      Research Context
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Research Context">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Motivation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-question" class="md-nav__link">
+    <span class="md-ellipsis">
+      Research Question
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#investigation-methodology" class="md-nav__link">
+    <span class="md-ellipsis">
+      Investigation Methodology
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Investigation Methodology">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-repository-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase 1: Repository Analysis
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-model-weights-investigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase 2: Model Weights Investigation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-architecture-requirements-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Phase 3: Architecture &amp; Requirements Analysis
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Findings
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Findings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#critical-limitation-no-pre-trained-weights-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      Critical Limitation: No Pre-trained Weights Available
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-mismatch-medical-focus" class="md-nav__link">
+    <span class="md-ellipsis">
+      Domain Mismatch: Medical Focus
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architecture-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architecture Analysis
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Model Components
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Training Requirements
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Training Requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hardware-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hardware Requirements
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#software-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Software Dependencies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training-pipeline-5-stages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Training Pipeline (5 Stages)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applicability-assessment-for-cloud-resource-simulator" class="md-nav__link">
+    <span class="md-ellipsis">
+      Applicability Assessment for Cloud Resource Simulator
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Applicability Assessment for Cloud Resource Simulator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#alignment-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alignment Analysis
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strengths-for-cloud-use-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Strengths for Cloud Use Case
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#critical-limitations-for-cloud-use-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Critical Limitations for Cloud Use Case
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-approaches-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alternative Approaches Recommended
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#repository-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      Repository Information
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Repository Information">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#forked-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      Forked Repository
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#repository-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Repository Structure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#additional-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Resources
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision &amp; Next Steps
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision &amp; Next Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-not-pursuing-opentslm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision: Not Pursuing OpenTSLM
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rationale" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rationale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recommended-next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recommended Next Steps
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lessons Learned
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lessons Learned">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#for-future-model-evaluations" class="md-nav__link">
+    <span class="md-ellipsis">
+      For Future Model Evaluations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-methodology-success" class="md-nav__link">
+    <span class="md-ellipsis">
+      Research Methodology Success
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="References">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opentslm-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      OpenTSLM Resources
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#related-foundation-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Foundation Models
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medical-time-series-datasets-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      Medical Time Series Datasets (Context)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloud-anomaly-detection-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloud Anomaly Detection Resources
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="opentslm-foundation-model-evaluation">OpenTSLM Foundation Model Evaluation</h1>
+<p><strong>Evaluation Date:</strong> October 2, 2025
+<strong>Evaluator:</strong> Research Team
+<strong>Status:</strong> ❌ Not Recommended for Cloud Anomaly Detection</p>
+<hr />
+<h2 id="executive-summary">Executive Summary</h2>
+<p><a href="https://www.opentslm.com">OpenTSLM</a> is a Stanford-developed timeseries foundation model that processes multivariate time series through language model reasoning. While architecturally innovative, <strong>it is not suitable for cloud resource anomaly detection</strong> due to:</p>
+<ol>
+<li><strong>❌ No Pre-trained Weights</strong> - Requires training from scratch (5-stage curriculum, days/weeks with GPU)</li>
+<li><strong>❌ Medical Domain Focus</strong> - Optimized for ECG, EEG, and human activity recognition, not cloud metrics</li>
+<li><strong>❌ High Training Overhead</strong> - ~6GB dataset downloads, CUDA GPU required, HuggingFace authentication needed</li>
+<li><strong>❌ Not Designed for Anomaly Detection</strong> - Focused on Q&amp;A, captioning, and chain-of-thought reasoning</li>
+</ol>
+<p><strong>Recommendation:</strong> Explore purpose-built anomaly detection models or cloud-metric-trained foundation models instead.</p>
+<hr />
+<h2 id="research-context">Research Context</h2>
+<h3 id="motivation">Motivation</h3>
+<p>While reviewing HackerNews on October 2, 2025, we discovered OpenTSLM - a newly published timeseries foundation model from Stanford. Given our cloud-resource-simulator project's need for anomaly detection capabilities, we investigated whether OpenTSLM could serve as a foundation model for:</p>
+<ol>
+<li><strong>Timeseries Anomaly Detection</strong> in cloud resource utilization</li>
+<li><strong>Pattern Recognition</strong> across multivariate cloud metrics (CPU, memory, network, disk)</li>
+<li><strong>Natural Language Explanations</strong> for detected anomalies</li>
+</ol>
+<h3 id="research-question">Research Question</h3>
+<p><strong>Can OpenTSLM be adapted or fine-tuned for cloud resource anomaly detection in the cloud-resource-simulator project?</strong></p>
+<hr />
+<h2 id="investigation-methodology">Investigation Methodology</h2>
+<h3 id="phase-1-repository-analysis">Phase 1: Repository Analysis</h3>
+<ol>
+<li><strong>Forked Repository</strong> to personal GitHub account: <a href="https://github.com/nehalecky/OpenTSLM">nehalecky/OpenTSLM</a></li>
+<li><strong>Cloned Locally</strong> to <code>/Users/nehalecky/Projects/cloudzero/OpenTSLM</code></li>
+<li><strong>Initialized Submodules</strong> (open_flamingo dependency)</li>
+<li><strong>Examined Documentation</strong> - README, code structure, training pipeline</li>
+</ol>
+<h3 id="phase-2-model-weights-investigation">Phase 2: Model Weights Investigation</h3>
+<ul>
+<li>Searched for pre-trained checkpoints in repository</li>
+<li>Checked HuggingFace for published models</li>
+<li>Reviewed training scripts for weight download mechanisms</li>
+<li>Analyzed <code>curriculum_learning.py</code> for checkpoint handling</li>
+</ul>
+<h3 id="phase-3-architecture-requirements-analysis">Phase 3: Architecture &amp; Requirements Analysis</h3>
+<ul>
+<li>Reviewed model implementations (<code>OpenTSLMFlamingo</code>, <code>OpenTSLMSP</code>)</li>
+<li>Examined encoder architecture (<code>TransformerCNN</code>)</li>
+<li>Analyzed training datasets and their domains</li>
+<li>Assessed infrastructure requirements</li>
+</ul>
+<hr />
+<h2 id="key-findings">Key Findings</h2>
+<h3 id="critical-limitation-no-pre-trained-weights-available">Critical Limitation: No Pre-trained Weights Available</h3>
+<p><strong>OpenTSLM does NOT provide pre-trained model weights.</strong> Users must train models from scratch using the full 5-stage curriculum.</p>
+<p><strong>What's Available:</strong>
+- Base LLM models from HuggingFace (Llama 3.2-1B, Gemma-3-270m)
+- These are <strong>untrained base models</strong>, not OpenTSLM-trained weights
+- No shortcuts or intermediate checkpoints provided</p>
+<p><strong>What's Required:</strong></p>
+<pre><code class="language-bash"># 1. Obtain base LLM (requires HuggingFace authentication)
+huggingface-cli login
+
+# 2. Run full 5-stage curriculum training
+python curriculum_learning.py --model OpenTSLMFlamingo
+
+# Stages:
+# - Stage 1: Multiple Choice Q&amp;A (TSQA dataset)
+# - Stage 2: Time Series Captioning (M4 dataset)
+# - Stage 3: HAR Chain-of-Thought (~download required)
+# - Stage 4: Sleep Staging CoT (EEG data)
+# - Stage 5: ECG Q&amp;A CoT (~6GB download)
+
+# Training time: Days to weeks depending on GPU
+</code></pre>
+<p><strong>Checkpoints Storage:</strong></p>
+<pre><code>results/
+└── Llama3_2_1B/
+    └── OpenTSLMFlamingo/
+        ├── stage1_mcq/checkpoints/best_model.pt
+        ├── stage2_captioning/checkpoints/best_model.pt
+        ├── stage3_cot/checkpoints/best_model.pt
+        ├── stage4_sleep_cot/checkpoints/best_model.pt
+        └── stage5_ecg_cot/checkpoints/best_model.pt
+</code></pre>
+<hr />
+<h3 id="domain-mismatch-medical-focus">Domain Mismatch: Medical Focus</h3>
+<p><strong>Primary Use Cases:</strong>
+- <strong>ECG Analysis</strong> - 12-lead electrocardiogram interpretation
+- <strong>Sleep Staging</strong> - EEG-based sleep classification
+- <strong>Human Activity Recognition</strong> - Accelerometer/gyroscope data
+- <strong>Medical Time Series Q&amp;A</strong> - Clinical reasoning tasks</p>
+<p><strong>Training Datasets:</strong>
+| Stage | Dataset | Domain | Size |
+|-------|---------|--------|------|
+| 1 | TSQA | Time Series Q&amp;A | Auto-download |
+| 2 | M4 | General forecasting | Auto-download |
+| 3 | HAR | Human activity | ~Download |
+| 4 | SleepEDF | EEG sleep staging | Auto-download |
+| 5 | ECG-QA + PTB-XL | 12-lead ECG | ~6GB |</p>
+<p><strong>Domain Characteristics:</strong>
+- High sampling rates (100-500 Hz for medical signals)
+- Strong physiological constraints (QRS complexes, sleep stages)
+- Clinical terminology and reasoning patterns
+- Diagnostic question-answering focus</p>
+<p><strong>Cloud Metrics Characteristics:</strong>
+- Low sampling rates (1-5 minute intervals typical)
+- Different correlation patterns (resource contention, not physiology)
+- Infrastructure terminology (pods, nodes, services)
+- Anomaly detection focus (not diagnostic Q&amp;A)</p>
+<p><strong>Conclusion:</strong> Significant domain gap between medical time series and cloud infrastructure metrics.</p>
+<hr />
+<h3 id="architecture-analysis">Architecture Analysis</h3>
+<h4 id="model-components">Model Components</h4>
+<p><strong>1. OpenTSLMFlamingo Architecture</strong></p>
+<pre><code>Time Series Input → TransformerCNN Encoder → MLP Projector → Frozen LLM
+                                                              ↓
+                                                    Natural Language Output
+</code></pre>
+<p><strong>Components:</strong>
+- <strong>Encoder:</strong> <code>TransformerCNN</code> - Processes multivariate time series of any length
+- <strong>Projector:</strong> MLP layers align time series embeddings with LLM embedding space
+- <strong>LLM:</strong> Pre-trained language model (Llama 3.2-1B or Gemma variants)
+- <strong>Training:</strong> LoRA fine-tuning with parameter-efficient adaptation</p>
+<p><strong>2. Alternative: OpenTSLMSP</strong>
+- Uses special tokens instead of Flamingo architecture
+- Same encoder/projector concept
+- Different integration with base LLM</p>
+<p><strong>Key Innovation:</strong>
+- Combines time series understanding with natural language reasoning
+- Enables chain-of-thought explanations for predictions
+- Processes multivariate time series with variable lengths</p>
+<hr />
+<h3 id="training-requirements">Training Requirements</h3>
+<h4 id="hardware-requirements">Hardware Requirements</h4>
+<ul>
+<li><strong>Preferred:</strong> CUDA-enabled NVIDIA GPU</li>
+<li><strong>Alternative:</strong> Apple Silicon MPS (with compatibility warnings)</li>
+<li><strong>Warning:</strong> Models trained on CUDA may not transfer to MPS</li>
+</ul>
+<h4 id="software-dependencies">Software Dependencies</h4>
+<pre><code class="language-python"># Core ML/DL (from requirements.txt)
+torch
+transformers
+peft  # LoRA fine-tuning
+huggingface-hub
+
+# Time Series
+chronos-forecasting
+wfdb  # ECG signal processing
+
+# Vision/Multimodal
+open-clip-torch
+einops
+
+# Data Processing
+numpy, pandas
+scikit-learn
+matplotlib
+</code></pre>
+<h4 id="training-pipeline-5-stages">Training Pipeline (5 Stages)</h4>
+<p><strong>Stage 1: Multiple Choice Questions (~hours)</strong></p>
+<pre><code class="language-bash">python curriculum_learning.py --model OpenTSLMFlamingo --stages stage1_mcq
+</code></pre>
+<ul>
+<li>Dataset: TSQA (Time Series Question Answering)</li>
+<li>Task: Answer multiple choice questions about time series patterns</li>
+<li>Auto-downloads from HuggingFace</li>
+</ul>
+<p><strong>Stage 2: Captioning (~hours)</strong></p>
+<pre><code class="language-bash">python curriculum_learning.py --model OpenTSLMFlamingo --stages stage2_captioning
+</code></pre>
+<ul>
+<li>Dataset: M4 competition data</li>
+<li>Task: Generate natural language descriptions of time series</li>
+<li>Focuses on pattern recognition and verbalization</li>
+</ul>
+<p><strong>Stage 3: HAR Chain-of-Thought (~hours-days)</strong></p>
+<pre><code class="language-bash">python curriculum_learning.py --model OpenTSLMFlamingo --stages stage3_cot
+</code></pre>
+<ul>
+<li>Dataset: Human Activity Recognition (HAR)</li>
+<li>Download: https://polybox.ethz.ch/index.php/s/kD74GnMYxn3HBEM/download</li>
+<li>Task: Classify activities with reasoning steps</li>
+</ul>
+<p><strong>Stage 4: Sleep Staging CoT (~hours-days)</strong></p>
+<pre><code class="language-bash">python curriculum_learning.py --model OpenTSLMFlamingo --stages stage4_sleep_cot
+</code></pre>
+<ul>
+<li>Dataset: SleepEDF (EEG data)</li>
+<li>Task: Sleep stage classification with chain-of-thought</li>
+<li>Medical domain specialization begins</li>
+</ul>
+<p><strong>Stage 5: ECG Q&amp;A CoT (~days)</strong></p>
+<pre><code class="language-bash">python curriculum_learning.py --model OpenTSLMFlamingo --stages stage5_ecg_cot
+</code></pre>
+<ul>
+<li>Datasets: ECG-QA + PTB-XL (~6GB combined)</li>
+<li>Download: https://polybox.ethz.ch/index.php/s/D5QaJSEw4dXkzXm/download</li>
+<li>Task: 12-lead ECG clinical reasoning</li>
+<li>Most medically specialized stage</li>
+</ul>
+<p><strong>Full Curriculum:</strong></p>
+<pre><code class="language-bash">python curriculum_learning.py --model OpenTSLMFlamingo
+# Estimated time: Days to weeks depending on GPU
+</code></pre>
+<hr />
+<h2 id="applicability-assessment-for-cloud-resource-simulator">Applicability Assessment for Cloud Resource Simulator</h2>
+<h3 id="alignment-analysis">Alignment Analysis</h3>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>OpenTSLM Support</th>
+<th>Assessment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Anomaly Detection</strong></td>
+<td>❌ Not primary focus</td>
+<td>Q&amp;A/captioning oriented, not outlier detection</td>
+</tr>
+<tr>
+<td><strong>Cloud Metrics</strong></td>
+<td>❌ Medical training data</td>
+<td>Domain mismatch (ECG/EEG vs CPU/memory)</td>
+</tr>
+<tr>
+<td><strong>Pre-trained Model</strong></td>
+<td>❌ Must train from scratch</td>
+<td>Prohibitive for exploration phase</td>
+</tr>
+<tr>
+<td><strong>Fast Inference</strong></td>
+<td>⚠️ Depends on LLM size</td>
+<td>Llama 3.2-1B moderate, Gemma-270m faster</td>
+</tr>
+<tr>
+<td><strong>Multivariate Support</strong></td>
+<td>✅ Native support</td>
+<td>Handles multiple metrics simultaneously</td>
+</tr>
+<tr>
+<td><strong>Variable Length</strong></td>
+<td>✅ Any length</td>
+<td>Good for different time windows</td>
+</tr>
+<tr>
+<td><strong>Explainability</strong></td>
+<td>✅ Chain-of-thought</td>
+<td>Natural language reasoning available</td>
+</tr>
+</tbody>
+</table>
+<h3 id="strengths-for-cloud-use-case">Strengths for Cloud Use Case</h3>
+<p>✅ <strong>Multivariate Time Series</strong> - Can process CPU, memory, network, disk together
+✅ <strong>Variable Length Sequences</strong> - Handles different monitoring windows
+✅ <strong>Natural Language Output</strong> - Could explain anomalies in plain English
+✅ <strong>Modular Architecture</strong> - Encoder/projector/LLM separation allows adaptation</p>
+<h3 id="critical-limitations-for-cloud-use-case">Critical Limitations for Cloud Use Case</h3>
+<p>❌ <strong>No Pre-trained Weights</strong> - Cannot evaluate without weeks of training
+❌ <strong>Medical Domain Bias</strong> - Training data fundamentally different from cloud metrics
+❌ <strong>Not Anomaly-Focused</strong> - Designed for Q&amp;A, not outlier/anomaly detection
+❌ <strong>Training Overhead</strong> - Requires substantial GPU resources and time
+❌ <strong>Dataset Mismatch</strong> - No cloud infrastructure training data included</p>
+<h3 id="alternative-approaches-recommended">Alternative Approaches Recommended</h3>
+<p><strong>For Anomaly Detection:</strong>
+1. <strong>Traditional ML Models</strong>
+   - Isolation Forest (scikit-learn)
+   - LSTM Autoencoders (reconstruction error)
+   - Prophet (Facebook) for seasonal decomposition</p>
+<ol>
+<li><strong>Purpose-Built Time Series Models</strong></li>
+<li><a href="https://github.com/amazon-science/chronos-forecasting">Amazon Chronos</a> - Already integrated in our project</li>
+<li><a href="https://github.com/google-research/timesfm">Google TimesFM</a> - Zero-shot forecasting</li>
+<li>
+<p>Both have pre-trained weights and better domain fit</p>
+</li>
+<li>
+<p><strong>Cloud-Specific Models</strong></p>
+</li>
+<li>AWS DeepAR (if using AWS data)</li>
+<li>Azure Anomaly Detector (if using Azure data)</li>
+<li>GCP Time Series Insights (if using GCP data)</li>
+</ol>
+<p><strong>For Explainability:</strong>
+- SHAP values on anomaly detection models
+- Attention weights from transformer-based detectors
+- Rule-based explanations from traditional methods</p>
+<hr />
+<h2 id="repository-information">Repository Information</h2>
+<h3 id="forked-repository">Forked Repository</h3>
+<ul>
+<li><strong>GitHub:</strong> https://github.com/nehalecky/OpenTSLM</li>
+<li><strong>Upstream:</strong> https://github.com/StanfordBDHG/OpenTSLM</li>
+<li><strong>Local Path:</strong> <code>/Users/nehalecky/Projects/cloudzero/OpenTSLM</code></li>
+<li><strong>Stars:</strong> 73 (as of Oct 2, 2025)</li>
+<li><strong>Created:</strong> May 2025</li>
+<li><strong>Last Updated:</strong> October 1, 2025</li>
+</ul>
+<h3 id="repository-structure">Repository Structure</h3>
+<pre><code>OpenTSLM/
+├── curriculum_learning.py          # Main training script
+├── requirements.txt                # 21 dependencies
+├── src/
+│   ├── model/
+│   │   ├── encoder/               # TransformerCNN
+│   │   ├── llm/                   # OpenTSLMFlamingo, OpenTSLMSP
+│   │   └── projector/             # MLP alignment
+│   ├── time_series_datasets/      # Dataset loaders (TSQA, M4, HAR, Sleep, ECG)
+│   ├── prompt/                    # Prompt templates
+│   └── open_flamingo/            # Submodule
+├── evaluation/                    # Evaluation scripts
+├── test/                         # Unit tests
+└── data/                         # Auto-downloaded datasets
+</code></pre>
+<h3 id="additional-resources">Additional Resources</h3>
+<ul>
+<li><strong>Paper:</strong> https://doi.org/10.13140/RG.2.2.14827.60963</li>
+<li><strong>Website:</strong> https://www.opentslm.com</li>
+<li><strong>Related Papers:</strong></li>
+<li><a href="https://arxiv.org/abs/2306.15681">ECG-QA</a></li>
+<li><a href="https://www.nature.com/articles/s41597-020-0495-6">PTB-XL Dataset</a></li>
+</ul>
+<hr />
+<h2 id="decision-next-steps">Decision &amp; Next Steps</h2>
+<h3 id="decision-not-pursuing-opentslm">Decision: Not Pursuing OpenTSLM</h3>
+<p><strong>Primary Reasons:</strong>
+1. <strong>Training Barrier</strong> - No pre-trained weights; requires weeks of GPU time
+2. <strong>Domain Mismatch</strong> - Medical focus doesn't transfer well to cloud infrastructure
+3. <strong>Wrong Task Focus</strong> - Designed for Q&amp;A/captioning, not anomaly detection
+4. <strong>Better Alternatives Exist</strong> - Purpose-built models with cloud data experience</p>
+<h3 id="rationale">Rationale</h3>
+<p>While OpenTSLM demonstrates impressive multimodal capabilities for medical time series, the <strong>combination of lacking pre-trained weights and medical domain specialization</strong> makes it impractical for our cloud anomaly detection needs. The opportunity cost of training from scratch (GPU time, dataset engineering, validation) outweighs potential benefits when superior alternatives exist.</p>
+<p><strong>Key Insight:</strong> Foundation models are only valuable if:
+- Pre-trained weights are available (transfer learning), OR
+- Training data closely matches your domain</p>
+<p>OpenTSLM fails both criteria for cloud metrics.</p>
+<h3 id="recommended-next-steps">Recommended Next Steps</h3>
+<p><strong>Immediate Actions:</strong>
+1. ✅ <strong>Archive Fork</strong> - Keep for reference, but don't actively develop
+2. ✅ <strong>Document Evaluation</strong> - This report serves as institutional knowledge</p>
+<p><strong>Alternative Exploration Priority:</strong></p>
+<p><strong>High Priority (Immediate):</strong>
+- [ ] <strong>Enhance Chronos Integration</strong> - Already in our codebase, has pre-trained weights
+- [ ] <strong>Explore TimesFM</strong> - Google's zero-shot forecasting model
+- [ ] <strong>Traditional Anomaly Detection</strong> - Isolation Forest baseline</p>
+<p><strong>Medium Priority (Next Quarter):</strong>
+- [ ] <strong>Investigate Cloud-Specific Models</strong> - AWS DeepAR, Azure Anomaly Detector
+- [ ] <strong>Custom LSTM Autoencoder</strong> - Train on our synthetic cloud data
+- [ ] <strong>Hybrid Approach</strong> - Chronos forecasting + statistical anomaly detection</p>
+<p><strong>Low Priority (Future Research):</strong>
+- [ ] <strong>Foundation Model Fine-tuning</strong> - If cloud-trained foundation model emerges
+- [ ] <strong>LLM-Based Explainability</strong> - Use GPT-4/Claude for anomaly explanations</p>
+<hr />
+<h2 id="lessons-learned">Lessons Learned</h2>
+<h3 id="for-future-model-evaluations">For Future Model Evaluations</h3>
+<p><strong>Pre-Evaluation Checklist:</strong>
+1. ✅ <strong>Check for Pre-trained Weights</strong> - First question, not last
+2. ✅ <strong>Verify Domain Match</strong> - Medical ≠ Cloud Infrastructure
+3. ✅ <strong>Assess Task Alignment</strong> - Q&amp;A ≠ Anomaly Detection
+4. ✅ <strong>Estimate Training Cost</strong> - GPU hours, dataset size, time to validation</p>
+<p><strong>Red Flags Identified:</strong>
+- 🚩 "Train from scratch" without pre-trained option
+- 🚩 All training examples from unrelated domain
+- 🚩 No mentions of your use case in documentation
+- 🚩 Base models require special access (Llama 3.2 gating)</p>
+<p><strong>Green Flags for Future Models:</strong>
+- ✅ Pre-trained weights on HuggingFace
+- ✅ Training data includes infrastructure/system metrics
+- ✅ Explicit anomaly detection capabilities
+- ✅ Active community with cloud use cases</p>
+<h3 id="research-methodology-success">Research Methodology Success</h3>
+<p><strong>What Worked Well:</strong>
+- Using repository-manager agent for systematic analysis
+- Forking before deep evaluation (preserves exploration)
+- Checking for weights availability early
+- Documenting findings immediately</p>
+<p><strong>Process Improvements:</strong>
+- Consider creating "Model Evaluation Template" for future assessments
+- Build checklist of domain-fit questions
+- Maintain "Models Under Consideration" tracking document</p>
+<hr />
+<h2 id="references">References</h2>
+<h3 id="opentslm-resources">OpenTSLM Resources</h3>
+<ul>
+<li><strong>GitHub Repository:</strong> https://github.com/StanfordBDHG/OpenTSLM</li>
+<li><strong>Project Website:</strong> https://www.opentslm.com</li>
+<li><strong>Research Paper:</strong> https://doi.org/10.13140/RG.2.2.14827.60963</li>
+<li><strong>Our Fork:</strong> https://github.com/nehalecky/OpenTSLM</li>
+</ul>
+<h3 id="related-foundation-models">Related Foundation Models</h3>
+<ul>
+<li><strong>Amazon Chronos:</strong> https://github.com/amazon-science/chronos-forecasting</li>
+<li><strong>Google TimesFM:</strong> https://github.com/google-research/timesfm</li>
+<li><strong>Hugging Face Time Series:</strong> https://huggingface.co/models?pipeline_tag=time-series-forecasting</li>
+</ul>
+<h3 id="medical-time-series-datasets-context">Medical Time Series Datasets (Context)</h3>
+<ul>
+<li><strong>ECG-QA Paper:</strong> https://arxiv.org/abs/2306.15681</li>
+<li><strong>PTB-XL Dataset:</strong> https://www.nature.com/articles/s41597-020-0495-6</li>
+<li><strong>SleepEDF:</strong> https://physionet.org/content/sleep-edfx/1.0.0/</li>
+</ul>
+<h3 id="cloud-anomaly-detection-resources">Cloud Anomaly Detection Resources</h3>
+<ul>
+<li><strong>FinOps Foundation:</strong> https://www.finops.org/</li>
+<li><strong>AWS CloudWatch Anomaly Detection:</strong> https://aws.amazon.com/cloudwatch/</li>
+<li><strong>Azure Monitor Anomaly Detector:</strong> https://azure.microsoft.com/en-us/products/ai-services/ai-anomaly-detector</li>
+</ul>
+<hr />
+<p><strong>Document Status:</strong> Final
+<strong>Last Updated:</strong> October 2, 2025
+<strong>Next Review:</strong> When new cloud-focused foundation models emerge</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.instant", "navigation.tracking", "search.suggest"], "search": "../../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  </body>
+</html>
