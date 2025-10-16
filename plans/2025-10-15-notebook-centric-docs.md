@@ -2,6 +2,8 @@
 
 > **For Claude:** Use `${SUPERPOWERS_SKILLS_ROOT}/skills/collaboration/executing-plans/SKILL.md` to implement this plan task-by-task.
 
+> **Note on Plans:** This plan document is ephemeral. It should be committed at the start of the PR for context during code review, then deleted after the PR is merged. Plans live in `./plans/` (not `./docs/plans/` or repo root).
+
 **Goal:** Transform notebooks into the primary documentation artifacts, eliminate duplicate tutorials, and migrate to a simpler documentation architecture with MkDocs-Material.
 
 **Architecture:** Notebooks become authoritative analysis artifacts with enhanced pedagogical structure. Research reports stay as standalone markdown. How-to guides remain as quick reference. Quarto removed in favor of MkDocs-Material with mkdocstrings for API docs.
@@ -18,6 +20,70 @@
 - Reduced maintenance burden (no duplication)
 - Simpler docs tooling (MkDocs vs Quarto)
 - Enhanced notebook readability (tables, prose, callouts)
+
+---
+
+## Phase 0: Cleanup Obsolete Files
+
+### Task 0.1: Delete Old Plan Files in Repo Root
+
+**Goal:** Remove completed plan files from repo root (these should have been in `./plans/` and deleted after merge).
+
+**Files to Delete:**
+- `JUPYTEXT_MIGRATION_PLAN.md` (completed - already implemented)
+- `MLFLOW_REFACTOR_PLAN.md` (obsolete - related to dropped MLflow commit)
+
+**Commands:**
+```bash
+git rm JUPYTEXT_MIGRATION_PLAN.md MLFLOW_REFACTOR_PLAN.md
+git commit -m "chore: remove obsolete plan files from repo root"
+```
+
+**Verification:** `ls *.md` should not show any `*PLAN*.md` files.
+
+---
+
+### Task 0.2: Delete Scripts Directory
+
+**Goal:** Remove PySpark migration scripts directory (migration complete, artifacts no longer needed).
+
+**Directory to Delete:**
+- `scripts/` (8 files: conversion scripts, READMEs, verification tools)
+
+**Rationale:**
+- PySpark migration is complete (notebooks/transforms/eda all migrated)
+- Scripts were one-time migration utilities
+- Keeping them creates maintenance burden
+- No ongoing utility (conversion patterns are documented if needed again)
+
+**Commands:**
+```bash
+git rm -r scripts/
+git commit -m "chore: remove PySpark migration scripts (migration complete)"
+```
+
+**Verification:** `ls scripts/` should fail (directory should not exist).
+
+---
+
+### Task 0.3: Move Legacy Plan File from docs/plans/
+
+**Goal:** Consolidate legacy plan file into `./plans/` directory.
+
+**File to Move:**
+- `docs/plans/2025-10-13-timeseries-loader.md` → `plans/2025-10-13-timeseries-loader.md`
+
+**Commands:**
+```bash
+mv docs/plans/2025-10-13-timeseries-loader.md plans/
+rmdir docs/plans/
+git add -A
+git commit -m "refactor: consolidate legacy plan into ./plans/"
+```
+
+**Verification:**
+- `ls docs/plans/` should fail (directory deleted)
+- `ls plans/` should show both `2025-10-11-pyspark-migration.md` and `2025-10-13-timeseries-loader.md`
 
 ---
 
