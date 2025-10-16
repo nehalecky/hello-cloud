@@ -39,10 +39,10 @@ kernelspec:
 # Local: Uses installed hellocloud
 # Colab: Installs from GitHub
 try:
-    import hellocloud
+    import hellocloud  # noqa: F401
 except ImportError:
     !pip install -q git+https://github.com/nehalecky/hello-cloud.git
-    import hellocloud
+    import hellocloud  # noqa: F401
 ```
 
 ```{code-cell} ipython3
@@ -69,6 +69,9 @@ from hellocloud.modeling.gaussian_process import (
 )
 
 # Visualization
+# Configure non-interactive backend for testing environments (prevents GUI windows)
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -1194,7 +1197,7 @@ metrics_traditional = compute_metrics(
 
 # Create comparison DataFrame
 metrics_df = pd.DataFrame([metrics_robust, metrics_traditional])
-metrics_df
+metrics_df  # noqa: B018
 ```
 
 ```{code-cell} ipython3
@@ -1220,24 +1223,30 @@ print("=" * 70)
 
 ```{code-cell} ipython3
 # Run comprehensive diagnostics to understand model behavior
-import sys
-sys.path.insert(0, '..')
-from diagnose_gp_results import diagnose_gp_predictions
+# NOTE: diagnose_gp_results is a local utility script (not in package)
+# Skip this cell if the module is not available (e.g., in testing environments)
+try:
+    import sys
+    sys.path.insert(0, '..')
+    from diagnose_gp_results import diagnose_gp_predictions
 
-# Generate diagnostic report
-diagnose_gp_predictions(
-    y_test=y_test,
-    mean_robust=mean_robust,
-    mean_traditional=mean_traditional,
-    model_robust=model_robust,
-    model_traditional=model_traditional,
-    X_test_t=X_test_t,
-    save_path="../gp_diagnostics.txt"
-)
+    # Generate diagnostic report
+    diagnose_gp_predictions(
+        y_test=y_test,
+        mean_robust=mean_robust,
+        mean_traditional=mean_traditional,
+        model_robust=model_robust,
+        model_traditional=model_traditional,
+        X_test_t=X_test_t,
+        save_path="../gp_diagnostics.txt"
+    )
 
-# Display the report
-with open("../gp_diagnostics.txt", "r") as f:
-    print(f.read())
+    # Display the report
+    with open("../gp_diagnostics.txt", "r") as f:
+        print(f.read())
+except (ImportError, ModuleNotFoundError) as e:
+    print(f"⚠️  Diagnostic analysis skipped: {e}")
+    print("   (diagnose_gp_results module not available)")
 ```
 
 ### 9.3 Calibration Analysis
@@ -1337,7 +1346,7 @@ anomaly_metrics = [
 ]
 
 anomaly_metrics_df = pd.DataFrame(anomaly_metrics)
-anomaly_metrics_df
+anomaly_metrics_df  # noqa: B018
 ```
 
 ### 10.3 ROC Curve Analysis

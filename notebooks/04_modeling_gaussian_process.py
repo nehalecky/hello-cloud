@@ -43,32 +43,24 @@
 # Local: Uses installed hellocloud
 # Colab: Installs from GitHub
 try:
-    import hellocloud
+    import hellocloud  # noqa: F401
 except ImportError:
     # !pip install -q git+https://github.com/nehalecky/hello-cloud.git
-    pass
+    import hellocloud  # noqa: F401
 
 # %%
 # Core imports
-# Configuration
-import warnings
-
 import gpytorch
 
 # Visualization
-import matplotlib.pyplot as plt
+# Configure non-interactive backend for testing environments (prevents GUI windows)
+import matplotlib
 import numpy as np
-import seaborn as sns
 
 # Polars replaced with PySpark
 # PyTorch and GPyTorch
 import torch
 from gpytorch.likelihoods import GaussianLikelihood, StudentTLikelihood
-from scipy.stats import norm
-from scipy.stats import t as student_t
-
-# Metrics
-from sklearn.metrics import roc_auc_score, roc_curve
 
 # Cloud simulation library (our GP implementation)
 from hellocloud.modeling.gaussian_process import (
@@ -81,6 +73,18 @@ from hellocloud.modeling.gaussian_process import (
     save_model,
     train_gp_model,
 )
+
+matplotlib.use("Agg")
+# Configuration
+import warnings
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.stats import norm
+from scipy.stats import t as student_t
+
+# Metrics
+from sklearn.metrics import roc_auc_score, roc_curve
 
 warnings.filterwarnings("ignore")
 
@@ -1246,7 +1250,7 @@ metrics_traditional = compute_metrics(
 
 # Create comparison DataFrame
 metrics_df = pd.DataFrame([metrics_robust, metrics_traditional])
-metrics_df
+metrics_df  # noqa: B018
 
 # %%
 # Print detailed comparison
@@ -1279,25 +1283,31 @@ print("=" * 70)
 
 # %%
 # Run comprehensive diagnostics to understand model behavior
-import sys
+# NOTE: diagnose_gp_results is a local utility script (not in package)
+# Skip this cell if the module is not available (e.g., in testing environments)
+try:
+    import sys
 
-sys.path.insert(0, "..")
-from diagnose_gp_results import diagnose_gp_predictions
+    sys.path.insert(0, "..")
+    from diagnose_gp_results import diagnose_gp_predictions
 
-# Generate diagnostic report
-diagnose_gp_predictions(
-    y_test=y_test,
-    mean_robust=mean_robust,
-    mean_traditional=mean_traditional,
-    model_robust=model_robust,
-    model_traditional=model_traditional,
-    X_test_t=X_test_t,
-    save_path="../gp_diagnostics.txt",
-)
+    # Generate diagnostic report
+    diagnose_gp_predictions(
+        y_test=y_test,
+        mean_robust=mean_robust,
+        mean_traditional=mean_traditional,
+        model_robust=model_robust,
+        model_traditional=model_traditional,
+        X_test_t=X_test_t,
+        save_path="../gp_diagnostics.txt",
+    )
 
-# Display the report
-with open("../gp_diagnostics.txt") as f:
-    print(f.read())
+    # Display the report
+    with open("../gp_diagnostics.txt") as f:
+        print(f.read())
+except (ImportError, ModuleNotFoundError) as e:
+    print(f"⚠️  Diagnostic analysis skipped: {e}")
+    print("   (diagnose_gp_results module not available)")
 
 # %% [markdown]
 # ### 9.3 Calibration Analysis
@@ -1399,7 +1409,7 @@ anomaly_metrics = [
 ]
 
 anomaly_metrics_df = pd.DataFrame(anomaly_metrics)
-anomaly_metrics_df
+anomaly_metrics_df  # noqa: B018
 
 # %% [markdown]
 # ### 10.3 ROC Curve Analysis
