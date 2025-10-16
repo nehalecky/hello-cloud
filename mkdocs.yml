@@ -1,0 +1,45 @@
+site_name: Hello Cloud
+site_url: https://nehalecky.github.io/hello-cloud
+repo_url: https://github.com/nehalecky/hello-cloud
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - search.suggest
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: false
+  - mkdocs-jupyter:
+      include_source: true
+      execute: false
+
+nav:
+  - Home: index.md
+  - Notebooks:
+      - notebooks/index.md
+      - Workload Signatures: published/02_guide_workload_signatures_guide.ipynb
+      - IOPS Analysis: published/03_EDA_iops_web_server.ipynb
+      - Gaussian Processes: published/04_modeling_gaussian_process.ipynb
+      - PiedPiper Data: published/05_EDA_piedpiper_data.ipynb
+      - TimeSeries Quickstart: published/06_quickstart_timeseries_loader.ipynb
+      - Forecasting: published/07_forecasting_comparison.ipynb
+  - Concepts:
+      - concepts/index.md
+      - Research:
+          - concepts/research/cloud-resource-patterns-research.md
+          - concepts/research/cloud-resource-correlations-report.md
+          - concepts/research/timeseries-anomaly-datasets-review.md
+          - concepts/research/opentslm-foundation-model-evaluation.md
+      - Design:
+          - concepts/design/gaussian-process-design.md
+  - Reference:
+      - reference/index.md
