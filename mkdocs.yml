@@ -26,12 +26,12 @@ nav:
   - Home: index.md
   - Notebooks:
       - notebooks/index.md
-      - Workload Signatures: published/02_guide_workload_signatures_guide.ipynb
-      - IOPS Analysis: published/03_EDA_iops_web_server.ipynb
-      - Gaussian Processes: published/04_modeling_gaussian_process.ipynb
-      - PiedPiper Data: published/05_EDA_piedpiper_data.ipynb
-      - TimeSeries Quickstart: published/06_quickstart_timeseries_loader.ipynb
-      - Forecasting: published/07_forecasting_comparison.ipynb
+      - Workload Signatures: notebooks/published/02_guide_workload_signatures_guide.ipynb
+      - IOPS Analysis: notebooks/published/03_EDA_iops_web_server.ipynb
+      - Gaussian Processes: notebooks/published/04_modeling_gaussian_process.ipynb
+      - PiedPiper Data: notebooks/published/05_EDA_piedpiper_data.ipynb
+      - TimeSeries Quickstart: notebooks/published/06_quickstart_timeseries_loader.ipynb
+      - Forecasting: notebooks/published/07_forecasting_comparison.ipynb
   - Concepts:
       - concepts/index.md
       - Research:
