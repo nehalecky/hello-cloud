@@ -62,15 +62,10 @@ dev = [
 ]
 
 docs = [
-    # Quarto documentation system (replaces MkDocs)
-    "quartodoc>=0.7.0",     # API documentation generator
-    "griffe>=0.48.0",       # Python introspection for quartodoc
-    "jupyter-cache>=1.0.0", # Cache notebook execution
-    # Visualization for tutorials
-    "altair>=5.0.0",
-    "plotly>=5.14.0",
-    # Additional Quarto integrations
-    "myst-parser>=2.0.0",   # MyST markdown support (compatibility)
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.28.0",
+    "mkdocs-jupyter>=0.25.0",
 ]
 
 research = [
@@ -133,15 +128,10 @@ dev = [
 ]
 
 docs = [
-    # Quarto documentation system (replaces MkDocs)
-    "quartodoc>=0.7.0",     # API documentation generator
-    "griffe>=0.48.0",       # Python introspection for quartodoc
-    "jupyter-cache>=1.0.0", # Cache notebook execution
-    # Visualization for tutorials
-    "altair>=5.0.0",
-    "plotly>=5.14.0",
-    # Additional Quarto integrations
-    "myst-parser>=2.0.0",   # MyST markdown support (compatibility)
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.28.0",
+    "mkdocs-jupyter>=0.25.0",
 ]
 
 [tool.jupytext]
