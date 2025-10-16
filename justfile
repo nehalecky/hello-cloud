@@ -245,3 +245,18 @@ nb-publish-commit MESSAGE="docs: update published notebooks":
 # Internal: Generate Colab URL
 _nb-colab-url NAME:
     @echo "🔗 https://colab.research.google.com/github/{{_GITHUB_REPO}}/blob/{{_GITHUB_BRANCH}}/{{_PUBLISH_DIR}}/{{NAME}}.ipynb"
+
+# ==============================================================================
+# MLflow Experiment Tracking
+# ==============================================================================
+
+# Launch MLflow UI (view experiments in browser)
+mlflow-ui:
+    @echo "🧪 Launching MLflow UI..."
+    @echo "📊 Browse experiments at http://localhost:5000"
+    uv run mlflow ui --backend-store-uri file://./mlruns
+
+# List MLflow experiments
+mlflow-exp:
+    @echo "📁 MLflow Experiments:"
+    @uv run mlflow experiments list --view all
