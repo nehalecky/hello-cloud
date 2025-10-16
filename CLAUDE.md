@@ -64,18 +64,35 @@ uv run mypy src/
 ```
 
 ### Documentation
+
 ```bash
 # Quick commands with just (recommended)
-just docs-api      # Generate API reference
-just docs-preview  # Preview with auto-refresh
-just docs-build    # Build static site
-just docs          # API + build
+just docs-serve     # Preview documentation
+just docs-build     # Build static site
+just docs-deploy    # Deploy to GitHub Pages
 
 # Or use commands directly
-uv run quartodoc build --config docs/_quarto.yml  # Generate API reference
-quarto preview docs/                              # Preview (auto-refreshes)
-quarto render docs/                               # Build static site
+uv run mkdocs serve    # http://127.0.0.1:8000
+uv run mkdocs build    # Output: site/
 ```
+
+### Documentation Architecture
+
+**Notebooks (./published/*.ipynb)** - Executed notebooks with outputs ARE the documentation
+- Source: `notebooks/*.md` (MyST format, for development)
+- Published: `./published/*.ipynb` (executed, displayed in docs)
+- CI executes notebooks → publishes → builds docs
+
+**Concepts (docs/concepts/)** - Research reports and design docs (standalone markdown)
+
+**API Reference (docs/reference/)** - Auto-generated from docstrings
+- Uses mkdocstrings with `:::` syntax
+- DO NOT edit reference/*.md - update source code docstrings instead
+
+**Tech Stack:**
+- MkDocs-Material (theme)
+- mkdocstrings (API docs)
+- mkdocs-jupyter (notebook rendering)
 
 ### Jupyter Notebooks
 
