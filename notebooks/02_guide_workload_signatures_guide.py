@@ -1,39 +1,41 @@
----
-jupytext:
-  formats: notebooks//md:myst,notebooks/_build//ipynb
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.17.3
-kernelspec:
-  display_name: python3
-  language: python
-  name: python3
----
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     default_lexer: ipython3
+#     notebook_metadata_filter: jupytext,kernelspec,language_info,-widgets,-toc
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.17.3
+#   kernelspec:
+#     display_name: python3
+#     language: python
+#     name: python3
+# ---
 
-# Understanding Cloud Workload Signatures: A Comprehensive Guide 2
+# %% [markdown]
+# # Understanding Cloud Workload Signatures: A Comprehensive Guide 2
+#
+# This notebook explores **why** different cloud workload types have distinct resource utilization patterns. We'll examine the underlying technical and business reasons that create these signatures, grounded in empirical research.
 
-This notebook explores **why** different cloud workload types have distinct resource utilization patterns. We'll examine the underlying technical and business reasons that create these signatures, grounded in empirical research.
-
-```{code-cell} ipython3
+# %%
 # Environment Setup
 # Local: Uses installed hellocloud
 # Colab: Installs from GitHub
 try:
     import hellocloud
 except ImportError:
-    !pip install -q git+https://github.com/nehalecky/hello-cloud.git
+    # !pip install -q git+https://github.com/nehalecky/hello-cloud.git
     import hellocloud
-```
 
-```{code-cell} ipython3
+# %%
 # Auto-reload: Picks up library changes without kernel restart
-%load_ext autoreload
-%autoreload 2
-```
+# %load_ext autoreload
+# %autoreload 2
 
-```{code-cell} ipython3
+# %%
 # Data analysis with pandas and visualization with Altair
 import numpy as np
 import pandas as pd
@@ -47,13 +49,13 @@ alt.theme.enable('quartz')  # Clean, professional theme
 
 # Import our simulation framework
 from hellocloud.generation import WorkloadPatternGenerator, WorkloadType
-```
 
-## Part 1: Foundations - Why Do Workload Signatures Exist?
+# %% [markdown]
+# ## Part 1: Foundations - Why Do Workload Signatures Exist?
+#
+# Before diving into specific patterns, let's understand the fundamental forces that create distinct workload signatures.
 
-Before diving into specific patterns, let's understand the fundamental forces that create distinct workload signatures.
-
-```{code-cell} ipython3
+# %%
 # Create a conceptual diagram showing the forces that shape workload signatures
 forces_data = pd.DataFrame({
     'category': ['Hardware', 'Hardware', 'Architecture', 'Architecture',
@@ -85,18 +87,18 @@ forces_chart = alt.Chart(forces_data).mark_bar().encode(
 ).interactive()
 
 forces_chart
-```
 
-### The Physics of Computing
+# %% [markdown]
+# ### The Physics of Computing
+#
+# Resource utilization patterns emerge from fundamental computing constraints:
+#
+# 1. **CPU-Memory Bandwidth**: Data must move between CPU and memory, creating correlations
+# 2. **I/O Wait States**: CPUs idle while waiting for disk/network operations
+# 3. **Cache Hierarchies**: L1/L2/L3 caches create step functions in performance
+# 4. **Thermal Limits**: Sustained high utilization triggers throttling
 
-Resource utilization patterns emerge from fundamental computing constraints:
-
-1. **CPU-Memory Bandwidth**: Data must move between CPU and memory, creating correlations
-2. **I/O Wait States**: CPUs idle while waiting for disk/network operations
-3. **Cache Hierarchies**: L1/L2/L3 caches create step functions in performance
-4. **Thermal Limits**: Sustained high utilization triggers throttling
-
-```{code-cell} ipython3
+# %%
 # Visualize the relationship between I/O wait and CPU utilization
 np.random.seed(42)  # Set seed for reproducible results
 io_wait_data = {
@@ -141,13 +143,13 @@ io_chart = alt.Chart(io_wait_melted).mark_area().encode(
 ).interactive()
 
 io_chart
-```
 
-## Part 2: Deep Dive - Understanding Each Workload Type
+# %% [markdown]
+# ## Part 2: Deep Dive - Understanding Each Workload Type
+#
+# Now let's explore WHY each workload type has its unique signature, backed by research data.
 
-Now let's explore WHY each workload type has its unique signature, backed by research data.
-
-```{code-cell} ipython3
+# %%
 # Generate sample data for all workload types
 # Note: Convert to pandas for visualization (generator returns Polars DataFrames)
 generator = WorkloadPatternGenerator(seed=42)
@@ -164,19 +166,19 @@ for workload_type in WorkloadType:
     workload_samples[workload_type.value] = df.to_pandas()
 
 print("Generated samples for {} workload types".format(len(workload_samples)))
-```
 
-### 2.1 Web Applications: Why 15% CPU and Business Hours Pattern?
+# %% [markdown]
+# ### 2.1 Web Applications: Why 15% CPU and Business Hours Pattern?
+#
+# Web applications show low CPU utilization because they spend most time waiting for I/O operations.
+#
+# **Key Reasons:**
+# - **Request/Response Model**: Each request triggers database queries, API calls
+# - **Network Latency**: Waiting for client requests and responses
+# - **Connection Pooling**: Maintaining idle connections for quick response
+# - **Human Users**: Activity follows work schedules and timezones
 
-Web applications show low CPU utilization because they spend most time waiting for I/O operations.
-
-**Key Reasons:**
-- **Request/Response Model**: Each request triggers database queries, API calls
-- **Network Latency**: Waiting for client requests and responses
-- **Connection Pooling**: Maintaining idle connections for quick response
-- **Human Users**: Activity follows work schedules and timezones
-
-```{code-cell} ipython3
+# %%
 # Analyze web application patterns
 web_app_data = workload_samples['web_application']
 
@@ -230,19 +232,19 @@ memory_layer = alt.Chart(hourly_stats).mark_line(point=True, strokeDash=[5,5]).e
 )
 
 (web_app_chart + memory_layer).interactive()
-```
 
-### 2.2 Batch Processing: Why 70% Idle with 10x Peaks?
+# %% [markdown]
+# ### 2.2 Batch Processing: Why 70% Idle with 10x Peaks?
+#
+# Batch processing shows extreme waste because resources are reserved for scheduled jobs that run infrequently.
+#
+# **Key Reasons:**
+# - **Schedule-Driven**: Jobs run at specific times (nightly, weekly)
+# - **Resource Reservation**: Capacity kept available for batch windows
+# - **Sequential Processing**: Cannot easily parallelize across time
+# - **Data Dependencies**: Must wait for data to be ready
 
-Batch processing shows extreme waste because resources are reserved for scheduled jobs that run infrequently.
-
-**Key Reasons:**
-- **Schedule-Driven**: Jobs run at specific times (nightly, weekly)
-- **Resource Reservation**: Capacity kept available for batch windows
-- **Sequential Processing**: Cannot easily parallelize across time
-- **Data Dependencies**: Must wait for data to be ready
-
-```{code-cell} ipython3
+# %%
 # Visualize batch processing patterns
 batch_data = workload_samples['batch_processing']
 
@@ -286,24 +288,24 @@ annotations = alt.Chart(annotations_df).mark_text(
 )
 
 (batch_chart + annotations).interactive()
-```
 
-### 2.3 Machine Learning: Different Patterns for Training vs Inference
+# %% [markdown]
+# ### 2.3 Machine Learning: Different Patterns for Training vs Inference
+#
+# ML workloads show distinct patterns based on their phase and hardware utilization.
+#
+# **Training (25% CPU, 40% Memory):**
+# - **Batch Processing**: Loading data batches into memory
+# - **GPU Offloading**: CPU coordinates, GPU computes
+# - **Experimentation Gaps**: Idle between hyperparameter runs
+# - **Checkpointing**: Periodic saves create I/O spikes
+#
+# **Inference (30% CPU, 45% Memory):**
+# - **Model in Memory**: Loaded model consumes constant memory
+# - **Request Serving**: More consistent than training
+# - **Lower Variance**: Predictable computation per request
 
-ML workloads show distinct patterns based on their phase and hardware utilization.
-
-**Training (25% CPU, 40% Memory):**
-- **Batch Processing**: Loading data batches into memory
-- **GPU Offloading**: CPU coordinates, GPU computes
-- **Experimentation Gaps**: Idle between hyperparameter runs
-- **Checkpointing**: Periodic saves create I/O spikes
-
-**Inference (30% CPU, 45% Memory):**
-- **Model in Memory**: Loaded model consumes constant memory
-- **Request Serving**: More consistent than training
-- **Lower Variance**: Predictable computation per request
-
-```{code-cell} ipython3
+# %%
 # Compare ML Training vs Inference patterns
 ml_training = workload_samples['ml_training']
 ml_inference = workload_samples['ml_inference']
@@ -345,25 +347,25 @@ ml_chart = alt.Chart(ml_comparison_long).mark_line().encode(
 ).interactive()
 
 ml_chart
-```
 
-### 2.4 Databases: Why Memory-Heavy with Different OLTP vs OLAP Patterns?
+# %% [markdown]
+# ### 2.4 Databases: Why Memory-Heavy with Different OLTP vs OLAP Patterns?
+#
+# Databases prioritize memory for performance, but OLTP and OLAP have very different access patterns.
+#
+# **OLTP (20% CPU, 60% Memory):**
+# - **Buffer Pool Cache**: Keep hot data in memory
+# - **Connection Pools**: Each connection consumes memory
+# - **Index Structures**: B-trees and hash indexes in RAM
+# - **Transaction Logs**: Write-ahead logging for durability
+#
+# **OLAP (10% CPU, 30% Memory):**
+# - **Columnar Storage**: Different memory access patterns
+# - **Batch Queries**: Periodic analytical workloads
+# - **Result Caching**: Store query results for reuse
+# - **Compression**: CPU/memory tradeoff for storage
 
-Databases prioritize memory for performance, but OLTP and OLAP have very different access patterns.
-
-**OLTP (20% CPU, 60% Memory):**
-- **Buffer Pool Cache**: Keep hot data in memory
-- **Connection Pools**: Each connection consumes memory
-- **Index Structures**: B-trees and hash indexes in RAM
-- **Transaction Logs**: Write-ahead logging for durability
-
-**OLAP (10% CPU, 30% Memory):**
-- **Columnar Storage**: Different memory access patterns
-- **Batch Queries**: Periodic analytical workloads
-- **Result Caching**: Store query results for reuse
-- **Compression**: CPU/memory tradeoff for storage
-
-```{code-cell} ipython3
+# %%
 # Analyze database patterns
 db_oltp = workload_samples['database_oltp']
 db_olap = workload_samples['database_olap']
@@ -402,19 +404,19 @@ regions = pd.DataFrame({
 })
 
 db_scatter.interactive()
-```
 
-### 2.5 Development Environments: Why 70% Waste?
+# %% [markdown]
+# ### 2.5 Development Environments: Why 70% Waste?
+#
+# Development environments are the worst offenders for waste, and there are clear reasons why.
+#
+# **Root Causes of Waste:**
+# - **24/7 Provisioning**: Resources allocated continuously
+# - **8/5 Usage**: Only used during work hours on weekdays
+# - **Overprovisioning**: "Just in case" resource allocation
+# - **Forgotten Resources**: Developers forget to shut down
 
-Development environments are the worst offenders for waste, and there are clear reasons why.
-
-**Root Causes of Waste:**
-- **24/7 Provisioning**: Resources allocated continuously
-- **8/5 Usage**: Only used during work hours on weekdays
-- **Overprovisioning**: "Just in case" resource allocation
-- **Forgotten Resources**: Developers forget to shut down
-
-```{code-cell} ipython3
+# %%
 # Analyze development environment waste patterns
 dev_env = workload_samples['development_environment']
 
@@ -457,19 +459,19 @@ text = alt.Chart(weekly_pattern).mark_text(dy=-10).encode(
 )
 
 (dev_waste_chart + text).interactive()
-```
 
-### 2.6 Serverless: Why Extreme Variance with Low Waste?
+# %% [markdown]
+# ### 2.6 Serverless: Why Extreme Variance with Low Waste?
+#
+# Serverless shows unique patterns due to its pay-per-use model.
+#
+# **Distinctive Characteristics:**
+# - **Cold Starts**: Initial invocations have high latency
+# - **Auto-scaling**: Instant scale from 0 to thousands
+# - **Micro-billing**: Pay only for actual execution time
+# - **Stateless Design**: No persistent resource allocation
 
-Serverless shows unique patterns due to its pay-per-use model.
-
-**Distinctive Characteristics:**
-- **Cold Starts**: Initial invocations have high latency
-- **Auto-scaling**: Instant scale from 0 to thousands
-- **Micro-billing**: Pay only for actual execution time
-- **Stateless Design**: No persistent resource allocation
-
-```{code-cell} ipython3
+# %%
 # Analyze serverless patterns
 serverless = workload_samples['serverless_function']
 
@@ -507,13 +509,13 @@ cold_start_markers = alt.Chart(cold_starts).mark_circle(
 )
 
 (serverless_chart + cold_start_markers).interactive()
-```
 
-## Part 3: Understanding Correlation Patterns
+# %% [markdown]
+# ## Part 3: Understanding Correlation Patterns
+#
+# Different workloads show distinct correlations between resource metrics, and understanding why helps with optimization.
 
-Different workloads show distinct correlations between resource metrics, and understanding why helps with optimization.
-
-```{code-cell} ipython3
+# %%
 # Calculate correlations for each workload type
 correlations = {}
 
@@ -557,30 +559,30 @@ correlation_heatmap = alt.Chart(corr_df).mark_rect().encode(
 ).interactive()
 
 correlation_heatmap
-```
 
-### Explaining Correlation Patterns
+# %% [markdown]
+# ### Explaining Correlation Patterns
+#
+# **Strong CPU-Memory Correlation (>0.7):**
+# - **ML Training**: Loading batches requires both compute and memory
+# - **Streaming**: Processing data streams uses both proportionally
+# - **Why**: Data must be in memory to be processed
+#
+# **Weak CPU-Memory Correlation (<0.3):**
+# - **Databases**: Memory for caching, CPU for queries (independent)
+# - **Cache Layers**: High memory, low CPU consistently
+# - **Why**: Memory serves different purpose than computation
+#
+# **CPU-Network Correlation:**
+# - **Web Apps**: High correlation - requests drive processing
+# - **Batch**: Low correlation - network for data transfer, CPU for processing
+# - **Why**: Depends on whether network I/O drives computation
+#
+# ## Part 4: Temporal Patterns and Autocorrelation
+#
+# Understanding why patterns persist over time helps with forecasting and capacity planning.
 
-**Strong CPU-Memory Correlation (>0.7):**
-- **ML Training**: Loading batches requires both compute and memory
-- **Streaming**: Processing data streams uses both proportionally
-- **Why**: Data must be in memory to be processed
-
-**Weak CPU-Memory Correlation (<0.3):**
-- **Databases**: Memory for caching, CPU for queries (independent)
-- **Cache Layers**: High memory, low CPU consistently
-- **Why**: Memory serves different purpose than computation
-
-**CPU-Network Correlation:**
-- **Web Apps**: High correlation - requests drive processing
-- **Batch**: Low correlation - network for data transfer, CPU for processing
-- **Why**: Depends on whether network I/O drives computation
-
-## Part 4: Temporal Patterns and Autocorrelation
-
-Understanding why patterns persist over time helps with forecasting and capacity planning.
-
-```{code-cell} ipython3
+# %%
 # Calculate autocorrelation for different workloads
 from scipy import signal
 
@@ -626,25 +628,25 @@ autocorr_chart = alt.Chart(autocorr_df).mark_line(point=True).encode(
 ).interactive()
 
 autocorr_chart
-```
 
-### Why Autocorrelation Matters
+# %% [markdown]
+# ### Why Autocorrelation Matters
+#
+# **High Autocorrelation (Web Apps, Streaming):**
+# - **Gradual Changes**: User activity changes slowly
+# - **Predictability**: Future similar to recent past
+# - **Optimization**: Can forecast and pre-scale
+#
+# **Low Autocorrelation (Batch Processing):**
+# - **Discrete Events**: Jobs start and stop abruptly
+# - **Less Predictable**: Harder to forecast
+# - **Optimization**: Need event-driven scaling
+#
+# ## Part 5: Cost Implications and Optimization Opportunities
+#
+# Understanding signatures enables targeted optimization strategies.
 
-**High Autocorrelation (Web Apps, Streaming):**
-- **Gradual Changes**: User activity changes slowly
-- **Predictability**: Future similar to recent past
-- **Optimization**: Can forecast and pre-scale
-
-**Low Autocorrelation (Batch Processing):**
-- **Discrete Events**: Jobs start and stop abruptly
-- **Less Predictable**: Harder to forecast
-- **Optimization**: Need event-driven scaling
-
-## Part 5: Cost Implications and Optimization Opportunities
-
-Understanding signatures enables targeted optimization strategies.
-
-```{code-cell} ipython3
+# %%
 # Calculate potential savings by workload type
 savings_analysis = []
 
@@ -692,23 +694,23 @@ savings_chart = alt.Chart(savings_df).mark_bar().encode(
 ).interactive()
 
 savings_chart
-```
 
-## Key Takeaways: Why Signatures Matter
+# %% [markdown]
+# ## Key Takeaways: Why Signatures Matter
+#
+# Understanding **why** different workloads have distinct signatures enables:
+#
+# 1. **Right-sizing**: Match resources to actual needs, not peaks
+# 2. **Scheduling**: Run batch jobs during web app quiet times
+# 3. **Architecture Decisions**: Choose serverless for variable loads
+# 4. **Cost Optimization**: Target biggest waste sources first
+# 5. **Capacity Planning**: Predict future needs from patterns
+#
+# ### The Math Behind the Patterns
+#
+# For those interested in the statistical foundations:
 
-Understanding **why** different workloads have distinct signatures enables:
-
-1. **Right-sizing**: Match resources to actual needs, not peaks
-2. **Scheduling**: Run batch jobs during web app quiet times
-3. **Architecture Decisions**: Choose serverless for variable loads
-4. **Cost Optimization**: Target biggest waste sources first
-5. **Capacity Planning**: Predict future needs from patterns
-
-### The Math Behind the Patterns
-
-For those interested in the statistical foundations:
-
-```{code-cell} ipython3
+# %%
 # Show the mathematical relationships
 math_explanation = """
 ### Statistical Properties of Workload Signatures
@@ -738,25 +740,25 @@ math_explanation = """
 
 from IPython.display import Markdown
 Markdown(math_explanation)
-```
 
-## Conclusion: From Understanding to Action
-
-This guide has explored the fundamental reasons why different cloud workloads exhibit distinct resource utilization signatures. By understanding these patterns, we can:
-
-1. **Predict** future resource needs with greater accuracy
-2. **Optimize** resource allocation to reduce waste
-3. **Design** better architectures that match workload characteristics
-4. **Save** significant costs through targeted interventions
-
-The shocking reality of 13% average CPU utilization and 30-32% waste isn't just a statistic—it's an opportunity. By understanding the "why" behind these patterns, we can build more efficient cloud infrastructure.
-
-### Next Steps
-
-To apply these insights:
-1. Profile your own workloads to identify their signatures
-2. Compare against these patterns to find optimization opportunities
-3. Implement targeted strategies based on workload type
-4. Monitor and iterate to continuously improve efficiency
-
-Remember: Every workload is unique, but understanding these fundamental patterns provides a foundation for optimization.
+# %% [markdown]
+# ## Conclusion: From Understanding to Action
+#
+# This guide has explored the fundamental reasons why different cloud workloads exhibit distinct resource utilization signatures. By understanding these patterns, we can:
+#
+# 1. **Predict** future resource needs with greater accuracy
+# 2. **Optimize** resource allocation to reduce waste
+# 3. **Design** better architectures that match workload characteristics
+# 4. **Save** significant costs through targeted interventions
+#
+# The shocking reality of 13% average CPU utilization and 30-32% waste isn't just a statistic—it's an opportunity. By understanding the "why" behind these patterns, we can build more efficient cloud infrastructure.
+#
+# ### Next Steps
+#
+# To apply these insights:
+# 1. Profile your own workloads to identify their signatures
+# 2. Compare against these patterns to find optimization opportunities
+# 3. Implement targeted strategies based on workload type
+# 4. Monitor and iterate to continuously improve efficiency
+#
+# Remember: Every workload is unique, but understanding these fundamental patterns provides a foundation for optimization.
