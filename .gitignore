@@ -106,3 +106,4 @@ src/cloud_sim/data_generation/
 # Streamlit
 .streamlit/cache/
 *.pyc.streamlit/
+notebooks/*.py
