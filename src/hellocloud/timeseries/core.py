@@ -324,19 +324,19 @@ class TimeSeries:
         else:
             entity_count = 1  # No hierarchy columns = single entity
 
-        # Generate subtitle with grain context
-        if current_grain:
-            grain_str = "-".join(current_grain)
-            subtitle = f"Grain: {grain_str} ({entity_count:,} entities)"
-        else:
-            subtitle = f"Aggregated view ({entity_count:,} entity)"
+        # Generate title with grain context if not provided
+        if title is None:
+            if current_grain:
+                grain_str = "-".join(current_grain)
+                title = f"Temporal Density (Grain: {grain_str}, {entity_count:,} entities)"
+            else:
+                title = f"Temporal Density (Aggregated view, {entity_count:,} entity)"
 
-        # Delegate to eda.plot_temporal_density with subtitle
+        # Delegate to eda.plot_temporal_density
         return eda.plot_temporal_density(
             df=self.df,
             date_col=self.time_col,
             metric_col=None,  # Count records, not aggregate metric
-            subtitle=subtitle,
             log_scale=log_scale,
             title=title,
             figsize=figsize,
