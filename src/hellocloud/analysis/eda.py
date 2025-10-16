@@ -48,56 +48,46 @@ def attribute_analysis(df: DataFrame, sample_size: int = 50_000) -> DataFrame:
         >>> attrs = hc.utils.attribute_analysis(df)
         >>> attrs.show()  # Beautiful PySpark table rendering
     """
-    schema = df.schema()  # Returns dict of {name: dtype}
-    total_rows = df.count().toPandas()
+    from pyspark.sql import functions as F
+    from pyspark.sql.types import (
+        ByteType,
+        DecimalType,
+        DoubleType,
+        FloatType,
+        IntegerType,
+        LongType,
+        ShortType,
+    )
+
+    schema = df.schema  # Property, not method
+    total_rows = df.count()
 
     # Sample for entropy calculation - keep as PySpark DataFrame
     df_sample_table = df.limit(sample_size)
 
-    # Identify numeric columns for nonzero_density calculation
-    numeric_types = (
-        "int8",
-        "int16",
-        "int32",
-        "int64",
-        "uint8",
-        "uint16",
-        "uint32",
-        "uint64",
-        "float32",
-        "float64",
-        "decimal",
-    )
+    # Identify numeric type classes for nonzero_density calculation
+    numeric_types = (IntegerType, LongType, ShortType, ByteType, FloatType, DoubleType, DecimalType)
 
     # Compute per-column metrics
     results = []
-    for col in schema.keys():
+    for field in schema.fields:
+        col = field.name
         # Null count
-        null_count = (
-            df.select((df[col].isnull()).sum().name("null_count")).toPandas()["null_count"].iloc[0]
-        )
+        null_count = df.filter(F.col(col).isNull()).count()
 
         # Unique count
-        unique_count = df[col].nunique().toPandas()
+        unique_count = df.select(col).distinct().count()
 
         # Value density (complement of null ratio, "higher is better")
         value_density = (total_rows - null_count) / total_rows
 
         # Nonzero density (numeric columns only) - higher is better
-        dtype_str = str(schema[col])
-        is_numeric = any(nt in dtype_str.lower() for nt in numeric_types)
+        is_numeric = isinstance(field.dataType, numeric_types)
 
         if is_numeric:
-            # Count zeros - use pandas to count after executing
-            # Some columns might have all nulls, handle gracefully
+            # Count zeros
             try:
-                zero_result = df.select((df[col] == 0).sum()).toPandas()
-                # Get the value, handling various return formats
-                if hasattr(zero_result, "iloc"):
-                    val = zero_result.iloc[0, 0] if len(zero_result) > 0 else 0
-                else:
-                    val = zero_result
-                zero_count = int(val) if val is not None else 0
+                zero_count = df.filter(F.col(col) == 0).count()
             except Exception:
                 # If comparison fails (e.g., all nulls), treat as all nonzero
                 zero_count = 0
@@ -123,14 +113,14 @@ def attribute_analysis(df: DataFrame, sample_size: int = 50_000) -> DataFrame:
 
         # Sample value - get first non-null value from sample
         sample_result = (
-            df_sample_table.select(col).filter(df_sample_table[col].notnull()).limit(1).toPandas()
+            df_sample_table.select(col).filter(F.col(col).isNotNull()).limit(1).toPandas()
         )
         sample_val = str(sample_result[col].iloc[0])[:50] if len(sample_result) > 0 else "<null>"
 
         results.append(
             {
                 "column": col,
-                "dtype": str(schema[col]),
+                "dtype": str(field.dataType),
                 "value_density": round(value_density, 6),
                 "nonzero_density": round(nonzero_density, 6),
                 "cardinality_ratio": round(cardinality_ratio, 6),
@@ -2216,9 +2206,7 @@ def plot_grain_persistence_comparison(
 # ============================================================================
 
 
-def correlation_pairs(
-    df: DataFrame, columns: list[str], method: str = "pearson"
-) -> DataFrame:
+def correlation_pairs(df: DataFrame, columns: list[str], method: str = "pearson") -> DataFrame:
     """
     Compute pairwise correlations for specified columns.
 
@@ -2239,6 +2227,7 @@ def correlation_pairs(
         >>> corr_df.filter(F.abs(F.col('correlation')) > 0.7).show()
     """
     from itertools import combinations
+
     from pyspark.sql import Row
 
     # Generate all unique pairs
