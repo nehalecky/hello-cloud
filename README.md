@@ -1,13 +1,17 @@
 # Hello Cloud
 
-[![Docs](https://github.com/nehalecky/hello-cloud/actions/workflows/docs.yml/badge.svg)](https://github.com/nehalecky/hello-cloud/actions/workflows/docs.yml)
-[![Pages](https://img.shields.io/badge/docs-live-blue)](https://nehalecky.github.io/hello-cloud)
+[![CI](https://github.com/nehalecky/hello-cloud/actions/workflows/ci.yml/badge.svg)](https://github.com/nehalecky/hello-cloud/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/nehalecky/hello-cloud/branch/master/graph/badge.svg)](https://codecov.io/gh/nehalecky/hello-cloud)
+[![Documentation](https://img.shields.io/badge/docs-live-blue)](https://nehalecky.github.io/hello-cloud)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![uv](https://img.shields.io/badge/uv-package%20manager-blueviolet)](https://github.com/astral-sh/uv)
 
 Hands-on exploration of cloud resource usage and cost optimization.
 
 Workload characterization • Cost analysis • Time series forecasting • Anomaly detection
 
-Ibis+DuckDB (local) • PySpark (scale)
+**PySpark 4.0** (distributed processing) • **GPyTorch** (time series modeling) • **PyMC** (Bayesian inference)
 
 **Documentation:** https://nehalecky.github.io/hello-cloud
 
@@ -72,7 +76,7 @@ predictions = model.forecast(entity_ts, horizon=30)
 
 ## Stack
 
-- **Ibis** + **DuckDB**: Data processing (local analytics)
+- **PySpark 4.0**: Distributed DataFrame processing (local & scale)
 - **pandas**: Results and visualization
 - **GPyTorch**: Time series modeling (optional, GPU)
 - **PyMC**: Bayesian hierarchical models (optional)
@@ -109,7 +113,7 @@ hello-cloud/
 │   └── ml_models/          # Time series models (GP, PyMC)
 ├── notebooks/              # Analysis notebooks (MyST format)
 ├── tests/                  # Test suite
-└── docs/                   # Documentation (Quarto)
+└── docs/                   # Documentation (MkDocs)
 ```
 
 ## Development
