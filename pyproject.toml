@@ -130,6 +130,7 @@ dev = [
     "ruff>=0.1.0",
     "jupytext>=1.16.0",
     "toml>=0.10.2",  # For testing pyproject.toml validity
+    "mlflow>=2.0.0",  # Experiment tracking
 ]
 
 docs = [
