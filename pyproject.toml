@@ -94,15 +94,17 @@ gpu = [
 ]
 
 foundation = [
-    # Foundation models for time series forecasting (stubs - not yet implemented)
-    # Uncomment when ready to implement:
-    # "timesfm @ git+https://github.com/google-research/timesfm",  # TimesFM (Google)
-    # "chronos-forecasting>=1.0.0",  # Chronos (Amazon)
-    # "transformers>=4.35.0",        # Required by both models
+    # Foundation models for time series forecasting
+    # WARNING: TimesFM does NOT work on Apple Silicon (ARM architecture)
+    # Only install on x86_64 Linux/Intel Mac: uv sync --extra foundation
+    "timesfm @ git+https://github.com/google-research/timesfm",  # TimesFM (Google)
+    # "chronos-forecasting>=1.0.0",  # Chronos (Amazon) - not yet implemented
+    # "transformers>=4.35.0",        # Required by Chronos
 ]
 
 all = [
-    "hellocloud[dev,docs,research,gpu,foundation]",
+    "hellocloud[dev,docs,research,gpu]",
+    # NOTE: foundation NOT included (Apple Silicon incompatible)
 ]
 
 [project.urls]
@@ -116,6 +118,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hellocloud"]
+
+[tool.hatch.metadata]
+allow-direct-references = true  # Allow git URLs for optional dependencies (e.g., TimesFM)
 
 [dependency-groups]
 dev = [
