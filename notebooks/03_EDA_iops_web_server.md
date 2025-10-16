@@ -96,6 +96,7 @@ from statsmodels.tsa.stattools import acf, pacf, adfuller
 from statsmodels.tsa.seasonal import STL
 from loguru import logger
 import warnings
+from IPython.display import display
 warnings.filterwarnings('ignore')
 
 # Cloud simulator utilities
