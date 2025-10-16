@@ -14,7 +14,18 @@ source .venv/bin/activate
 
 # Install documentation dependencies
 uv sync --group docs
+
+# Optional: Foundation models (NOT on Apple Silicon)
+# Only install on x86_64 Linux/Intel Mac
+uv sync --extra foundation
 ```
+
+**Optional Dependencies:**
+
+- **Foundation Models** (`foundation`): Time series forecasting models (TimesFM)
+  - ⚠️ **NOT compatible with Apple Silicon** (ARM architecture)
+  - Requires x86_64 Linux or Intel Mac
+  - Tests automatically skip when not installed
 
 ### Testing
 ```bash

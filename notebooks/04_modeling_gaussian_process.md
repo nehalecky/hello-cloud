@@ -39,10 +39,10 @@ kernelspec:
 # Local: Uses installed hellocloud
 # Colab: Installs from GitHub
 try:
-    import hellocloud
+    import hellocloud  # noqa: F401
 except ImportError:
     !pip install -q git+https://github.com/nehalecky/hello-cloud.git
-    import hellocloud
+    import hellocloud  # noqa: F401
 ```
 
 ```{code-cell} ipython3
@@ -69,6 +69,9 @@ from hellocloud.modeling.gaussian_process import (
 )
 
 # Visualization
+# Configure non-interactive backend for testing environments (prevents GUI windows)
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -146,6 +149,10 @@ From our exploratory data analysis (`03_iops_web_server_eda.ipynb`), we discover
 # Load IOPS data from HuggingFace (same as EDA notebook)
 import pandas as pd
 
+# Initialize Spark session for display tables only
+from hellocloud.spark import get_spark_session
+spark = get_spark_session(app_name="gp-modeling")
+
 base_url = "https://huggingface.co/datasets/AutonLab/Timeseries-PILE/resolve/main"
 kpi_id = "KPI-05f10d3a-239c-3bef-9bdc-a2feeb0037aa"
 
@@ -157,15 +164,15 @@ print("Downloading IOPS data from HuggingFace...")
 train_pd = pd.read_csv(train_url, header=None, names=['value', 'label'])
 test_pd = pd.read_csv(test_url, header=None, names=['value', 'label'])
 
-# Convert to Polars
+# Use pandas DataFrames for data processing
 # NOTE: Dataset has no timestamps - we create sequential indices (1-minute intervals)
-train_df = spark.createDataFrame({
+train_df = pd.DataFrame({
     'timestamp': np.arange(len(train_pd)),
     'value': train_pd['value'].values,
     'is_anomaly': train_pd['label'].values.astype(bool)
 })
 
-test_df = spark.createDataFrame({
+test_df = pd.DataFrame({
     'timestamp': np.arange(len(test_pd)),
     'value': test_pd['value'].values,
     'is_anomaly': test_pd['label'].values.astype(bool)
@@ -1189,8 +1196,8 @@ metrics_traditional = compute_metrics(
 )
 
 # Create comparison DataFrame
-metrics_df = spark.createDataFrame([metrics_robust, metrics_traditional])
-metrics_df
+metrics_df = pd.DataFrame([metrics_robust, metrics_traditional])
+metrics_df  # noqa: B018
 ```
 
 ```{code-cell} ipython3
@@ -1216,24 +1223,30 @@ print("=" * 70)
 
 ```{code-cell} ipython3
 # Run comprehensive diagnostics to understand model behavior
-import sys
-sys.path.insert(0, '..')
-from diagnose_gp_results import diagnose_gp_predictions
+# NOTE: diagnose_gp_results is a local utility script (not in package)
+# Skip this cell if the module is not available (e.g., in testing environments)
+try:
+    import sys
+    sys.path.insert(0, '..')
+    from diagnose_gp_results import diagnose_gp_predictions
 
-# Generate diagnostic report
-diagnose_gp_predictions(
-    y_test=y_test,
-    mean_robust=mean_robust,
-    mean_traditional=mean_traditional,
-    model_robust=model_robust,
-    model_traditional=model_traditional,
-    X_test_t=X_test_t,
-    save_path="../gp_diagnostics.txt"
-)
+    # Generate diagnostic report
+    diagnose_gp_predictions(
+        y_test=y_test,
+        mean_robust=mean_robust,
+        mean_traditional=mean_traditional,
+        model_robust=model_robust,
+        model_traditional=model_traditional,
+        X_test_t=X_test_t,
+        save_path="../gp_diagnostics.txt"
+    )
 
-# Display the report
-with open("../gp_diagnostics.txt", "r") as f:
-    print(f.read())
+    # Display the report
+    with open("../gp_diagnostics.txt", "r") as f:
+        print(f.read())
+except (ImportError, ModuleNotFoundError) as e:
+    print(f"⚠️  Diagnostic analysis skipped: {e}")
+    print("   (diagnose_gp_results module not available)")
 ```
 
 ### 9.3 Calibration Analysis
@@ -1332,8 +1345,8 @@ anomaly_metrics = [
     ),
 ]
 
-anomaly_metrics_df = spark.createDataFrame(anomaly_metrics)
-anomaly_metrics_df
+anomaly_metrics_df = pd.DataFrame(anomaly_metrics)
+anomaly_metrics_df  # noqa: B018
 ```
 
 ### 10.3 ROC Curve Analysis
@@ -1591,11 +1604,11 @@ comparison_data = {
     ]
 }
 
-comparison_df = spark.createDataFrame(comparison_data)
+comparison_df = pd.DataFrame(comparison_data)
 print("=" * 80)
 print("COMPREHENSIVE MODEL COMPARISON")
 print("=" * 80)
-print(comparison_df.toPandas().to_string(index=False))
+print(comparison_df.to_string(index=False))
 print("=" * 80)
 ```
 

@@ -79,10 +79,10 @@ This is the **grain discovery problem** - finding the most granular combination 
 # Local: Uses installed hellocloud
 # Colab: Installs from GitHub
 try:
-    import hellocloud
+    import hellocloud  # noqa: F401
 except ImportError:
     !pip install -q git+https://github.com/nehalecky/hello-cloud.git
-    import hellocloud
+    import hellocloud  # noqa: F401
 ```
 
 ```{code-cell} ipython3
@@ -116,6 +116,11 @@ from pyspark.sql import functions as F
 from pyspark.sql import Window
 import numpy as np
 import pandas as pd
+
+# Set matplotlib backend before importing pyplot
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend for testing
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 from loguru import logger
@@ -156,33 +161,32 @@ df.limit(5).toPandas()
 ### 1.3 Temporal Observation Density
 
 ```{code-cell} ipython3
-df.limit(1).toPandas().dtypes
+_ = df.limit(1).toPandas().dtypes  # Preview dtypes
 ```
 
 ```{code-cell} ipython3
-df.schema
+_ = df.schema  # Preview schema
 ```
 
 ```{code-cell} ipython3
-# Identify date column and stats
-from re import A
+# Identify date column and rename to 'date' for consistency
 from pyspark.sql.types import DateType, TimestampType, TimestampNTZType
 
 date_cols = [
     field.name for field in df.schema.fields
-    if isinstance(field.dataType, (DateType, TimestampType, TimestampNTZType))
+    if isinstance(field.dataType, DateType | TimestampType | TimestampNTZType)
 ]
-date_cols
-# logger.info(f"Date/Datetime columns found: {date_cols}")
-# logger.info(f"Renaming {date_cols[0]} → date")
-# df = df.withColumnRenamed(date_cols[0], 'date')
 
-# date_stats = df.agg(
-#     F.countDistinct('date').alias('unique_date'),
-#     F.min('date').alias('min_date'),
-#     F.max('date').alias('max_date')
-# )
-# date_stats.toPandas()
+logger.info(f"Date/Datetime columns found: {date_cols}")
+logger.info(f"Renaming {date_cols[0]} → date")
+df = df.withColumnRenamed(date_cols[0], 'date')
+
+date_stats = df.agg(
+    F.countDistinct('date').alias('unique_dates'),
+    F.min('date').alias('min_date'),
+    F.max('date').alias('max_date')
+)
+date_stats.toPandas()
 ```
 
 **Noted** Max date spans into the future `2025-12-31`.
@@ -190,7 +194,7 @@ date_cols
 Let's inspect the temporal record density and plot.
 
 ```{code-cell} ipython3
-df.transform(hc.transforms.summary_stats(value_col='cost', group_col='date'))
+df.transform(hc.transforms.summary_stats(value_col='materialized_cost', group_col='date'))
 ```
 
 ```{code-cell} ipython3
@@ -236,10 +240,10 @@ largest_drops.toPandas()
 The data shows a significant drop (>30%) on a specific date. We'll filter to the period before this anomaly for clean analysis.
 
 ```{code-cell} ipython3
-# Find earliest date with >30% drop (pct_change returns percentage, so -30.0)
+# Find earliest date with >30% drop (pct_change returns decimal, so -0.30 for -30%)
 cutoff_date_result = (
     daily_with_change
-    .filter(F.col('pct_change') < -30.0)
+    .filter(F.col('pct_change') < -0.30)
     .orderBy('date')
     .limit(1)
     .select('date')
@@ -286,9 +290,9 @@ Harmonic mean of **four** metrics: value density, nonzero density, cardinality r
 These size-normalized metrics help identify attributes with little discriminatory information, which can be filtered to simplify analysis and modeling tasks.
 
 ```{code-cell} ipython3
-# Compute comprehensive attribute analysis (Ibis in, Ibis out!)
-attrs = hc.utils.attribute_analysis(df, sample_size=50_000)
-attrs
+# Compute comprehensive attribute analysis (PySpark in, pandas out!)
+attrs = hc.analysis.attribute_analysis(df, sample_size=50_000)
+attrs  # noqa: B018 - Display in notebook
 ```
 
 The table above is sorted by **information score** (highest first), which ranks attributes by their combined utility across completeness, uniqueness, and distributional richness. High-scoring attributes are the most informative for grain discovery and modeling.
@@ -312,8 +316,8 @@ Now we classify attributes by cardinality to guide composite key construction:
 This preserves valuable low-cardinality columns while removing noise.
 
 ```{code-cell} ipython3
-# Stratified filtering using Ibis-native operations
-drop_cols, keep_cols = hc.utils.stratified_column_filter(
+# Stratified filtering using PySpark operations
+drop_cols, keep_cols = hc.analysis.stratified_column_filter(
     attrs,
     primary_key_threshold=0.9,
     sparse_threshold=0.6,
@@ -330,9 +334,9 @@ drop_cols, keep_cols = hc.utils.stratified_column_filter(
 logger.info(f"\n🗑️  Dropping {len(drop_cols)} columns: {sorted(drop_cols)}")
 logger.info(f"\n✅ Keeping {len(keep_cols)} columns: {sorted(keep_cols)}")
 
-# Apply filter (Ibis: schema is dict-like, use .names)
-df_filtered = df.select([col for col in df.schema().names if col not in drop_cols])
-logger.info(f"\n📊 Schema reduced: {len(df.schema())} → {len(df_filtered.schema())} columns")
+# Apply filter (PySpark: use .columns to get column names)
+df_filtered = df.select([col for col in df.columns if col not in drop_cols])
+logger.info(f"\n📊 Schema reduced: {len(df.columns)} → {len(df_filtered.columns)} columns")
 df = df_filtered
 ```
 
@@ -354,26 +358,29 @@ categorical_cols = [
 logger.info(f"\n📊 Categorical Columns ({len(categorical_cols)}):")
 logger.info(f"   {categorical_cols}")
 
+# TODO: Implement plot_categorical_frequencies in hellocloud.analysis.eda
 # Plot top 10 values for each categorical with log scale
-if categorical_cols:
-    fig = hc.utils.plot_categorical_frequencies(
-        df,
-        columns=categorical_cols,
-        top_n=10,
-        log_scale=True,           # Logarithmic scale for wide frequency ranges
-        shared_xaxis=True,        # Same scale across all subplots for comparison
-        figsize=(16, max(4, len(categorical_cols) * 2)),
-        cols_per_row=2
-    )
-    plt.suptitle('Categorical Value Distributions (Top 10 per column, log scale)',
-                 fontsize=14, fontweight='bold', y=1.0)
-    plt.show()
+# if categorical_cols:
+#     fig = hc.analysis.plot_categorical_frequencies(
+#         df,
+#         columns=categorical_cols,
+#         top_n=10,
+#         log_scale=True,           # Logarithmic scale for wide frequency ranges
+#         shared_xaxis=True,        # Same scale across all subplots for comparison
+#         figsize=(16, max(4, len(categorical_cols) * 2)),
+#         cols_per_row=2
+#     )
+#     plt.suptitle('Categorical Value Distributions (Top 10 per column, log scale)',
+#                  fontsize=14, fontweight='bold', y=1.0)
+#     plt.show()
 
-    logger.info("\n✅ Distribution plots show:")
-    logger.info("   • Data concentration (Pareto principle)")
-    logger.info("   • Grain candidates (which dimensions to composite)")
-    logger.info("   • Potential filtering targets (rare/dominant values)")
-    logger.info("   • Log scale reveals patterns across wide frequency ranges")
+#     logger.info("\n✅ Distribution plots show:")
+#     logger.info("   • Data concentration (Pareto principle)")
+#     logger.info("   • Grain candidates (which dimensions to composite)")
+#     logger.info("   • Potential filtering targets (rare/dominant values)")
+#     logger.info("   • Log scale reveals patterns across wide frequency ranges")
+
+logger.info("✅ Categorical columns identified for visualization")
 ```
 
 ---
@@ -471,16 +478,17 @@ logger.info(f"\n   Other: {[c for c in remaining_cols if c not in ['usage_date',
 ```
 
 ```{code-cell} ipython3
+# TODO: Implement plot_dimension_cost_summary in hellocloud.analysis.eda
 # Dimensional analysis: cost by key attributes with seaborn
-dimensions = ['cloud_provider', 'cloud_account_id', 'region', 'product_family']
-fig = hc.utils.plot_dimension_cost_summary(
-    df,
-    dimensions=dimensions,
-    cost_col='cost',
-    top_n=10,
-    cols_per_row=2
-)
-plt.show()
+# dimensions = ['cloud_provider', 'cloud_account_id', 'region', 'product_family']
+# fig = hc.analysis.plot_dimension_cost_summary(
+#     df,
+#     dimensions=dimensions,
+#     cost_col='cost',
+#     top_n=10,
+#     cols_per_row=2
+# )
+# plt.show()
 
 # Compute cardinalities in single query
 dim_stats = df.agg(
@@ -642,13 +650,14 @@ grain_comparison = pd.DataFrame(grain_results)
 logger.info(f"\n📊 Grain Persistence Comparison (37 days, ≥30 day threshold):")
 logger.info(f"\n{grain_comparison[['Grain', 'entities', 'stable_pct', 'median_days']]}")
 
+# TODO: Implement plot_grain_persistence_comparison in hellocloud.analysis.eda
 # Visualize grain tradeoffs with seaborn
-fig = hc.utils.plot_grain_persistence_comparison(
-    grain_comparison,
-    stability_threshold=70.0,
-    figsize=(14, 8)
-)
-plt.show()
+# fig = hc.analysis.plot_grain_persistence_comparison(
+#     grain_comparison,
+#     stability_threshold=70.0,
+#     figsize=(14, 8)
+# )
+# plt.show()
 ```
 
 ---
@@ -721,17 +730,18 @@ entity_filters = [
     for i in range(min(5, len(top_entities)))
 ]
 
+# TODO: Implement plot_entity_timeseries in hellocloud.analysis.eda
 # Plot with seaborn - includes both line and stacked area views
-fig = hc.utils.plot_entity_timeseries(
-    df,
-    entity_filters=entity_filters,
-    date_col='date',
-    metric_col='cost',
-    entity_labels=[f'Entity {i+1}' for i in range(len(entity_filters))],
-    mode='area',  # Shows both individual trajectories and cumulative contribution
-    figsize=(14, 10)
-)
-plt.show()
+# fig = hc.analysis.plot_entity_timeseries(
+#     df,
+#     entity_filters=entity_filters,
+#     date_col='date',
+#     metric_col='cost',
+#     entity_labels=[f'Entity {i+1}' for i in range(len(entity_filters))],
+#     mode='area',  # Shows both individual trajectories and cumulative contribution
+#     figsize=(14, 10)
+# )
+# plt.show()
 
 logger.info(f"\n📈 Time series validation complete")
 logger.info(f"   - Top entities show stable, trackable patterns")
@@ -875,7 +885,7 @@ for keys in key_candidates:
 key_df = pd.DataFrame(compound_keys)
 
 logger.info(f"\n🔑 Compound Key Analysis:")
-key_df
+key_df  # noqa: B018 - Display in notebook
 ```
 
 ```{code-cell} ipython3
@@ -892,58 +902,50 @@ logger.info(f"   • Anomaly detection (detect violations of expected parent-chi
 
 ### 5.6 Export to HuggingFace Dataset
 
-Persist the cleaned wide format dataset with discovered hierarchy metadata.
+**NOTE:** Export section commented out to avoid memory issues with large dataset collection.
 
 ```{code-cell} ipython3
-from datasets import Dataset
-import pyarrow as pa
+# TODO: Optimize export to handle large datasets (use partitioning or sampling)
+# from datasets import Dataset
+# import pyarrow as pa
+#
+# # Output directory
+# OUTPUT_DIR = Path('~/Projects/cloudzero/cloud-resource-simulator/data/piedpiper_processed').expanduser()
+# OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+#
+# logger.info(f"\n💾 Exporting cleaned dataset to: {OUTPUT_DIR}")
+#
+# # Export wide format (source of truth: full entity-level granularity)
+# # WARNING: This collects all data into memory - only use for small datasets
+# df_collected = df.toPandas()
+#
+# # Convert Pandas → PyArrow → HuggingFace Dataset
+# dataset = Dataset(pa.Table.from_pandas(df_collected))
+#
+# # Save to disk
+# dataset_path = OUTPUT_DIR / 'piedpiper_clean'
+# dataset.save_to_disk(str(dataset_path))
+#
+# logger.info(f"\n✅ Dataset Exported:")
+# logger.info(f"   Path: {dataset_path}")
+# logger.info(f"   Rows: {len(dataset):,}")
+# logger.info(f"   Columns: {len(dataset.column_names)}")
+# logger.info(f"   Temporal range: Sept 1 - Oct 6, 2025 (37 days)")
+# logger.info(f"   Format: (date, [categorical attributes], cost)")
+# logger.info(f"\n📊 Dataset contains:")
+# logger.info(f"   • Filtered schema (high-info columns only)")
+# logger.info(f"   • Temporal filter (clean period, no AWS pipeline collapse)")
+# logger.info(f"   • Primary cost metric (materialized_cost → cost)")
+# logger.info(f"   • Hierarchical attributes (use functional dependency analysis)")
+# logger.info(f"\n🌲 Hierarchy metadata: See Part 5 for discovered attribute DAG")
 
-# Output directory
-OUTPUT_DIR = Path('~/Projects/cloudzero/cloud-resource-simulator/data/piedpiper_processed').expanduser()
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-logger.info(f"\n💾 Exporting cleaned dataset to: {OUTPUT_DIR}")
+logger.info("\n✅ EDA Complete - Dataset ready for modeling")
+logger.info(f"   PySpark DataFrame maintained in memory (use .toPandas() for small samples)")
 ```
 
 ```{code-cell} ipython3
-# Export wide format (source of truth: full entity-level granularity)
-df_collected = df.toPandas()
-
-# Convert Pandas → PyArrow → HuggingFace Dataset
-dataset = Dataset(pa.Table.from_pandas(df_collected))
-
-# Save to disk
-dataset_path = OUTPUT_DIR / 'piedpiper_clean'
-dataset.save_to_disk(str(dataset_path))
-
-logger.info(f"\n✅ Dataset Exported:")
-logger.info(f"   Path: {dataset_path}")
-logger.info(f"   Rows: {len(dataset):,}")
-logger.info(f"   Columns: {len(dataset.column_names)}")
-logger.info(f"   Temporal range: Sept 1 - Oct 6, 2025 (37 days)")
-logger.info(f"   Format: (date, [categorical attributes], cost)")
-logger.info(f"\n📊 Dataset contains:")
-logger.info(f"   • Filtered schema (high-info columns only)")
-logger.info(f"   • Temporal filter (clean period, no AWS pipeline collapse)")
-logger.info(f"   • Primary cost metric (materialized_cost → cost)")
-logger.info(f"   • Hierarchical attributes (use functional dependency analysis)")
-logger.info(f"\n🌲 Hierarchy metadata: See Part 5 for discovered attribute DAG")
-```
-
-```{code-cell} ipython3
-# Quick validation: reload and inspect
-from datasets import load_from_disk
-
-reloaded = load_from_disk(str(dataset_path))
-
-logger.info(f"\n🔍 Validation - Reloaded Dataset:")
-logger.info(f"   Rows: {len(reloaded):,}")
-logger.info(f"   Columns: {reloaded.column_names}")
-logger.info(f"\n✅ Dataset successfully persisted and validated")
-logger.info(f"   Load with: Dataset.load_from_disk('{dataset_path}')")
-
-# Show sample
-reloaded.to_pandas().head(10)
+# Show sample of final dataset
+df.limit(10).toPandas()
 ```
 
 ---

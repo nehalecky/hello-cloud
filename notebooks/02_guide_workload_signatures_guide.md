@@ -34,8 +34,9 @@ except ImportError:
 ```
 
 ```{code-cell} ipython3
-# Polars replaced with PySpark
+# Data analysis with pandas and visualization with Altair
 import numpy as np
+import pandas as pd
 import altair as alt
 from datetime import datetime, timedelta
 from typing import Dict, List
@@ -54,7 +55,7 @@ Before diving into specific patterns, let's understand the fundamental forces th
 
 ```{code-cell} ipython3
 # Create a conceptual diagram showing the forces that shape workload signatures
-forces_data = spark.createDataFrame({
+forces_data = pd.DataFrame({
     'category': ['Hardware', 'Hardware', 'Architecture', 'Architecture',
                  'Business', 'Business', 'Optimization', 'Optimization'],
     'factor': ['CPU-Memory Bus', 'I/O Latency', 'Request Model', 'State Management',
@@ -72,7 +73,7 @@ forces_data = spark.createDataFrame({
     ]
 })
 
-forces_chart = alt.Chart(forces_data.toPandas()).mark_bar().encode(
+forces_chart = alt.Chart(forces_data).mark_bar().encode(
     x=alt.X('impact_level:Q', title='Impact on Signature', scale=alt.Scale(domain=[0, 10])),
     y=alt.Y('factor:N', title='Contributing Factor', sort='-x'),
     color=alt.Color('category:N', title='Category', scale=alt.Scale(scheme='tableau10')),
@@ -118,7 +119,7 @@ io_wait_pandas = io_wait_pandas.astype({
 })
 
 # Melt the DataFrame before passing to Altair (avoids transform_fold type issues)
-io_wait_melted = io_wait_pandas.unpivot(
+io_wait_melted = io_wait_pandas.melt(
     id_vars=['time'],
     value_vars=['cpu_active', 'io_wait', 'idle'],
     var_name='component',
@@ -148,6 +149,7 @@ Now let's explore WHY each workload type has its unique signature, backed by res
 
 ```{code-cell} ipython3
 # Generate sample data for all workload types
+# Note: Convert to pandas for visualization (generator returns Polars DataFrames)
 generator = WorkloadPatternGenerator(seed=42)
 workload_samples = {}
 
@@ -158,7 +160,8 @@ for workload_type in WorkloadType:
         end_time=datetime.now(),
         interval_minutes=60
     )
-    workload_samples[workload_type.value] = df
+    # Convert to pandas for visualization
+    workload_samples[workload_type.value] = df.to_pandas()
 
 print("Generated samples for {} workload types".format(len(workload_samples)))
 ```
@@ -178,23 +181,37 @@ Web applications show low CPU utilization because they spend most time waiting f
 web_app_data = workload_samples['web_application']
 
 # Calculate hourly averages to show business hours pattern
-hourly_stats = web_app_data.groupBy(
-    web_app_data['timestamp'].dt.hour().alias('hour')
-).agg(F.mean('cpu_utilization').alias('cpu_mean'), F.mean('memory_utilization').alias('memory_mean'), F.mean('waste_percentage').alias('waste_mean'))
+web_app_data['hour'] = web_app_data['timestamp'].dt.hour
+hourly_stats = web_app_data.groupby('hour').agg({
+    'cpu_utilization': 'mean',
+    'memory_utilization': 'mean',
+    'waste_percentage': 'mean'
+}).rename(columns={
+    'cpu_utilization': 'cpu_mean',
+    'memory_utilization': 'memory_mean',
+    'waste_percentage': 'waste_mean'
+}).reset_index()
 
 # Add explanation for each hour
-hourly_stats = hourly_stats.withColumn(
-    pl.when(F.col('hour').is_between(0, 5)).then(F.lit("Night - Minimal activity"))
-    .when(F.col('hour').is_between(6, 8)).then(F.lit("Morning ramp-up"))
-    .when(F.col('hour').is_between(9, 11)).then(F.lit("Peak morning activity"))
-    .when(F.col('hour').is_between(12, 13)).then(F.lit("Lunch dip"))
-    .when(F.col('hour').is_between(14, 16)).then(F.lit("Afternoon peak"))
-    .when(F.col('hour').is_between(17, 18)).then(F.lit("End of day wind-down"))
-    .otherwise(F.lit("Evening - Reduced activity"))
-    .alias('period_explanation')
-)
+conditions = [
+    (hourly_stats['hour'] >= 0) & (hourly_stats['hour'] <= 5),
+    (hourly_stats['hour'] >= 6) & (hourly_stats['hour'] <= 8),
+    (hourly_stats['hour'] >= 9) & (hourly_stats['hour'] <= 11),
+    (hourly_stats['hour'] >= 12) & (hourly_stats['hour'] <= 13),
+    (hourly_stats['hour'] >= 14) & (hourly_stats['hour'] <= 16),
+    (hourly_stats['hour'] >= 17) & (hourly_stats['hour'] <= 18),
+]
+choices = [
+    "Night - Minimal activity",
+    "Morning ramp-up",
+    "Peak morning activity",
+    "Lunch dip",
+    "Afternoon peak",
+    "End of day wind-down"
+]
+hourly_stats['period_explanation'] = np.select(conditions, choices, default="Evening - Reduced activity")
 
-web_app_chart = alt.Chart(hourly_stats.toPandas()).mark_line(point=True).encode(
+web_app_chart = alt.Chart(hourly_stats).mark_line(point=True).encode(
     x=alt.X('hour:O', title='Hour of Day'),
     y=alt.Y('cpu_mean:Q', title='Average CPU Utilization (%)'),
     color=alt.value('#1f77b4'),
@@ -205,7 +222,7 @@ web_app_chart = alt.Chart(hourly_stats.toPandas()).mark_line(point=True).encode(
     title='Web Applications: Why CPU Follows Business Hours'
 )
 
-memory_layer = alt.Chart(hourly_stats.toPandas()).mark_line(point=True, strokeDash=[5,5]).encode(
+memory_layer = alt.Chart(hourly_stats).mark_line(point=True, strokeDash=[5,5]).encode(
     x='hour:O',
     y=alt.Y('memory_mean:Q', title='Average Memory Utilization (%)'),
     color=alt.value('#ff7f0e'),
@@ -230,9 +247,9 @@ Batch processing shows extreme waste because resources are reserved for schedule
 batch_data = workload_samples['batch_processing']
 
 # Create a view showing idle periods and spike patterns
-batch_sample = batch_data.limit(168)  # One week
+batch_sample = batch_data.head(168)  # One week
 
-batch_chart = alt.Chart(batch_sample.toPandas()).mark_area(
+batch_chart = alt.Chart(batch_sample).mark_area(
     line={'color':'darkblue'},
     color=alt.Gradient(
         gradient='linear',
@@ -251,14 +268,14 @@ batch_chart = alt.Chart(batch_sample.toPandas()).mark_area(
 )
 
 # Add annotations for batch windows
-annotations_df = spark.createDataFrame({
+annotations_df = pd.DataFrame({
     'timestamp': [batch_sample['timestamp'][20], batch_sample['timestamp'][68],
                   batch_sample['timestamp'][116], batch_sample['timestamp'][164]],
     'cpu_utilization': [80, 85, 78, 82],
     'label': ['Nightly ETL', 'Report Generation', 'Data Backup', 'Weekly Analytics']
 })
 
-annotations = alt.Chart(annotations_df.toPandas()).mark_text(
+annotations = alt.Chart(annotations_df).mark_text(
     align='center',
     baseline='bottom',
     fontSize=10
@@ -293,7 +310,7 @@ ml_inference = workload_samples['ml_inference']
 
 # Sample 48 hours for detailed comparison
 comparison_hours = 48
-ml_comparison = spark.createDataFrame({
+ml_comparison = pd.DataFrame({
     'hour': list(range(comparison_hours)),
     'training_cpu': ml_training.head(comparison_hours)['cpu_utilization'].to_list(),
     'training_memory': ml_training.head(comparison_hours)['memory_utilization'].to_list(),
@@ -302,17 +319,20 @@ ml_comparison = spark.createDataFrame({
 })
 
 # Create side-by-side comparison
-ml_comparison_long = ml_comparison.unpivot(
-    index=['hour'],
-    on=['training_cpu', 'training_memory', 'inference_cpu', 'inference_memory']
-).withColumn(
-    pl.when(F.col('variable').contains('training')).then(F.lit('Training'))
-    .otherwise(F.lit('Inference')).alias('workload_type'),
-    pl.when(F.col('variable').contains('cpu')).then(F.lit('CPU'))
-    .otherwise(F.lit('Memory')).alias('resource_type')
+ml_comparison_long = ml_comparison.melt(
+    id_vars=['hour'],
+    value_vars=['training_cpu', 'training_memory', 'inference_cpu', 'inference_memory']
 )
 
-ml_chart = alt.Chart(ml_comparison_long.toPandas()).mark_line().encode(
+# Add workload_type and resource_type columns
+ml_comparison_long['workload_type'] = ml_comparison_long['variable'].apply(
+    lambda x: 'Training' if 'training' in x else 'Inference'
+)
+ml_comparison_long['resource_type'] = ml_comparison_long['variable'].apply(
+    lambda x: 'CPU' if 'cpu' in x else 'Memory'
+)
+
+ml_chart = alt.Chart(ml_comparison_long).mark_line().encode(
     x=alt.X('hour:Q', title='Hour'),
     y=alt.Y('value:Q', title='Utilization (%)'),
     color=alt.Color('resource_type:N', title='Resource'),
@@ -349,19 +369,19 @@ db_oltp = workload_samples['database_oltp']
 db_olap = workload_samples['database_olap']
 
 # Show correlation between queries and resource usage
-db_comparison = spark.createDataFrame({
+db_comparison = pd.DataFrame({
     'workload': ['OLTP'] * 24 + ['OLAP'] * 24,
     'hour': list(range(24)) * 2,
-    'cpu': (db_oltp.limit(24)['cpu_utilization'].to_list() +
-            db_olap.limit(24)['cpu_utilization'].to_list()),
-    'memory': (db_oltp.limit(24)['memory_utilization'].to_list() +
-               db_olap.limit(24)['memory_utilization'].to_list()),
+    'cpu': (db_oltp.head(24)['cpu_utilization'].to_list() +
+            db_olap.head(24)['cpu_utilization'].to_list()),
+    'memory': (db_oltp.head(24)['memory_utilization'].to_list() +
+               db_olap.head(24)['memory_utilization'].to_list()),
     'pattern_type': (
         ['Transactional'] * 24 + ['Analytical'] * 24
     )
 })
 
-db_scatter = alt.Chart(db_comparison.toPandas()).mark_circle(size=100).encode(
+db_scatter = alt.Chart(db_comparison).mark_circle(size=100).encode(
     x=alt.X('cpu:Q', title='CPU Utilization (%)', scale=alt.Scale(domain=[0, 50])),
     y=alt.Y('memory:Q', title='Memory Utilization (%)', scale=alt.Scale(domain=[0, 80])),
     color=alt.Color('workload:N', title='Database Type', scale=alt.Scale(scheme='dark2')),
@@ -373,7 +393,7 @@ db_scatter = alt.Chart(db_comparison.toPandas()).mark_circle(size=100).encode(
 )
 
 # Add annotation regions
-regions = spark.createDataFrame({
+regions = pd.DataFrame({
     'region': ['OLTP Zone', 'OLAP Zone'],
     'cpu_center': [20, 10],
     'memory_center': [60, 30],
@@ -399,22 +419,24 @@ Development environments are the worst offenders for waste, and there are clear 
 dev_env = workload_samples['development_environment']
 
 # Calculate waste by day of week and hour
-dev_analysis = dev_env.withColumn(
-    dev_env['timestamp'].dt.weekday().alias('weekday'),
-    dev_env['timestamp'].dt.hour().alias('hour')
-)
+dev_env['weekday'] = dev_env['timestamp'].dt.weekday
+dev_env['hour'] = dev_env['timestamp'].dt.hour
 
-weekly_pattern = dev_analysis.groupBy('weekday').agg(F.mean('cpu_utilization').alias('cpu_mean'), F.mean('waste_percentage').alias('waste_mean')).withColumn(
-    pl.when(F.col('weekday') == 0).then(F.lit('Monday'))
-    .when(F.col('weekday') == 1).then(F.lit('Tuesday'))
-    .when(F.col('weekday') == 2).then(F.lit('Wednesday'))
-    .when(F.col('weekday') == 3).then(F.lit('Thursday'))
-    .when(F.col('weekday') == 4).then(F.lit('Friday'))
-    .when(F.col('weekday') == 5).then(F.lit('Saturday'))
-    .otherwise(F.lit('Sunday')).alias('day_name')
-)
+# Calculate weekly aggregations
+weekly_pattern = dev_env.groupby('weekday').agg({
+    'cpu_utilization': 'mean',
+    'waste_percentage': 'mean'
+}).rename(columns={
+    'cpu_utilization': 'cpu_mean',
+    'waste_percentage': 'waste_mean'
+}).reset_index()
 
-dev_waste_chart = alt.Chart(weekly_pattern.toPandas()).mark_bar().encode(
+# Add day names
+day_names = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday',
+             4: 'Friday', 5: 'Saturday', 6: 'Sunday'}
+weekly_pattern['day_name'] = weekly_pattern['weekday'].map(day_names)
+
+dev_waste_chart = alt.Chart(weekly_pattern).mark_bar().encode(
     x=alt.X('day_name:N', title='Day of Week', sort=['Monday', 'Tuesday', 'Wednesday',
                                                       'Thursday', 'Friday', 'Saturday', 'Sunday']),
     y=alt.Y('waste_mean:Q', title='Average Waste (%)'),
@@ -427,7 +449,7 @@ dev_waste_chart = alt.Chart(weekly_pattern.toPandas()).mark_bar().encode(
 )
 
 # Add text annotations
-text = alt.Chart(weekly_pattern.toPandas()).mark_text(dy=-10).encode(
+text = alt.Chart(weekly_pattern).mark_text(dy=-10).encode(
     x=alt.X('day_name:N', sort=['Monday', 'Tuesday', 'Wednesday',
                                 'Thursday', 'Friday', 'Saturday', 'Sunday']),
     y=alt.Y('waste_mean:Q'),
@@ -452,9 +474,9 @@ Serverless shows unique patterns due to its pay-per-use model.
 serverless = workload_samples['serverless_function']
 
 # Show the extreme variance
-serverless_sample = serverless.limit(48)
+serverless_sample = serverless.head(48)
 
-serverless_chart = alt.Chart(serverless_sample.toPandas()).mark_area(
+serverless_chart = alt.Chart(serverless_sample).mark_area(
     line={'color':'purple'},
     color=alt.Gradient(
         gradient='linear',
@@ -474,8 +496,8 @@ serverless_chart = alt.Chart(serverless_sample.toPandas()).mark_area(
 )
 
 # Add cold start indicators
-cold_starts = serverless_sample.filter(F.col('cpu_utilization') > 80)
-cold_start_markers = alt.Chart(cold_starts.toPandas()).mark_circle(
+cold_starts = serverless_sample[serverless_sample['cpu_utilization'] > 80]
+cold_start_markers = alt.Chart(cold_starts).mark_circle(
     color='red',
     size=100
 ).encode(
@@ -518,10 +540,10 @@ for workload, corr_values in correlations.items():
             'correlation': correlation
         })
 
-corr_df = spark.createDataFrame(corr_data)
+corr_df = pd.DataFrame(corr_data)
 
 # Create heatmap
-correlation_heatmap = alt.Chart(corr_df.toPandas()).mark_rect().encode(
+correlation_heatmap = alt.Chart(corr_df).mark_rect().encode(
     x=alt.X('metric_pair:N', title='Metric Pair'),
     y=alt.Y('workload:N', title='Workload Type'),
     color=alt.Color('correlation:Q',
@@ -590,9 +612,9 @@ for workload, values in autocorr_results.items():
             'autocorrelation': corr
         })
 
-autocorr_df = spark.createDataFrame(autocorr_data)
+autocorr_df = pd.DataFrame(autocorr_data)
 
-autocorr_chart = alt.Chart(autocorr_df.toPandas()).mark_line(point=True).encode(
+autocorr_chart = alt.Chart(autocorr_df).mark_line(point=True).encode(
     x=alt.X('lag_hours:Q', title='Lag (hours)'),
     y=alt.Y('autocorrelation:Q', title='Autocorrelation', scale=alt.Scale(domain=[0, 1])),
     color=alt.Color('workload:N', title='Workload Type'),
@@ -654,10 +676,10 @@ for workload_name, df in workload_samples.items():
         'avg_memory': avg_memory
     })
 
-savings_df = spark.createDataFrame(savings_analysis)
+savings_df = pd.DataFrame(savings_analysis)
 
 # Create savings opportunity chart
-savings_chart = alt.Chart(savings_df.toPandas()).mark_bar().encode(
+savings_chart = alt.Chart(savings_df).mark_bar().encode(
     x=alt.X('potential_savings:Q', title='Potential Savings (%)'),
     y=alt.Y('workload:N', title='Workload Type',
             sort=alt.EncodingSortField(field='potential_savings', order='descending')),
