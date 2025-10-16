@@ -114,33 +114,24 @@ pre-commit-install:
 pre-commit-update:
     uv run pre-commit autoupdate
 
-# Generate API reference documentation
-docs-api:
-    uv run quartodoc build --config docs/_quarto.yml
+# Preview documentation with auto-refresh (local development server)
+docs-serve:
+    uv run mkdocs serve
 
-# Preview documentation (auto-refreshes)
-docs-preview:
-    quarto preview docs/
-
-# Build documentation
+# Build documentation (static site)
 docs-build:
-    quarto render docs/
+    uv run mkdocs build
+
+# Deploy documentation to GitHub Pages
+docs-deploy:
+    uv run mkdocs gh-deploy
 
 # Clean documentation artifacts
 docs-clean:
-    rm -rf docs/_site docs/.quarto
+    rm -rf site/
 
-# Generate API docs and build site
-docs: docs-api docs-build
-
-# View specific tutorial (opens in browser after building)
-tut NAME:
-    quarto render docs/tutorials/{{NAME}}.qmd
-    open docs/_site/tutorials/{{NAME}}.html
-
-# Preview specific tutorial with live reload
-tut-preview NAME:
-    quarto preview docs/tutorials/{{NAME}}.qmd
+# Build documentation (alias for docs-build)
+docs: docs-build
 
 # Run all checks (lint + test + docs)
 check: lint test docs
