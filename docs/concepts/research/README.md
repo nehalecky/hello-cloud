@@ -22,16 +22,7 @@ This directory contains the empirical research that forms the foundation of hell
 - Energy domain datasets as cloud infrastructure analogs
 - **Essential resource for Gaussian process modeling**
 
-### 4. [Alibaba Trace Analysis](alibaba-trace-analysis.md) _(Historical Reference)_
-- Comprehensive analysis of Alibaba 2018 cluster traces
-- ⚠️ **Datacenter-wide aggregations (NOT machine-level data)**
-- Empirical findings: 38% CPU, 88% memory utilization
-- Valid uses: Temporal pattern analysis, benchmarking
-- Invalid uses: Machine-level optimization, co-location studies
-- 28 research citations
-- **Note**: ETL functionality has been removed; this document preserved for research insights only
-
-### 5. [OpenTSLM Foundation Model Evaluation](opentslm-foundation-model-evaluation.md)
+### 4. [OpenTSLM Foundation Model Evaluation](opentslm-foundation-model-evaluation.md)
 - Evaluation of Stanford's OpenTSLM timeseries foundation model
 - Key finding: Not suitable for cloud anomaly detection
 - No pre-trained weights, medical domain focus
@@ -43,7 +34,7 @@ This directory contains the empirical research that forms the foundation of hell
 → **[Time Series Anomaly Datasets Review](timeseries-anomaly-datasets-review.md)** - HuggingFace datasets catalog
 
 ### For Temporal Pattern Analysis
-→ [Alibaba Trace Analysis](alibaba-trace-analysis.md) + [Cloud Resource Patterns](cloud-resource-patterns-research.md)
+→ [Cloud Resource Patterns](cloud-resource-patterns-research.md)
 
 ### For Multivariate Modeling
 → [Cloud Resource Correlations Report](cloud-resource-correlations-report.md)
@@ -54,7 +45,6 @@ This directory contains the empirical research that forms the foundation of hell
 - **CPU**: Average 13% utilization (industry-wide)
 - **Memory**: Average 20% utilization
 - **Waste**: 30-32% of cloud spending
-- **Alibaba Dataset**: 38% CPU, 88% memory (datacenter-wide averages)
 
 ### Correlation Patterns
 - **Strong temporal autocorrelation**: 0.7-0.8 for first 10 time lags
