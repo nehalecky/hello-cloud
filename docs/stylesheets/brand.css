@@ -1,0 +1,386 @@
+/*
+ * Hello Cloud - Foundation Horizon Brand Identity
+ * State-of-the-art time series forecasting, made practical
+ *
+ * Primary: #4A90E2 (Horizon Blue) - Trust, cloud, forecasting
+ * Accent: #FF6B35 (Forecast Orange) - Energy, insight, action
+ */
+
+/* ============================================================
+   FOUNDATION HORIZON COLOR PALETTE - LIGHT MODE
+   ============================================================ */
+
+[data-md-color-scheme="default"] {
+  /* Primary Colors - Horizon Blue */
+  --md-primary-fg-color: #4A90E2;           /* Main brand color */
+  --md-primary-fg-color--light: #6BA5E8;    /* Lighter variant */
+  --md-primary-fg-color--dark: #3A7BC8;     /* Darker variant */
+
+  /* Accent Colors - Forecast Orange */
+  --md-accent-fg-color: #FF6B35;            /* Call-to-action color */
+  --md-accent-fg-color--transparent: rgba(255, 107, 53, 0.1);
+
+  /* Background & Typography */
+  --md-default-bg-color: #ffffff;
+  --md-default-fg-color: #2c3e50;           /* Dark gray for text */
+  --md-default-fg-color--light: #546e7a;
+  --md-default-fg-color--lighter: #90a4ae;
+  --md-default-fg-color--lightest: #e8f4f8; /* Cloud white */
+
+  /* Code Blocks */
+  --md-code-bg-color: #f5f7fa;
+  --md-code-fg-color: #2c3e50;
+  --md-code-hl-color: rgba(74, 144, 226, 0.15);
+
+  /* Links */
+  --md-typeset-a-color: #4A90E2;
+
+  /* Footer */
+  --md-footer-bg-color: #2c3e50;
+  --md-footer-bg-color--dark: #1a252f;
+  --md-footer-fg-color: #ffffff;
+}
+
+/* ============================================================
+   FOUNDATION HORIZON COLOR PALETTE - DARK MODE
+   ============================================================ */
+
+[data-md-color-scheme="slate"] {
+  /* Primary Colors - Horizon Blue (adjusted for dark mode) */
+  --md-primary-fg-color: #6BA5E8;           /* Lighter blue for dark bg */
+  --md-primary-fg-color--light: #8BB8ED;
+  --md-primary-fg-color--dark: #4A90E2;
+
+  /* Accent Colors - Forecast Orange (adjusted for dark mode) */
+  --md-accent-fg-color: #FF8559;            /* Softer orange for dark bg */
+  --md-accent-fg-color--transparent: rgba(255, 133, 89, 0.1);
+
+  /* Code Blocks - Dark mode */
+  --md-code-bg-color: #1e2530;
+  --md-code-fg-color: #e8f4f8;
+  --md-code-hl-color: rgba(107, 165, 232, 0.15);
+
+  /* Links */
+  --md-typeset-a-color: #6BA5E8;
+}
+
+/* ============================================================
+   TYPOGRAPHY ENHANCEMENTS
+   ============================================================ */
+
+/* Body text - FastAPI/Pydantic style */
+.md-typeset {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--md-default-fg-color);
+}
+
+/* Headers - Clean hierarchy */
+.md-typeset h1 {
+  font-weight: 400;
+  font-size: 2em;
+  margin: 0 0 0.5em;
+  color: var(--md-primary-fg-color);
+}
+
+.md-typeset h2 {
+  font-weight: 400;
+  font-size: 1.5em;
+  margin: 1.5em 0 0.6em;
+  color: var(--md-primary-fg-color--dark);
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  padding-bottom: 0.3em;
+}
+
+.md-typeset h3 {
+  font-weight: 500;
+  font-size: 1.25em;
+  margin: 1.2em 0 0.5em;
+}
+
+/* Links - Horizon Blue with hover effect */
+.md-typeset a {
+  color: var(--md-typeset-a-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.md-typeset a:hover {
+  color: var(--md-accent-fg-color);
+  text-decoration: underline;
+}
+
+/* ============================================================
+   CODE & SYNTAX HIGHLIGHTING - FASTAPI STYLE
+   ============================================================ */
+
+/* Inline code */
+.md-typeset code {
+  background-color: var(--md-code-bg-color);
+  color: var(--md-code-fg-color);
+  padding: 0.1em 0.4em;
+  border-radius: 0.3em;
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+/* Code blocks */
+.md-typeset pre {
+  background-color: var(--md-code-bg-color);
+  border-radius: 0.4em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.md-typeset pre > code {
+  background-color: transparent;
+  padding: 1em;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+/* Copy button - Forecast Orange on hover */
+.md-clipboard {
+  color: var(--md-default-fg-color--lighter);
+  transition: color 0.2s ease;
+}
+
+.md-clipboard:hover {
+  color: var(--md-accent-fg-color);
+}
+
+/* ============================================================
+   TABLES - DATA SCIENCE OPTIMIZED
+   ============================================================ */
+
+.md-typeset table:not([class]) {
+  font-size: 0.8rem;
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  display: block;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 0.3em;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--md-primary-fg-color);
+  color: white;
+  font-weight: 500;
+  padding: 0.9em 1em;
+  text-align: left;
+  border: none;
+}
+
+.md-typeset table:not([class]) td {
+  padding: 0.8em 1em;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset table:not([class]) tr:last-child td {
+  border-bottom: none;
+}
+
+.md-typeset table:not([class]) tr:hover {
+  background-color: rgba(74, 144, 226, 0.05);
+}
+
+/* ============================================================
+   JUPYTER NOTEBOOK STYLING
+   ============================================================ */
+
+/* Notebook cells */
+.jp-RenderedHTMLCommon {
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.jp-RenderedHTMLCommon table {
+  font-size: 0.75rem;
+  border-collapse: collapse;
+}
+
+.jp-RenderedHTMLCommon td,
+.jp-RenderedHTMLCommon th {
+  padding: 0.6em 0.9em;
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.jp-RenderedHTMLCommon th {
+  background-color: var(--md-primary-fg-color--light);
+  color: white;
+  font-weight: 500;
+}
+
+/* Notebook images and plots */
+.jp-RenderedImage,
+.jp-RenderedHTMLCommon img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.4em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin: 1.2em 0;
+}
+
+/* Dark mode notebook images */
+[data-md-color-scheme="slate"] .jp-RenderedImage,
+[data-md-color-scheme="slate"] .jp-RenderedHTMLCommon img {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================
+   ADMONITIONS - ENHANCED STYLING
+   ============================================================ */
+
+.md-typeset .admonition {
+  border-left: 4px solid var(--md-primary-fg-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin: 1.5em 0;
+}
+
+.md-typeset .admonition-title {
+  font-weight: 500;
+  background-color: rgba(74, 144, 226, 0.1);
+}
+
+/* Custom "insight" admonition with Forecast Orange */
+.md-typeset .admonition.insight {
+  border-left-color: var(--md-accent-fg-color);
+}
+
+.md-typeset .admonition.insight > .admonition-title {
+  background-color: rgba(255, 107, 53, 0.1);
+}
+
+/* ============================================================
+   NAVIGATION ENHANCEMENTS
+   ============================================================ */
+
+/* Top navigation tabs - Horizon Blue */
+.md-tabs {
+  background-color: var(--md-primary-fg-color);
+}
+
+/* Navigation hover states */
+.md-nav__link:hover {
+  color: var(--md-accent-fg-color);
+}
+
+.md-nav__link--active {
+  color: var(--md-primary-fg-color);
+  font-weight: 500;
+}
+
+/* Search box */
+.md-search__input {
+  background-color: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.3em;
+}
+
+.md-search__input:focus {
+  border-color: var(--md-primary-fg-color);
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
+/* ============================================================
+   BUTTONS & INTERACTIVE ELEMENTS
+   ============================================================ */
+
+/* Primary buttons - Horizon Blue */
+.md-button--primary {
+  background-color: var(--md-primary-fg-color);
+  color: white;
+  border-color: var(--md-primary-fg-color);
+}
+
+.md-button--primary:hover {
+  background-color: var(--md-primary-fg-color--dark);
+  border-color: var(--md-primary-fg-color--dark);
+}
+
+/* Accent buttons - Forecast Orange */
+.md-button {
+  transition: all 0.2s ease;
+}
+
+.md-button:hover {
+  background-color: var(--md-accent-fg-color);
+  color: white;
+  border-color: var(--md-accent-fg-color);
+}
+
+/* ============================================================
+   FOOTER - DEEP SKY
+   ============================================================ */
+
+.md-footer {
+  background-color: var(--md-footer-bg-color);
+  color: var(--md-footer-fg-color);
+}
+
+.md-footer-meta {
+  background-color: var(--md-footer-bg-color--dark);
+}
+
+.md-footer__link {
+  color: var(--md-footer-fg-color);
+  opacity: 0.9;
+}
+
+.md-footer__link:hover {
+  opacity: 1;
+  color: var(--md-accent-fg-color);
+}
+
+/* ============================================================
+   RESPONSIVE DESIGN
+   ============================================================ */
+
+@media screen and (max-width: 76.1875em) {
+  .md-typeset {
+    font-size: 0.75rem;
+  }
+}
+
+@media screen and (max-width: 44.9375em) {
+  .md-typeset h1 {
+    font-size: 1.6em;
+  }
+
+  .md-typeset h2 {
+    font-size: 1.3em;
+  }
+}
+
+/* ============================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ============================================================ */
+
+/* Focus states */
+a:focus,
+button:focus,
+input:focus {
+  outline: 2px solid var(--md-primary-fg-color);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .md-typeset a {
+    text-decoration: underline;
+  }
+
+  .md-typeset code {
+    border: 1px solid var(--md-default-fg-color);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

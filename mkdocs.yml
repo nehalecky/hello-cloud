@@ -4,10 +4,72 @@ repo_url: https://github.com/nehalecky/hello-cloud
 
 theme:
   name: material
+
+  # Foundation Horizon Brand Identity
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+  # Typography - FastAPI/Pydantic style
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+  # Modern features - FastAPI/Pydantic inspired
   features:
-    - navigation.instant
-    - navigation.tracking
-    - search.suggest
+    # Navigation
+    - navigation.instant          # Instant loading (SPA-like)
+    - navigation.instant.prefetch # Prefetch pages on hover
+    - navigation.instant.progress # Loading progress indicator
+    - navigation.tracking         # URL updates with scroll
+    - navigation.tabs             # Top-level tabs
+    - navigation.tabs.sticky      # Sticky tabs on scroll
+    - navigation.path             # Breadcrumb path
+    - navigation.indexes          # Section index pages
+    - navigation.top              # Back to top button
+    - navigation.footer           # Previous/next footer navigation
+
+    # Search enhancements
+    - search.suggest              # Search suggestions
+    - search.highlight            # Highlight search terms
+    - search.share                # Share search results
+
+    # Content features
+    - content.code.copy           # Copy button on code blocks
+    - content.code.annotate       # Code annotations
+    - content.tabs.link           # Link content tabs
+
+    # Table of contents
+    - toc.follow                  # TOC follows scroll
+    - toc.integrate               # Integrate TOC into nav (optional)
+
+  icon:
+    repo: fontawesome/brands/github
+
+# Custom CSS for Foundation Horizon colors
+extra_css:
+  - stylesheets/brand.css
 
 plugins:
   - search

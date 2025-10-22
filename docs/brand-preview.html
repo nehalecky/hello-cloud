@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello Cloud - Brand Identity Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            color: #666;
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .palette-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .palette-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .palette-header {
+            padding: 30px;
+            color: white;
+            text-align: center;
+        }
+
+        .palette-header h2 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .palette-header .tagline {
+            font-size: 1em;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+
+        .color-swatches {
+            display: flex;
+            height: 80px;
+        }
+
+        .swatch {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.85em;
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .palette-body {
+            padding: 30px;
+        }
+
+        .palette-section {
+            margin-bottom: 25px;
+        }
+
+        .palette-section h3 {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .palette-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .palette-section li {
+            padding: 8px 0;
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .palette-section li::before {
+            content: "✓ ";
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
+        .sample-ui {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .sample-ui h4 {
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+            color: #666;
+        }
+
+        .sample-button {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 6px;
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sample-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .sample-link {
+            font-weight: 500;
+            text-decoration: none;
+            border-bottom: 2px solid;
+            padding-bottom: 2px;
+            transition: opacity 0.2s ease;
+        }
+
+        .sample-link:hover {
+            opacity: 0.8;
+        }
+
+        .sample-code {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9em;
+            margin-top: 10px;
+            overflow-x: auto;
+        }
+
+        .recommendation {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .recommendation h2 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+
+        .recommendation p {
+            font-size: 1.1em;
+            line-height: 1.8;
+            opacity: 0.95;
+        }
+
+        /* Palette-specific styles */
+        .foundation-horizon .palette-header { background: linear-gradient(135deg, #4A90E2 0%, #FF6B35 100%); }
+        .foundation-horizon .sample-button { background: #4A90E2; }
+        .foundation-horizon .sample-button.accent { background: #FF6B35; }
+        .foundation-horizon .sample-link { color: #4A90E2; border-color: #4A90E2; }
+
+        .atmospheric-intelligence .palette-header { background: linear-gradient(135deg, #667EEA 0%, #00D9FF 100%); }
+        .atmospheric-intelligence .sample-button { background: #667EEA; }
+        .atmospheric-intelligence .sample-button.accent { background: #00D9FF; }
+        .atmospheric-intelligence .sample-link { color: #667EEA; border-color: #667EEA; }
+
+        .temporal-gradient .palette-header { background: linear-gradient(135deg, #5B8DEE 0%, #A78BFA 100%); }
+        .temporal-gradient .sample-button { background: #5B8DEE; }
+        .temporal-gradient .sample-button.accent { background: #A78BFA; }
+        .temporal-gradient .sample-link { color: #5B8DEE; border-color: #5B8DEE; }
+
+        .quantum-cloud .palette-header { background: linear-gradient(135deg, #0EA5E9 0%, #10B981 100%); }
+        .quantum-cloud .sample-button { background: #0EA5E9; }
+        .quantum-cloud .sample-button.accent { background: #10B981; }
+        .quantum-cloud .sample-link { color: #0EA5E9; border-color: #0EA5E9; }
+
+        @media (max-width: 768px) {
+            .palette-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Hello Cloud Brand Identity</h1>
+        <p>Choose your authentic color palette for state-of-the-art time series forecasting</p>
+    </div>
+
+    <div class="palette-grid">
+        <!-- PALETTE 1: Foundation Horizon -->
+        <div class="palette-card foundation-horizon">
+            <div class="palette-header">
+                <h2>Foundation Horizon</h2>
+                <p class="tagline">Innovation meets forecasting</p>
+            </div>
+            <div class="color-swatches">
+                <div class="swatch" style="background: #4A90E2;">#4A90E2<br>Horizon Blue</div>
+                <div class="swatch" style="background: #FF6B35;">#FF6B35<br>Forecast Orange</div>
+                <div class="swatch" style="background: #E8F4F8; color: #333;">#E8F4F8<br>Cloud White</div>
+                <div class="swatch" style="background: #2C3E50;">#2C3E50<br>Deep Sky</div>
+            </div>
+            <div class="palette-body">
+                <div class="palette-section">
+                    <h3>🎯 Brand Essence</h3>
+                    <ul>
+                        <li>Blue = Trust, data, cloud computing</li>
+                        <li>Orange = Energy, discovery, actionable insights</li>
+                        <li>Horizon metaphor = Forecasting the future</li>
+                    </ul>
+                </div>
+                <div class="palette-section">
+                    <h3>✨ Best For</h3>
+                    <ul>
+                        <li>Balancing innovation + practicality</li>
+                        <li>Approachable yet cutting-edge</li>
+                        <li>Emphasizing time-to-value</li>
+                    </ul>
+                </div>
+                <div class="sample-ui">
+                    <h4>Sample UI Elements</h4>
+                    <a href="#" class="sample-button">Get Started</a>
+                    <a href="#" class="sample-button accent">View Notebooks</a>
+                    <p style="margin-top: 15px;">
+                        Learn how to build <a href="#" class="sample-link">time series forecasts</a> with state-of-the-art foundation models.
+                    </p>
+                    <div class="sample-code">from hellocloud import TimeSeries
+ts = TimeSeries.load("piedpiper.parquet")</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PALETTE 2: Atmospheric Intelligence -->
+        <div class="palette-card atmospheric-intelligence">
+            <div class="palette-header">
+                <h2>Atmospheric Intelligence</h2>
+                <p class="tagline">Deep learning in the cloud</p>
+            </div>
+            <div class="color-swatches">
+                <div class="swatch" style="background: #667EEA;">#667EEA<br>Deep Indigo</div>
+                <div class="swatch" style="background: #00D9FF;">#00D9FF<br>Cyan Glow</div>
+                <div class="swatch" style="background: #F0F4FF; color: #333;">#F0F4FF<br>Indigo Wash</div>
+                <div class="swatch" style="background: #1A1F36;">#1A1F36<br>Deep Space</div>
+            </div>
+            <div class="palette-body">
+                <div class="palette-section">
+                    <h3>🎯 Brand Essence</h3>
+                    <ul>
+                        <li>Indigo = ML/AI intelligence, analytical depth</li>
+                        <li>Cyan = Cloud infrastructure, digital clarity</li>
+                        <li>Together = Smart cloud analytics</li>
+                    </ul>
+                </div>
+                <div class="palette-section">
+                    <h3>✨ Best For</h3>
+                    <ul>
+                        <li>Emphasizing ML sophistication</li>
+                        <li>Analytical, precise positioning</li>
+                        <li>Foundation model expertise</li>
+                    </ul>
+                </div>
+                <div class="sample-ui">
+                    <h4>Sample UI Elements</h4>
+                    <a href="#" class="sample-button">Get Started</a>
+                    <a href="#" class="sample-button accent">View Notebooks</a>
+                    <p style="margin-top: 15px;">
+                        Learn how to build <a href="#" class="sample-link">time series forecasts</a> with state-of-the-art foundation models.
+                    </p>
+                    <div class="sample-code">from hellocloud import TimeSeries
+ts = TimeSeries.load("piedpiper.parquet")</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PALETTE 3: Temporal Gradient -->
+        <div class="palette-card temporal-gradient">
+            <div class="palette-header">
+                <h2>Temporal Gradient</h2>
+                <p class="tagline">From past data to future predictions</p>
+            </div>
+            <div class="color-swatches">
+                <div class="swatch" style="background: #5B8DEE;">#5B8DEE<br>Time Blue</div>
+                <div class="swatch" style="background: #A78BFA;">#A78BFA<br>Prediction Purple</div>
+                <div class="swatch" style="background: #EEF2FF; color: #333;">#EEF2FF<br>Soft Lavender</div>
+                <div class="swatch" style="background: #312E81;">#312E81<br>Deep Indigo</div>
+            </div>
+            <div class="palette-body">
+                <div class="palette-section">
+                    <h3>🎯 Brand Essence</h3>
+                    <ul>
+                        <li>Blue-Purple gradient = Time flowing forward</li>
+                        <li>Purple = Creativity, discovery, foresight</li>
+                        <li>Gradient metaphor = Continuous forecasting</li>
+                    </ul>
+                </div>
+                <div class="palette-section">
+                    <h3>✨ Best For</h3>
+                    <ul>
+                        <li>Unique in ML/cloud space</li>
+                        <li>Innovation & discovery focus</li>
+                        <li>Time series specialization</li>
+                    </ul>
+                </div>
+                <div class="sample-ui">
+                    <h4>Sample UI Elements</h4>
+                    <a href="#" class="sample-button">Get Started</a>
+                    <a href="#" class="sample-button accent">View Notebooks</a>
+                    <p style="margin-top: 15px;">
+                        Learn how to build <a href="#" class="sample-link">time series forecasts</a> with state-of-the-art foundation models.
+                    </p>
+                    <div class="sample-code">from hellocloud import TimeSeries
+ts = TimeSeries.load("piedpiper.parquet")</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PALETTE 4: Quantum Cloud -->
+        <div class="palette-card quantum-cloud">
+            <div class="palette-header">
+                <h2>Quantum Cloud</h2>
+                <p class="tagline">Advanced ML meets practical deployment</p>
+            </div>
+            <div class="color-swatches">
+                <div class="swatch" style="background: #0EA5E9;">#0EA5E9<br>Sky Cyan</div>
+                <div class="swatch" style="background: #10B981;">#10B981<br>Growth Green</div>
+                <div class="swatch" style="background: #F0FDFA; color: #333;">#F0FDFA<br>Fresh Mint</div>
+                <div class="swatch" style="background: #134E4A;">#134E4A<br>Deep Teal</div>
+            </div>
+            <div class="palette-body">
+                <div class="palette-section">
+                    <h3>🎯 Brand Essence</h3>
+                    <ul>
+                        <li>Cyan = Modern cloud tech, infrastructure</li>
+                        <li>Green = Optimization, savings, growth</li>
+                        <li>Together = Efficient cloud innovation</li>
+                    </ul>
+                </div>
+                <div class="palette-section">
+                    <h3>✨ Best For</h3>
+                    <ul>
+                        <li>Cost optimization angle</li>
+                        <li>Practical, results-driven</li>
+                        <li>Literal "cloud" + value delivery</li>
+                    </ul>
+                </div>
+                <div class="sample-ui">
+                    <h4>Sample UI Elements</h4>
+                    <a href="#" class="sample-button">Get Started</a>
+                    <a href="#" class="sample-button accent">View Notebooks</a>
+                    <p style="margin-top: 15px;">
+                        Learn how to build <a href="#" class="sample-link">time series forecasts</a> with state-of-the-art foundation models.
+                    </p>
+                    <div class="sample-code">from hellocloud import TimeSeries
+ts = TimeSeries.load("piedpiper.parquet")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="recommendation">
+        <h2>💡 Recommended: Foundation Horizon</h2>
+        <p>
+            Based on your emphasis on <strong>developer tooling, practicality, and time-to-value</strong>
+            combined with <strong>state-of-the-art models and innovation</strong>, Foundation Horizon
+            balances trust (blue) with energy (orange) perfectly. The "horizon" metaphor captures
+            forecasting beautifully, while the contrast creates an authentic identity distinct from
+            FastAPI's teal or Pydantic's pink.
+        </p>
+    </div>
+
+    <div class="header" style="margin-top: 40px;">
+        <h2 style="font-size: 1.5em; margin-bottom: 20px;">How to Choose</h2>
+        <p style="font-size: 1em; max-width: 800px; margin: 0 auto; text-align: left;">
+            <strong>1. Visual Impact:</strong> Which palette immediately catches your eye?<br>
+            <strong>2. Brand Message:</strong> Which colors best represent "state-of-the-art forecasting made practical"?<br>
+            <strong>3. Differentiation:</strong> Which stands out from competitors while remaining professional?<br>
+            <strong>4. Longevity:</strong> Which colors will you still love in 6 months? 2 years?<br>
+            <strong>5. Cloud Art Synergy:</strong> Which works best with your subtle cloud algorithmic art?
+        </p>
+    </div>
+</body>
+</html>
