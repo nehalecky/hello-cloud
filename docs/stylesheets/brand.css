@@ -363,24 +363,26 @@
   max-width: 90%;
   height: auto;
   margin: 0 auto;
-}
-
-/* Light mode: show light logo, hide dark logo */
-.homepage-logo-light {
   display: block;
 }
 
+/* Default: hide dark logo */
 .homepage-logo-dark {
-  display: none;
+  display: none !important;
 }
 
-/* Dark mode: swap logos (Material's slate scheme) */
+/* Light mode: show light, hide dark */
+[data-md-color-scheme="default"] .homepage-logo-dark {
+  display: none !important;
+}
+
+/* Dark mode: hide light, show dark */
 [data-md-color-scheme="slate"] .homepage-logo-light {
-  display: none;
+  display: none !important;
 }
 
 [data-md-color-scheme="slate"] .homepage-logo-dark {
-  display: block;
+  display: block !important;
 }
 
 /* ============================================================
