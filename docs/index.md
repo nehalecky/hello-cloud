@@ -1,9 +1,16 @@
 ---
 title: ""
+hide:
+  - navigation
+  - toc
 ---
 
 <div align="center">
-  <img src="assets/logo-full-medium.png" alt="Hello Cloud" width="500">
+  <!-- Light mode logo -->
+  <picture>
+    <source srcset="assets/logo-full-dark.png" media="(prefers-color-scheme: dark)">
+    <img src="assets/logo-full-light.png" alt="Hello Cloud" width="500">
+  </picture>
 
   <p style="font-size: 1.2em; margin-top: 1.5em;"><strong>Time series forecasting and anomaly detection for cloud resources.</strong></p>
 </div>

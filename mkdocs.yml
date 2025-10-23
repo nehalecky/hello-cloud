@@ -87,7 +87,7 @@ plugins:
       execute: false
 
 nav:
-  - Home: index.md
+  - index.md
   - Notebooks:
       - notebooks/index.md
       - Workload Signatures: notebooks/published/02_guide_workload_signatures_guide.ipynb
