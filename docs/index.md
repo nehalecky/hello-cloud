@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/logo.png" alt="Hello Cloud Logo" width="400">
+</div>
+
 # Hello Cloud
 
 Time series forecasting and anomaly detection for cloud resources.

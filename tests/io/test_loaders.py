@@ -38,7 +38,9 @@ class TestPiedPiperLoader:
         )
 
         ts = PiedPiperLoader.load(
-            df, hierarchy=["cloud_provider"], drop_cols=[]  # Don't drop anything for this test
+            df,
+            hierarchy=["cloud_provider"],
+            drop_cols=[],  # Don't drop anything for this test
         )
 
         assert "date" in ts.df.columns

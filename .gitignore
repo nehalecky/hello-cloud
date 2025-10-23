@@ -100,6 +100,9 @@ site/
 docs/_build/
 .mkdocs_cache/
 
+# Planning (ephemeral, not version controlled)
+plans/
+
 # Unversioned modules (legacy Polars code, to be reimplemented)
 src/cloud_sim/data_generation/
 

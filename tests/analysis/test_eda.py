@@ -1,8 +1,5 @@
 """Tests for exploratory data analysis functions."""
 
-import pytest
-from pyspark.sql import functions as F
-
 from hellocloud.analysis.eda import correlation_pairs
 
 
