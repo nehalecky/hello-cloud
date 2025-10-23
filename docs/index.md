@@ -3,10 +3,10 @@ title: " "
 ---
 
 <div align="center">
-  <!-- Light mode logo -->
+  <!-- Theme-adaptive logo: dark grey text for light mode, light grey text for dark mode -->
   <picture>
     <source srcset="assets/logo-full-dark.png" media="(prefers-color-scheme: dark)">
-    <img src="assets/logo-full-light.png" alt="Hello Cloud" width="500">
+    <img src="assets/logo-full-light.png" alt="Hello Cloud" style="width: 80%; max-width: 550px;">
   </picture>
 
   <p style="font-size: 1.2em; margin-top: 1.5em;"><strong>Time series forecasting and anomaly detection for cloud resources.</strong></p>
