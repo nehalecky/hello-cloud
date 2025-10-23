@@ -334,6 +334,24 @@
 }
 
 /* ============================================================
+   LOGO CUSTOMIZATION
+   ============================================================ */
+
+/* Header logo - ensure visibility and proper sizing */
+.md-header__button.md-logo img,
+.md-nav__button.md-logo img {
+  display: block;
+  height: 40px;  /* Ensure logo is visible (Material default is 24px) */
+  width: auto;
+  object-fit: contain;
+}
+
+/* Make logo more prominent */
+.md-logo {
+  opacity: 1 !important;
+}
+
+/* ============================================================
    RESPONSIVE DESIGN
    ============================================================ */
 
