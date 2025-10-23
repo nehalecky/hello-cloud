@@ -91,6 +91,9 @@ checkpoints/
 *.log
 logs/
 
+# MLflow tracking
+mlruns/
+
 # Environment
 .env
 .env.local
@@ -98,6 +101,7 @@ logs/
 # Documentation
 site/
 docs/_build/
+docs/_site/
 .mkdocs_cache/
 
 # Planning (ephemeral, not version controlled)

@@ -1,15 +1,19 @@
-# Hello Cloud
+<div align="center">
+  <img src="docs/assets/logo-full-optimized.png" alt="Hello Cloud" width="500">
 
-[![CI](https://github.com/nehalecky/hello-cloud/actions/workflows/ci.yml/badge.svg)](https://github.com/nehalecky/hello-cloud/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/nehalecky/hello-cloud/branch/master/graph/badge.svg)](https://codecov.io/gh/nehalecky/hello-cloud)
-[![Documentation](https://img.shields.io/badge/docs-live-blue)](https://nehalecky.github.io/hello-cloud)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![uv](https://img.shields.io/badge/uv-package%20manager-blueviolet)](https://github.com/astral-sh/uv)
+  <p><strong>Hands-on exploration of cloud resource usage and cost optimization.</strong></p>
 
-Hands-on exploration of cloud resource usage and cost optimization.
+  [![CI](https://github.com/nehalecky/hello-cloud/actions/workflows/ci.yml/badge.svg)](https://github.com/nehalecky/hello-cloud/actions/workflows/ci.yml)
+  [![codecov](https://codecov.io/gh/nehalecky/hello-cloud/branch/master/graph/badge.svg)](https://codecov.io/gh/nehalecky/hello-cloud)
+  [![Documentation](https://img.shields.io/badge/docs-live-blue)](https://nehalecky.github.io/hello-cloud)
+  [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![uv](https://img.shields.io/badge/uv-package%20manager-blueviolet)](https://github.com/astral-sh/uv)
+</div>
 
-Workload characterization • Cost analysis • Time series forecasting • Anomaly detection
+---
+
+**Workload characterization** • **Cost analysis** • **Time series forecasting** • **Anomaly detection**
 
 **PySpark 4.0** (distributed processing) • **GPyTorch** (time series modeling) • **PyMC** (Bayesian inference)
 

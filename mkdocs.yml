@@ -4,7 +4,7 @@ repo_url: https://github.com/nehalecky/hello-cloud
 
 theme:
   name: material
-  logo: assets/logo-optimized.png
+  logo: assets/logo-icon-header.png
   favicon: assets/favicon.ico
 
   # Foundation Horizon Brand Identity
