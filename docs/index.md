@@ -4,10 +4,8 @@ title: " "
 
 <div align="center">
   <!-- Theme-adaptive logo: dark grey text for light mode, light grey text for dark mode -->
-  <picture>
-    <source srcset="assets/logo-full-dark.png?v=2" media="(prefers-color-scheme: dark)">
-    <img src="assets/logo-full-light.png?v=2" alt="Hello Cloud" style="width: 80%; max-width: 550px;">
-  </picture>
+  <img src="assets/logo-full-light.png?v=3" alt="Hello Cloud" class="homepage-logo-light">
+  <img src="assets/logo-full-dark.png?v=3" alt="Hello Cloud" class="homepage-logo-dark">
 
   <p style="font-size: 1.2em; margin-top: 1.5em;"><strong>Time series forecasting and anomaly detection for cloud resources.</strong></p>
 </div>

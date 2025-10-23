@@ -356,6 +356,34 @@
   display: none;
 }
 
+/* Theme-adaptive homepage logo */
+.homepage-logo-light {
+  display: block;
+  width: 70%;
+  max-width: 500px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.homepage-logo-dark {
+  display: none;
+}
+
+/* Dark mode: swap logos */
+@media (prefers-color-scheme: dark) {
+  .homepage-logo-light {
+    display: none;
+  }
+
+  .homepage-logo-dark {
+    display: block;
+    width: 70%;
+    max-width: 500px;
+    height: auto;
+    margin: 0 auto;
+  }
+}
+
 /* ============================================================
    RESPONSIVE DESIGN
    ============================================================ */
