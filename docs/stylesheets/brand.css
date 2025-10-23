@@ -358,7 +358,7 @@
 
 /* Theme-adaptive homepage logo */
 .homepage-logo-light {
-  display: block;
+  display: block !important;
   width: 70%;
   max-width: 500px;
   height: auto;
@@ -366,20 +366,29 @@
 }
 
 .homepage-logo-dark {
-  display: none;
+  display: none !important;
 }
 
 /* Dark mode: swap logos (Material theme: data-md-color-scheme="slate") */
 [data-md-color-scheme="slate"] .homepage-logo-light {
-  display: none;
+  display: none !important;
 }
 
 [data-md-color-scheme="slate"] .homepage-logo-dark {
-  display: block;
+  display: block !important;
   width: 70%;
   max-width: 500px;
   height: auto;
   margin: 0 auto;
+}
+
+/* Also support explicit default scheme */
+[data-md-color-scheme="default"] .homepage-logo-light {
+  display: block !important;
+}
+
+[data-md-color-scheme="default"] .homepage-logo-dark {
+  display: none !important;
 }
 
 /* ============================================================
