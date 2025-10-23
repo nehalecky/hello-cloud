@@ -356,39 +356,31 @@
   display: none;
 }
 
-/* Theme-adaptive homepage logo - v4 cache bust */
+/* Theme-adaptive homepage logo */
+.homepage-logo-light,
+.homepage-logo-dark {
+  width: 480px;  /* 70% of 687px original */
+  max-width: 90%;
+  height: auto;
+  margin: 0 auto;
+}
+
+/* Light mode: show light logo, hide dark logo */
 .homepage-logo-light {
-  display: block !important;
-  width: 480px !important;  /* 70% of 687px original width */
-  max-width: 70vw !important;
-  height: auto !important;
-  margin: 0 auto !important;
+  display: block;
 }
 
 .homepage-logo-dark {
-  display: none !important;
+  display: none;
 }
 
-/* Dark mode: swap logos (Material theme: data-md-color-scheme="slate") */
+/* Dark mode: swap logos (Material's slate scheme) */
 [data-md-color-scheme="slate"] .homepage-logo-light {
-  display: none !important;
+  display: none;
 }
 
 [data-md-color-scheme="slate"] .homepage-logo-dark {
-  display: block !important;
-  width: 480px !important;  /* 70% of 687px original width */
-  max-width: 70vw !important;
-  height: auto !important;
-  margin: 0 auto !important;
-}
-
-/* Also support explicit default scheme */
-[data-md-color-scheme="default"] .homepage-logo-light {
-  display: block !important;
-}
-
-[data-md-color-scheme="default"] .homepage-logo-dark {
-  display: none !important;
+  display: block;
 }
 
 /* ============================================================
