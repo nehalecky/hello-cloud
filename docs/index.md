@@ -1,8 +1,5 @@
 ---
-title: ""
-hide:
-  - navigation
-  - toc
+title: " "
 ---
 
 <div align="center">
