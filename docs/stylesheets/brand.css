@@ -356,13 +356,13 @@
   display: none;
 }
 
-/* Theme-adaptive homepage logo */
+/* Theme-adaptive homepage logo - v4 cache bust */
 .homepage-logo-light {
   display: block !important;
-  width: 70%;
-  max-width: 500px;
-  height: auto;
-  margin: 0 auto;
+  width: 480px !important;  /* 70% of 687px original width */
+  max-width: 70vw !important;
+  height: auto !important;
+  margin: 0 auto !important;
 }
 
 .homepage-logo-dark {
@@ -376,10 +376,10 @@
 
 [data-md-color-scheme="slate"] .homepage-logo-dark {
   display: block !important;
-  width: 70%;
-  max-width: 500px;
-  height: auto;
-  margin: 0 auto;
+  width: 480px !important;  /* 70% of 687px original width */
+  max-width: 70vw !important;
+  height: auto !important;
+  margin: 0 auto !important;
 }
 
 /* Also support explicit default scheme */
