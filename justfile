@@ -118,6 +118,34 @@ pre-commit-update:
 docs-serve:
     uv run mkdocs serve
 
+# Preview docs with --dirty flag (faster rebuilds, better file watching)
+docs-serve-dirty:
+    uv run mkdocs serve --dirty
+
+# Trigger manual rebuild (when auto-reload fails) - hit server endpoint
+docs-reload:
+    @echo "Triggering manual reload..."
+    @curl -s http://127.0.0.1:8000/hello-cloud/ > /dev/null && echo "✓ Page fetched - check your browser" || echo "✗ Server not running"
+
+# Run docs server in background with log file
+docs-serve-bg:
+    #!/usr/bin/env bash
+    nohup uv run mkdocs serve > /tmp/mkdocs-serve.log 2>&1 &
+    echo "📚 MkDocs server started in background (PID: $!)"
+    echo "   URL: http://127.0.0.1:8000"
+    echo "   Logs: tail -f /tmp/mkdocs-serve.log"
+    echo "   Stop: just docs-stop"
+
+# Stop background docs server
+docs-stop:
+    #!/usr/bin/env bash
+    if lsof -ti :8000 > /dev/null 2>&1; then
+        kill $(lsof -ti :8000)
+        echo "✓ Stopped MkDocs server"
+    else
+        echo "No MkDocs server running on port 8000"
+    fi
+
 # Build documentation (static site)
 docs-build:
     uv run mkdocs build

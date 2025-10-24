@@ -1,11 +1,12 @@
-site_name: Hello Cloud
+site_name: hello cloud
 site_url: https://nehalecky.github.io/hello-cloud
 repo_url: https://github.com/nehalecky/hello-cloud
+repo_name: nehalecky/hello-cloud
 
 theme:
   name: material
-  logo: assets/logo-icon-header.png
-  favicon: assets/favicon.ico
+  logo: _assets/images/logo-icon-header.png
+  favicon: _assets/images/favicon.ico
 
   # Foundation Horizon Brand Identity
   palette:
@@ -38,15 +39,16 @@ theme:
     text: Roboto
     code: Roboto Mono
 
-  # Modern features - FastAPI/Pydantic inspired
+  # Table of contents title
+  toc_title: "Page contents"
+
+  # Modern features - Starlette-inspired (2D navigation)
   features:
     # Navigation
     - navigation.instant          # Instant loading (SPA-like)
     - navigation.instant.prefetch # Prefetch pages on hover
     - navigation.instant.progress # Loading progress indicator
     - navigation.tracking         # URL updates with scroll
-    - navigation.tabs             # Top-level tabs
-    - navigation.tabs.sticky      # Sticky tabs on scroll
     - navigation.path             # Breadcrumb path
     - navigation.indexes          # Section index pages
     - navigation.top              # Back to top button
@@ -64,14 +66,19 @@ theme:
 
     # Table of contents
     - toc.follow                  # TOC follows scroll
-    - toc.integrate               # Integrate TOC into nav (optional)
 
   icon:
     repo: fontawesome/brands/github
 
 # Custom CSS for Foundation Horizon colors
 extra_css:
-  - stylesheets/brand.css
+  - _assets/stylesheets/brand.css
+
+# Enable MathJax for LaTeX math rendering
+extra_javascript:
+  - _assets/javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 plugins:
   - search
@@ -86,24 +93,70 @@ plugins:
       include_source: true
       execute: false
 
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+  # PyMdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
 nav:
-  - index.md
-  - Notebooks:
-      - notebooks/index.md
-      - Workload Signatures: notebooks/published/02_guide_workload_signatures_guide.ipynb
-      - IOPS Analysis: notebooks/published/03_EDA_iops_web_server.ipynb
-      - Gaussian Processes: notebooks/published/04_modeling_gaussian_process.ipynb
-      - PiedPiper Data: notebooks/published/05_EDA_piedpiper_data.ipynb
-      - TimeSeries Quickstart: notebooks/published/06_quickstart_timeseries_loader.ipynb
-      - Forecasting: notebooks/published/07_forecasting_comparison.ipynb
-  - Concepts:
-      - concepts/index.md
-      - Research:
-          - concepts/research/cloud-resource-patterns-research.md
-          - concepts/research/cloud-resource-correlations-report.md
-          - concepts/research/timeseries-anomaly-datasets-review.md
-          - concepts/research/opentslm-foundation-model-evaluation.md
-      - Design:
-          - concepts/design/gaussian-process-design.md
-  - Reference:
+  - Home: index.md
+  - Getting Started:
+      - getting-started/index.md
+      - TimeSeries Quickstart: notebooks/06_quickstart_timeseries_loader.ipynb
+  - Tutorials:
+      - tutorials/index.md
+      - Workload Signatures: notebooks/02_guide_workload_signatures_guide.ipynb
+      - Gaussian Process Modeling: notebooks/04_modeling_gaussian_process.ipynb
+      - IOPS Analysis: notebooks/03_EDA_iops_web_server.ipynb
+      - PiedPiper Data Analysis: notebooks/05_EDA_piedpiper_data.ipynb
+      - Forecasting Comparison: notebooks/07_forecasting_comparison.ipynb
+  - Research:
+      - research/index.md
+      - Cloud Resource Patterns: research/cloud-resource-patterns-research.md
+      - Metrics Correlations: research/cloud-resource-correlations-report.md
+      - Anomaly Datasets Review: research/timeseries-anomaly-datasets-review.md
+      - TimesFM Evaluation: research/opentslm-foundation-model-evaluation.md
+      - Gaussian Process Design: research/gaussian-process-design.md
+  - API Reference:
       - reference/index.md
+  - Contributing:
+      - contributing/index.md
+      - Code Quality: contributing/code-quality.md
+      - Formatting Examples: contributing/formatting-examples.md
