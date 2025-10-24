@@ -10,7 +10,7 @@ hello cloud is a Python library for modeling cloud resource utilization patterns
 
 The fastest way to get started is with our TimeSeries Quickstart tutorial:
 
-**[→ TimeSeries Quickstart Tutorial](../notebooks/published/06_quickstart_timeseries_loader.ipynb)**
+**[→ TimeSeries Quickstart Tutorial](../notebooks/06_quickstart_timeseries_loader.ipynb)**
 
 This 15-minute tutorial demonstrates:
 
@@ -90,4 +90,4 @@ hello cloud embraces **research-driven defaults** - all synthetic data generatio
 
 ---
 
-Ready to dive in? Start with the **[TimeSeries Quickstart](../notebooks/published/06_quickstart_timeseries_loader.ipynb)**!
+Ready to dive in? Start with the **[TimeSeries Quickstart](../notebooks/06_quickstart_timeseries_loader.ipynb)**!

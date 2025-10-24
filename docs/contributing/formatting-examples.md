@@ -473,24 +473,24 @@ data = generator.generate_time_series(
 
 ### Basic Image with Caption
 
-![Cloud Resource Patterns](../assets/logo-full-light.png)
+![Cloud Resource Patterns](../_assets/images/logo-full-light.png)
 *Figure 1: Hello Cloud - Time Series Forecasting for Cloud Resources*
 
 ```markdown
-![Cloud Resource Patterns](../assets/logo-full-light.png)
+![Cloud Resource Patterns](../_assets/images/logo-full-light.png)
 *Figure 1: Hello Cloud - Time Series Forecasting for Cloud Resources*
 ```
 
 ### Image with Size Control
 
 <figure markdown="span">
-  ![Logo](../assets/logo-icon-header.png){ width="200" }
+  ![Logo](../_assets/images/logo-icon-header.png){ width="200" }
   <figcaption>Hello Cloud Logo - Compact Version</figcaption>
 </figure>
 
 ```markdown
 <figure markdown="span">
-  ![Logo](../assets/logo-icon-header.png){ width="200" }
+  ![Logo](../_assets/images/logo-icon-header.png){ width="200" }
   <figcaption>Hello Cloud Logo - Compact Version</figcaption>
 </figure>
 ```

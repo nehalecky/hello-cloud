@@ -20,7 +20,7 @@ hello cloud prioritizes:
 
 Comprehensive studies of cloud resource utilization, waste, and operational patterns.
 
-**[Cloud Resource Patterns Research](../concepts/research/cloud-resource-patterns-research.md)**
+**[Cloud Resource Patterns Research](cloud-resource-patterns-research.md)**
 
 Key findings from analyzing real cloud infrastructure:
 
@@ -30,7 +30,7 @@ Key findings from analyzing real cloud infrastructure:
 - Strong temporal autocorrelation (0.7-0.8)
 - Waste estimates: 25-35% of cloud spending
 
-**[Metrics Correlation Patterns](../concepts/research/cloud-resource-correlations-report.md)**
+**[Metrics Correlation Patterns](cloud-resource-correlations-report.md)**
 
 Empirical analysis of how cloud metrics relate:
 
@@ -43,7 +43,7 @@ Empirical analysis of how cloud metrics relate:
 
 Studies informing forecasting and anomaly detection approaches.
 
-**[Anomaly Datasets Review](../concepts/research/timeseries-anomaly-datasets-review.md)**
+**[Anomaly Datasets Review](timeseries-anomaly-datasets-review.md)**
 
 Comprehensive survey of publicly available anomaly detection datasets:
 
@@ -53,7 +53,7 @@ Comprehensive survey of publicly available anomaly detection datasets:
 - Academic benchmarks
 - Applicability to cloud infrastructure
 
-**[TimesFM Foundation Model Evaluation](../concepts/research/opentslm-foundation-model-evaluation.md)**
+**[TimesFM Foundation Model Evaluation](opentslm-foundation-model-evaluation.md)**
 
 Critical evaluation of Google's TimesFM for cloud forecasting:
 
@@ -66,7 +66,7 @@ Critical evaluation of Google's TimesFM for cloud forecasting:
 
 Architectural decisions and implementation rationale.
 
-**[Gaussian Process Design](../concepts/design/gaussian-process-design.md)**
+**[Gaussian Process Design](gaussian-process-design.md)**
 
 Design choices for the GP forecasting module:
 
@@ -153,7 +153,7 @@ If you use hello cloud in research, please cite:
 
 - **[Tutorials](../tutorials/index.md)** - See research applied in practice
 - **[API Reference](../reference/index.md)** - How research informs implementation
-- **[Design Documents](../concepts/design/gaussian-process-design.md)** - Architecture rationale
+- **[Design Documents](gaussian-process-design.md)** - Architecture rationale
 
 ---
 

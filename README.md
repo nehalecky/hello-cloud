@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="docs/assets/logo-full-optimized.png" alt="Hello Cloud" width="500">
+  <img src="https://raw.githubusercontent.com/nehalecky/hello-cloud/master/docs/_assets/images/logo-full-light.png" alt="Hello Cloud" width="500">
 
-  <p><strong>Hands-on exploration of cloud resource usage and cost optimization.</strong></p>
+  <p><strong>Research-driven cloud resource use and cost modeling</strong></p>
 
   [![CI](https://github.com/nehalecky/hello-cloud/actions/workflows/ci.yml/badge.svg)](https://github.com/nehalecky/hello-cloud/actions/workflows/ci.yml)
   [![codecov](https://codecov.io/gh/nehalecky/hello-cloud/branch/master/graph/badge.svg)](https://codecov.io/gh/nehalecky/hello-cloud)
@@ -13,11 +13,57 @@
 
 ---
 
-**Workload characterization** • **Cost analysis** • **Time series forecasting** • **Anomaly detection**
+<!--content-start-->
 
-**PySpark 4.0** (distributed processing) • **GPyTorch** (time series modeling) • **PyMC** (Bayesian inference)
+## Overview
 
-**Documentation:** https://nehalecky.github.io/hello-cloud
+**hello cloud** ☁️ is a Python library for understanding, analyzing, and modeling cloud resource utilization and cost patterns. The project combines empirical research, conceptual modeling, and practical tools to support data-driven cloud resource optimization.
+
+**Outputs:**
+- Literature-informed time series models (Gaussian Processes, hierarchical Bayesian)
+- Python library (`hellocloud`) for forecasting and analysis
+- Interactive notebooks documenting research workflows
+- Empirical findings from 35+ academic papers
+
+**Approach:** Empirical foundations → Conceptual models → Practical tools
+
+## Research Foundation
+
+All synthetic data patterns and model parameters are grounded in published research on real cloud infrastructure behavior:
+
+- **CPU Utilization**: 12-15% average across cloud infrastructure
+- **Memory Utilization**: 18-25% average
+- **Resource Waste**: 25-35% of cloud spending
+- **Temporal Autocorrelation**: 0.7-0.8 (strong patterns)
+- **Literature Basis**: 35+ peer-reviewed papers
+
+See [Cloud Resource Patterns Research](https://nehalecky.github.io/hello-cloud/research/cloud-resource-patterns-research/) for full citations and analysis.
+
+## Core Capabilities
+
+- **Workload Characterization** - Generate realistic synthetic cloud metrics based on empirical patterns
+- **Time Series Forecasting** - Gaussian Processes, ARIMA, and foundation models (Chronos, TimesFM)
+- **Hierarchical Analysis** - Multi-level cost analysis across providers, accounts, and resources
+- **Anomaly Detection** - Statistical and ML-based approaches for operational metrics
+- **PySpark Integration** - Distributed processing for local development and production scale
+
+## Technology Stack & Architecture
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Data Processing** | PySpark 4.0 | Distributed DataFrames (local & scale) |
+| **Statistical Models** | GPyTorch | Gaussian Process time series forecasting |
+| **Probabilistic Models** | PyMC | Bayesian hierarchical inference |
+| **Foundation Models** | Chronos, TimesFM | Pre-trained forecasters (optional) |
+| **Notebooks** | Jupyter + Python % | Interactive research workflows |
+| **Documentation** | MkDocs Material | Live docs with API reference |
+
+**Design Principles:**
+
+- **Empirically Grounded** - All synthetic data based on published cloud utilization research
+- **Production Ready** - 92% test coverage on GP library, comprehensive CI/CD
+- **Research Informed** - Implements patterns from 35+ academic papers
+- **Developer Friendly** - Hot reload notebooks, comprehensive docs, type hints
 
 ## Installation
 
@@ -33,62 +79,80 @@ cd hello-cloud
 uv sync --all-extras
 ```
 
-## Usage
+## Usage Examples
 
-### Basic Data Analysis
+### Generate Synthetic Cloud Metrics
 
 ```python
-import ibis
-from ibis import _
-from hellocloud.utils import attribute_analysis, grain_discovery
+from hellocloud.data_generation import WorkloadPatternGenerator, WorkloadType
+from datetime import datetime, timedelta
 
-# Connect to billing data
-con = ibis.duckdb.connect()
-df = con.read_parquet('billing_data.parquet', table_name='billing')
-
-# Analyze attribute patterns
-attrs = attribute_analysis(df, sample_size=50_000)
-print(attrs[['column', 'cardinality', 'information_score']])
-
-# Discover optimal forecasting grain
-optimal_grain = grain_discovery(
-    df,
-    grain_cols=['provider', 'account', 'region', 'service'],
-    cost_col='cost',
-    min_days=30
+# Generate realistic web app metrics
+generator = WorkloadPatternGenerator()
+data = generator.generate_time_series(
+    workload_type=WorkloadType.WEB_APP,
+    start_time=datetime.now() - timedelta(days=30),
+    end_time=datetime.now(),
+    interval_minutes=60
 )
+
+# Built-in patterns: WEB_APP, BATCH_JOB, MICROSERVICE, DATABASE,
+# ML_TRAINING, STREAMING, SEASONAL_BATCH, DEV_ENVIRONMENT, and more
 ```
 
-### Time Series Forecasting
+### Time Series Forecasting with Gaussian Processes
 
 ```python
-# Entity-level time series
-entity_ts = (
-    df
-    .filter((_.provider == 'aws') & (_.account == '123456'))
-    .group_by('date')
-    .agg(daily_cost=_.cost.sum())
-    .order_by('date')
-    .execute()
-)
-
-# Forecast with GP model (requires GPU extras)
 from hellocloud.ml_models.gaussian_process import SparseGPModel
-model = SparseGPModel()
-predictions = model.forecast(entity_ts, horizon=30)
+from hellocloud.spark import get_spark_session
+from pyspark.sql import functions as F
+
+# Get Spark session
+spark = get_spark_session(app_name="forecasting")
+
+# Load time series data
+df = spark.read.parquet('cloud_metrics.parquet')
+
+# Prepare data
+train_df = df.filter(F.col('date') < '2024-01-01')
+
+# Train GP model with multi-scale periodic kernel
+model = SparseGPModel(
+    num_inducing=100,
+    fast_period=24.0,   # Daily pattern
+    slow_period=168.0   # Weekly pattern
+)
+model.fit(train_df)
+
+# Forecast
+predictions = model.predict(test_df, horizon=30)
 ```
 
-## Stack
+### Hierarchical Cost Analysis
 
-- **PySpark 4.0**: Distributed DataFrame processing (local & scale)
-- **pandas**: Results and visualization
-- **GPyTorch**: Time series modeling (optional, GPU)
-- **PyMC**: Bayesian hierarchical models (optional)
-- **HuggingFace datasets**: Data storage
+```python
+from hellocloud.io import PiedPiperLoader
+from hellocloud.timeseries import TimeSeries
+
+# Load hierarchical billing data with EDA-informed defaults
+spark = get_spark_session(app_name="analysis")
+raw_df = spark.read.parquet('billing_data.parquet')
+ts = PiedPiperLoader.load(raw_df)
+
+# Filter to specific provider/account
+aws_ts = ts.filter(provider='aws', account='123456789')
+
+# Aggregate to daily spend
+daily = aws_ts.aggregate(by=['date'])
+
+# Summary statistics
+stats = daily.summary_stats()
+print(stats.toPandas())
+```
 
 ## Interactive Notebooks (Google Colab)
 
-Try our tutorials directly in your browser:
+Try our research workflows directly in your browser:
 
 | Notebook | Description | Colab |
 |----------|-------------|-------|
@@ -102,22 +166,37 @@ Try our tutorials directly in your browser:
 
 ## Documentation
 
-See [`docs/`](docs/) for:
-- API reference
-- Tutorial notebooks
-- Development guides
+**[📖 Full Documentation](https://nehalecky.github.io/hello-cloud)**
+
+- **[Getting Started](https://nehalecky.github.io/hello-cloud/getting-started/)** - Installation and quick start
+- **[Tutorials](https://nehalecky.github.io/hello-cloud/tutorials/)** - Step-by-step guides
+- **[Research](https://nehalecky.github.io/hello-cloud/research/)** - Empirical foundations and literature reviews
+- **[API Reference](https://nehalecky.github.io/hello-cloud/reference/)** - Complete API documentation
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Quick start guide
+- Development workflow
+- Code quality standards
+- Pull request process
+
+For detailed guidelines, visit the [Contributing Guide](https://nehalecky.github.io/hello-cloud/contributing/).
 
 ## Project Structure
 
 ```
 hello-cloud/
 ├── src/hellocloud/         # Source code
-│   ├── data_generation/    # Synthetic workload pattern generation
-│   ├── utils/              # EDA and analysis utilities
-│   └── ml_models/          # Time series models (GP, PyMC)
-├── notebooks/              # Analysis notebooks (MyST format)
-├── tests/                  # Test suite
-└── docs/                   # Documentation (MkDocs)
+│   ├── io/                 # Data loaders (PiedPiperLoader, etc.)
+│   ├── timeseries/         # TimeSeries core classes
+│   ├── data_generation/    # Synthetic workload patterns
+│   ├── ml_models/          # GP, PyMC, foundation models
+│   ├── analysis/           # EDA utilities
+│   └── transforms/         # PySpark transforms
+├── examples/               # Tutorial notebooks (Python percent)
+├── tests/                  # Test suite (92% coverage on GP)
+└── docs/                   # Documentation (MkDocs Material)
 ```
 
 ## Development
@@ -126,16 +205,15 @@ hello-cloud/
 # Run tests
 uv run pytest tests/ -v --cov=src/hellocloud
 
-# Format code
-uv run black src/ tests/
-
-# Lint
-uv run ruff check --fix src/ tests/
+# Format and lint
+just fix
 
 # Build documentation
-just docs
+just docs-serve
 ```
 
 ## License
 
 MIT
+
+<!--content-end-->

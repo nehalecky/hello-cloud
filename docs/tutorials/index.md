@@ -8,7 +8,7 @@ Learn hello cloud through hands-on, interactive Jupyter notebooks. Each tutorial
 
 Step-by-step introductions to core concepts with explanations and best practices.
 
-**[Workload Signatures Guide](../notebooks/published/02_guide_workload_signatures_guide.ipynb)**
+**[Workload Signatures Guide](../notebooks/02_guide_workload_signatures_guide.ipynb)**
 
 Learn to generate realistic cloud workload patterns based on empirical research. Covers:
 
@@ -17,7 +17,7 @@ Learn to generate realistic cloud workload patterns based on empirical research.
 - Modeling CPU, memory, and I/O correlations
 - Adding realistic anomalies and bursts
 
-**[Gaussian Process Modeling](../notebooks/published/04_modeling_gaussian_process.ipynb)**
+**[Gaussian Process Modeling](../notebooks/04_modeling_gaussian_process.ipynb)**
 
 Deep dive into GP-based time series forecasting with GPyTorch. Covers:
 
@@ -30,7 +30,7 @@ Deep dive into GP-based time series forecasting with GPyTorch. Covers:
 
 Practical examples analyzing real and synthetic cloud metrics.
 
-**[IOPS Analysis](../notebooks/published/03_EDA_iops_web_server.ipynb)**
+**[IOPS Analysis](../notebooks/03_EDA_iops_web_server.ipynb)**
 
 Analyze I/O patterns for web server workloads:
 
@@ -39,7 +39,7 @@ Analyze I/O patterns for web server workloads:
 - Comparing statistical and GP forecasting approaches
 - Visualizing forecast uncertainty
 
-**[PiedPiper Data Analysis](../notebooks/published/05_EDA_piedpiper_data.ipynb)**
+**[PiedPiper Data Analysis](../notebooks/05_EDA_piedpiper_data.ipynb)**
 
 Work with hierarchical cloud cost data:
 
@@ -50,7 +50,7 @@ Work with hierarchical cloud cost data:
 
 ### 📈 Forecasting Comparison
 
-**[Forecasting Methods Comparison](../notebooks/published/07_forecasting_comparison.ipynb)**
+**[Forecasting Methods Comparison](../notebooks/07_forecasting_comparison.ipynb)**
 
 Comprehensive comparison of forecasting approaches:
 
@@ -100,10 +100,10 @@ All notebooks render directly in the documentation with full outputs. Perfect fo
 We recommend this learning path:
 
 1. **[TimeSeries Quickstart](../getting-started/index.md)** (15 minutes) - Get up and running
-2. **[Workload Signatures](../notebooks/published/02_guide_workload_signatures_guide.ipynb)** - Understand data generation
-3. **[IOPS Analysis](../notebooks/published/03_EDA_iops_web_server.ipynb)** - Practical EDA workflow
-4. **[Forecasting Comparison](../notebooks/published/07_forecasting_comparison.ipynb)** - Choosing the right model
-5. **[Gaussian Process Modeling](../notebooks/published/04_modeling_gaussian_process.ipynb)** - Deep dive into GPs
+2. **[Workload Signatures](../notebooks/02_guide_workload_signatures_guide.ipynb)** - Understand data generation
+3. **[IOPS Analysis](../notebooks/03_EDA_iops_web_server.ipynb)** - Practical EDA workflow
+4. **[Forecasting Comparison](../notebooks/07_forecasting_comparison.ipynb)** - Choosing the right model
+5. **[Gaussian Process Modeling](../notebooks/04_modeling_gaussian_process.ipynb)** - Deep dive into GPs
 
 ## Prerequisites
 
