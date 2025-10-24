@@ -7,14 +7,13 @@ title: " "
   <img src="assets/logo-full-light.png?v=3" alt="Hello Cloud" class="homepage-logo-light">
   <img src="assets/logo-full-dark.png?v=3" alt="Hello Cloud" class="homepage-logo-dark">
 
-  <p style="font-size: 1.2em; margin-top: 1.5em;"><strong>Time series forecasting and anomaly detection for cloud resources.</strong></p>
+  <p style="font-size: 1.2em; margin-top: 1.5em;"><strong> hello cloud ☁️ is a cloud (data center) resource use and cost modeling library, including forecasting and anomaly detection using SoTA time series foundation models (TSFMs).</strong></p>
 </div>
 
-<div style="height: 2em;"></div>
 
 ## Overview
 
-Hello Cloud is a Python library for modeling cloud resource utilization patterns, forecasting future usage, and detecting anomalies in operational metrics. Built on empirical research showing 25-35% cloud waste and surprisingly low average utilization (12-15% CPU, 18-25% memory).
+hello cloud ☁ is a Python library for understanding, analysis and modeling if cloud resource utilization and cost patterns, forecasting future usage, and detecting anomalies in operational metrics.
 
 **Core Capabilities:**
 
@@ -147,3 +146,5 @@ Auto-generated documentation from source code. Complete function signatures, par
 - Temporal Autocorrelation: 0.7-0.8
 
 See [Cloud Resource Patterns Research](concepts/research/cloud-resource-patterns-research.md).
+
+<!-- test -->

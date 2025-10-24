@@ -359,7 +359,7 @@
 /* Theme-adaptive homepage logo */
 .homepage-logo-light,
 .homepage-logo-dark {
-  width: 480px;  /* 70% of 687px original */
+  width: 336px;  /* 70% of 480px (49% of original 687px) */
   max-width: 90%;
   height: auto;
   margin: 0 auto;
