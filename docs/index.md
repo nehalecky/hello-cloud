@@ -1,5 +1,5 @@
 ---
-title: "hello cloud - Cloud Resource Forecasting Library"
+title: " "
 ---
 
 <div align="center">
