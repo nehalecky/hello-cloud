@@ -82,7 +82,7 @@ The datasets below most closely match cloud resource usage patterns with seasona
 This massive collection aggregates 13 million unique time series across 13 domains, specifically designed for foundation model training and evaluation. **The dataset's TSB-UAD (Time-Series Benchmark for Univariate Anomaly Detection) component contains 1,980 labeled time series from 18 anomaly detection datasets**, making it the most comprehensive anomaly detection resource on Hugging Face.
 
 !!! example "Loading from Hugging Face"
-    ```python
+    ``` python
     from datasets import load_dataset
     from hellocloud.spark import get_spark_session
 
@@ -335,7 +335,7 @@ df_normalized = df.withColumn(
 Algorithms exploiting seasonality require sufficient cycles for learning—at least 2-3 complete periods. For daily patterns, 2-3 days suffices; for weekly patterns, 2-3 weeks; for seasonal patterns, 1-2 years. Use techniques like seasonal decomposition (STL) to explicitly model and remove seasonality, with residuals analyzed for anomalies. Alternatively, use day-of-week and hour-of-day encodings as features. The pryshlyak dataset's pre-split by weekday demonstrates one approach.
 
 === "STL Decomposition"
-    ```python
+    ``` python
     from statsmodels.tsa.seasonal import STL
 
     # Decompose into trend, seasonal, residual
@@ -347,7 +347,7 @@ Algorithms exploiting seasonality require sufficient cycles for learning—at le
     ```
 
 === "Feature Engineering"
-    ```python
+    ``` python
     from pyspark.sql import functions as F
 
     # Add temporal features

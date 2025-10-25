@@ -27,7 +27,7 @@
 # %% [markdown]
 # # Quick Start: TimeSeries Loader
 #
-# [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/notebooks/published/06_quickstart_timeseries_loader.ipynb)
+# [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/examples/published/06_quickstart_timeseries_loader.ipynb)
 #
 # ## Overview
 #

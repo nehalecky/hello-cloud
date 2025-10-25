@@ -37,7 +37,7 @@ Microsoft's Resource Central study on Azure workloads reveals strong positive co
 | VM Size ↔ Utilization | Negative correlation | Smaller VMs tend to run hotter |
 
 !!! example "Multivariate Modeling"
-    ```python
+    ``` python
     from hellocloud.data_generation import CloudMetricsSimulator
 
     # Generate correlated metrics
@@ -206,7 +206,7 @@ Key capabilities:
 - Models retain contextual information across time steps for evolving workload trends
 
 !!! example "Implementing Time-Lagged Features"
-    ```python
+    ``` python
     from pyspark.sql import functions as F
     from pyspark.sql.window import Window
 
@@ -342,7 +342,7 @@ Key features:
 - **URL**: [github.com/google/cluster-data](https://github.com/google/cluster-data)
 
 ??? example "Loading Google Traces with PySpark"
-    ```python
+    ``` python
     from hellocloud.spark import get_spark_session
 
     spark = get_spark_session("google-trace-analysis")

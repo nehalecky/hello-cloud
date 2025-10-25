@@ -58,7 +58,7 @@ Web applications exhibit distinct temporal patterns based on their usage charact
 !!! tip "Workload Pattern Selection"
     When generating synthetic data, match the workload type to your use case:
 
-    ```python
+    ``` python
     from hellocloud.data_generation import WorkloadPatternGenerator, WorkloadType
 
     # For web applications with predictable patterns
@@ -100,7 +100,7 @@ GPU utilization in ML workloads shows significant optimization opportunities [[6
 !!! example "GPU Utilization Analysis"
     Track GPU metrics over time to identify optimization opportunities:
 
-    ```python
+    ``` python
     from hellocloud.io import TimeSeries
 
     # Load GPU metrics from PySpark DataFrame
@@ -359,7 +359,7 @@ For implementation of predictive scaling using time series models, see our [Gaus
 !!! example "Right-Sizing with PySpark"
     Use our time series loader for efficient analysis of large-scale resource data:
 
-    ```python
+    ``` python
     from hellocloud.io import TimeSeries
     from pyspark.sql import functions as F
 
