@@ -25,35 +25,25 @@ import pytest
 from loguru import logger
 
 # Configuration
-NOTEBOOK_DIR = Path(__file__).parent.parent / "notebooks"
+NOTEBOOK_DIR = Path(__file__).parent.parent / "examples"
 EXECUTION_TIMEOUT = 60  # seconds per notebook
 NOTEBOOKS = [
-    "02_guide_workload_signatures_guide.md",
-    "03_EDA_iops_web_server.md",
-    "04_modeling_gaussian_process.md",
-    "05_EDA_piedpiper_data.md",
+    "02_guide_workload_signatures_guide.py",
+    "03_EDA_iops_web_server.py",
+    "04_modeling_gaussian_process.py",
+    "05_EDA_piedpiper_data.py",
+    "06_quickstart_timeseries_loader.py",
+    "07_forecasting_comparison.py",
 ]
 
 
-# Auto-generate .py versions for execution if they don't exist
+# Notebooks are already in Python percent format - no conversion needed
 def ensure_python_notebooks():
-    """Ensure .py versions of MyST notebooks exist for execution testing."""
+    """Check that Python notebook files exist (they're already in .py format)."""
     for notebook_name in NOTEBOOKS:
-        md_path = NOTEBOOK_DIR / notebook_name
-        py_name = notebook_name.replace(".md", ".py")
-        py_path = NOTEBOOK_DIR / py_name
-
-        if md_path.exists() and not py_path.exists():
-            try:
-                subprocess.run(
-                    ["uv", "run", "jupytext", "--to", "py", str(md_path)],
-                    cwd=NOTEBOOK_DIR,
-                    check=True,
-                    capture_output=True,
-                )
-                logger.info(f"Generated {py_name} from {notebook_name}")
-            except subprocess.CalledProcessError as e:
-                logger.warning(f"Failed to generate {py_name}: {e}")
+        py_path = NOTEBOOK_DIR / notebook_name
+        if not py_path.exists():
+            logger.warning(f"Notebook not found: {notebook_name}")
 
 
 # Call during module import
@@ -102,14 +92,12 @@ def executed_notebook(request, execution_env) -> NotebookResult:
     runs only once and results are shared across all test functions.
     """
     notebook_name = request.param
-    # Convert .md name to .py for execution
-    py_name = notebook_name.replace(".md", ".py")
-    script_path = NOTEBOOK_DIR / py_name
+    script_path = NOTEBOOK_DIR / notebook_name
 
     if not script_path.exists():
-        pytest.skip(f"Notebook {py_name} not found (converted from {notebook_name})")
+        pytest.skip(f"Notebook {notebook_name} not found")
 
-    logger.info(f"[SINGLE EXECUTION] Running: {notebook_name} (as {py_name})")
+    logger.info(f"[SINGLE EXECUTION] Running: {notebook_name}")
 
     import time
 
@@ -191,27 +179,12 @@ def all_notebook_results(request):
 @pytest.mark.parametrize("notebook_name", NOTEBOOKS)
 def test_notebook_syntax(notebook_name):
     """Test that notebook Python syntax is valid."""
-    md_path = NOTEBOOK_DIR / notebook_name
-
-    if not md_path.exists():
-        pytest.skip(f"Notebook {notebook_name} not found")
-
-    # Convert to .py if needed
-    py_name = notebook_name.replace(".md", ".py")
-    py_path = NOTEBOOK_DIR / py_name
+    py_path = NOTEBOOK_DIR / notebook_name
 
     if not py_path.exists():
-        try:
-            subprocess.run(
-                ["uv", "run", "jupytext", "--to", "py", str(md_path)],
-                cwd=NOTEBOOK_DIR,
-                check=True,
-                capture_output=True,
-            )
-        except subprocess.CalledProcessError as e:
-            pytest.skip(f"Could not convert {notebook_name} to .py: {e}")
+        pytest.skip(f"Notebook {notebook_name} not found")
 
-    # Parse .py version
+    # Parse Python file
     with open(py_path) as f:
         content = f.read()
 
@@ -222,56 +195,49 @@ def test_notebook_syntax(notebook_name):
         pytest.fail(f"Syntax error in {notebook_name}: {e}")
 
 
+def _extract_imports_from_ast(content: str) -> list[str]:
+    """Extract import statements from Python AST."""
+    tree = ast.parse(content)
+    imports = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imports.append(node.module)
+
+    return imports
+
+
+def _validate_required_imports(imports: list[str], notebook_name: str) -> None:
+    """Validate that required imports are present."""
+    required_imports = ["numpy", "hellocloud"]
+    for imp in required_imports:
+        matching = [i for i in imports if imp in i]
+        if not matching:
+            raise AssertionError(f"Missing critical import '{imp}' in {notebook_name}")
+
+
 @pytest.mark.optional
 @pytest.mark.smoke
 @pytest.mark.parametrize("notebook_name", NOTEBOOKS)
 def test_notebook_imports(notebook_name):
     """Test that notebook imports can be resolved (without full execution)."""
-    md_path = NOTEBOOK_DIR / notebook_name
-
-    if not md_path.exists():
-        pytest.skip(f"Notebook {notebook_name} not found")
-
-    # Convert to .py if needed
-    py_name = notebook_name.replace(".md", ".py")
-    py_path = NOTEBOOK_DIR / py_name
+    py_path = NOTEBOOK_DIR / notebook_name
 
     if not py_path.exists():
-        try:
-            subprocess.run(
-                ["uv", "run", "jupytext", "--to", "py", str(md_path)],
-                cwd=NOTEBOOK_DIR,
-                check=True,
-                capture_output=True,
-            )
-        except subprocess.CalledProcessError as e:
-            pytest.skip(f"Could not convert {notebook_name} to .py: {e}")
+        pytest.skip(f"Notebook {notebook_name} not found")
 
-    # Extract import statements from .py version
+    # Extract and validate import statements
     with open(py_path) as f:
         content = f.read()
 
     try:
-        tree = ast.parse(content)
-        imports = []
-
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    imports.append(alias.name)
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    imports.append(node.module)
-
+        imports = _extract_imports_from_ast(content)
         logger.info(f"✓ Found {len(imports)} imports in {notebook_name}")
-
-        # Test critical imports that should be available
-        # Note: Some notebooks use PySpark instead of Polars
-        required_imports = ["numpy", "hellocloud"]
-        for imp in required_imports:
-            matching = [i for i in imports if imp in i]
-            assert len(matching) > 0, f"Missing critical import '{imp}' in {notebook_name}"
-
+        _validate_required_imports(imports, notebook_name)
     except Exception as e:
         pytest.fail(f"Import analysis failed for {notebook_name}: {e}")
 
