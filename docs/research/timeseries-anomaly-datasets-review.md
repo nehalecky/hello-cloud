@@ -1,5 +1,8 @@
 # Hugging Face Datasets for Cloud Resource Anomaly Detection
 
+!!! info "Dataset Landscape Update"
+    This comprehensive review covers 9 key datasets on Hugging Face for training and evaluating anomaly detection models applicable to [cloud resource monitoring](cloud-resource-patterns-research.md). Last updated: October 2025.
+
 ## TL;DR
 
 **Bottom line:** Hugging Face offers several strong datasets for cloud resource anomaly detection modeling, though direct cloud infrastructure datasets are limited. The best options combine benchmark collections with labeled anomalies, real cloud platform data, and energy/resource domain datasets that closely parallel cloud behavior.
@@ -28,6 +31,27 @@ The following table compares the most relevant datasets for cloud resource anoma
 
 ### Quick Selection Guide
 
+```mermaid
+graph TD
+    Start[Dataset Selection] --> Q1{Need cloud data?}
+    Q1 -->|Yes| Cloud[Lemma-RCA-NEC/Cloud_Computing_Original]
+    Q1 -->|Analogous OK| Q2{Need labels?}
+
+    Q2 -->|Yes| Q3{Comprehensive or Precise?}
+    Q3 -->|Comprehensive| Pile[AutonLab/Timeseries-PILE<br/>1,980 labeled series]
+    Q3 -->|Precise| CATS[patrickfleith/CATS<br/>200 exact labels]
+
+    Q2 -->|No| Q4{Algorithm focus?}
+    Q4 -->|Seasonal| Seasonal[pryshlyak/seasonal_time_series<br/>Clean weekly patterns]
+    Q4 -->|Multivariate| Multi[ETDataset/ett or EDS-lab]
+    Q4 -->|Scale testing| Scale[openclimatefix/uk_pv<br/>30K+ systems]
+
+    style Start fill:#e1f5ff
+    style Cloud fill:#90EE90
+    style Pile fill:#90EE90
+    style CATS fill:#90EE90
+```
+
 **Need actual cloud data?** → Lemma-RCA-NEC/Cloud_Computing_Original + AutonLab/Timeseries-PILE (web server subset)
 
 **Need labeled anomalies for supervised learning?** → AutonLab/Timeseries-PILE (1,980 series) or patrickfleith/CATS (200 precise labels)
@@ -46,6 +70,9 @@ The following table compares the most relevant datasets for cloud resource anoma
 
 **Hugging Face hosts several high-quality datasets suitable for time series anomaly detection modeling analogous to cloud resource usage behavior, though dedicated cloud infrastructure datasets remain limited.** The platform offers a mix of real-world operational data, energy consumption patterns, and purpose-built anomaly detection benchmarks—all exhibiting the seasonality, outliers, and temporal dynamics needed for robust anomaly detection research. The most promising datasets span industrial monitoring, energy systems, and large-scale benchmark collections with labeled anomalies.
 
+!!! tip "Integration with Hello Cloud"
+    All datasets reviewed here can be loaded and processed using our [PySpark-based data pipeline](../reference/index.md). See the notebooks section for examples of loading Hugging Face datasets with the `datasets` library and converting to Spark DataFrames.
+
 ## Most relevant datasets for cloud resource modeling
 
 The datasets below most closely match cloud resource usage patterns with seasonal behavior and labeled anomalies, ordered by relevance to your use case.
@@ -53,6 +80,19 @@ The datasets below most closely match cloud resource usage patterns with seasona
 ### AutonLab/Timeseries-PILE: comprehensive multi-domain benchmark
 
 This massive collection aggregates 13 million unique time series across 13 domains, specifically designed for foundation model training and evaluation. **The dataset's TSB-UAD (Time-Series Benchmark for Univariate Anomaly Detection) component contains 1,980 labeled time series from 18 anomaly detection datasets**, making it the most comprehensive anomaly detection resource on Hugging Face.
+
+!!! example "Loading from Hugging Face"
+    ```python
+    from datasets import load_dataset
+    from hellocloud.spark import get_spark_session
+
+    # Load the TSB-UAD subset for anomaly detection
+    dataset = load_dataset("AutonLab/Timeseries-PILE", "TSB-UAD", split="train")
+
+    # Convert to Spark DataFrame for distributed processing
+    spark = get_spark_session(app_name="anomaly-benchmark")
+    df = spark.createDataFrame(dataset.to_pandas())
+    ```
 
 **Dataset characteristics:** The collection spans 20.085 GB with 1.23 billion timestamps total, including data from healthcare, engineering, finance, environment, and critically, **web servers**—the domain most analogous to cloud infrastructure. The TSB-UAD subset provides both synthetic and real-world anomalies with high variability in types, ratios, and sizes. The dataset also includes the Informer forecasting collection with electricity transformer temperature data, traffic patterns, and weather data—all exhibiting resource-like temporal dynamics.
 
@@ -62,15 +102,32 @@ This massive collection aggregates 13 million unique time series across 13 domai
 
 **Why suitable for cloud resource modeling:** Web server metrics inherently parallel cloud resource behavior—both exhibit request-driven load patterns, have clear daily/weekly seasonality from user activity, and experience anomalies from traffic surges, system failures, or external events. The diversity of 18 source datasets prevents overfitting to specific patterns while the large scale (1,980 labeled series) enables robust model training and evaluation.
 
+!!! success "Research Validation"
+    This dataset addresses the [quality concerns](https://arxiv.org/abs/2009.13807) identified by Wu & Keogh (2020) in traditional anomaly detection benchmarks, providing carefully curated ground truth labels and realistic anomaly characteristics.
+
 **Preprocessing considerations:** The dataset comes standardized for the MOMENT foundation model framework but remains accessible via standard tools. Use the TSB-UAD subset specifically for anomaly detection tasks. The data varies in length and amplitude across sources, so normalization by time series is recommended. The collection provides ready-to-use train/test splits, eliminating common temporal leakage issues. **Downloaded 28,200 times**, indicating strong community validation.
 
 ### Lemma-RCA-NEC/Cloud_Computing_Original: real cloud platform data
 
 This dataset provides actual system metrics and logs from a cloud computing platform with **six real fault types injected across hundreds of system entities**—making it the most directly applicable to cloud resource anomaly detection on Hugging Face.
 
+!!! warning "Dataset Access Considerations"
+    This dataset requires JSON parsing and has a CC-BY-ND-4.0 license restricting derivative works. The dataset viewer shows errors, so programmatic access via the `datasets` library is recommended. Consider this for evaluation rather than training data augmentation.
+
 **Dataset characteristics:** The data comes in JSON format containing both system metrics (performance measurements) and logs (event data) from a production cloud computing environment. The dataset captures real operational conditions with hundreds of interconnected system entities, reflecting the complexity of actual cloud infrastructure. While the exact size isn't specified, the multimodal nature (metrics + logs) provides rich context for anomaly detection.
 
-**Fault types labeled:** The dataset includes six critical cloud failure modes: cryptojacking (unauthorized resource usage), silent pod degradation (gradual performance decay), malware attacks, GitOps mistakes (configuration errors), configuration change failures, and bug infections. **These represent real-world cloud anomalies** spanning security breaches, performance degradation, and operational errors—precisely the types of inefficiencies and external impacts relevant to your use case.
+**Fault types labeled:** The dataset includes six critical cloud failure modes:
+
+| Fault Type | Category | Impact on Resources |
+|-----------|----------|---------------------|
+| Cryptojacking | Security | Unauthorized CPU/GPU usage |
+| Silent Pod Degradation | Performance | Gradual efficiency decay |
+| Malware Attacks | Security | Resource consumption anomalies |
+| GitOps Mistakes | Configuration | Deployment failures |
+| Configuration Change Failures | Operational | Service disruption |
+| Bug Infections | Reliability | Unpredictable behavior |
+
+**These represent real-world cloud anomalies** spanning security breaches, performance degradation, and operational errors—precisely the types of inefficiencies and external impacts relevant to cloud resource monitoring.
 
 **Seasonality patterns:** Cloud computing platforms naturally exhibit strong temporal patterns from user activity. Workloads typically show pronounced daily cycles (business hours vs. night), weekly patterns (weekday vs. weekend usage), and potential seasonal variations from business cycles or world events. The time-series format with timestamps enables analysis of these periodic patterns.
 
@@ -80,13 +137,33 @@ This dataset provides actual system metrics and logs from a cloud computing plat
 
 ### pryshlyak/seasonal_time_series_for_anomaly_detection: explicit seasonality focus
 
-**This dataset was explicitly designed for seasonal anomaly detection**, making it ideal for developing and testing algorithms that leverage periodic patterns. Based on the Numenta Anomaly Benchmark but restructured to emphasize weekly seasonality, it provides clean labeled data for methodical algorithm development.
+**This dataset was explicitly designed for seasonal anomaly detection**, making it ideal for developing and testing algorithms that leverage periodic patterns. Based on the [Numenta Anomaly Benchmark](https://github.com/numenta/NAB) but restructured to emphasize weekly seasonality, it provides clean labeled data for methodical algorithm development.
+
+!!! tip "Prototyping Recommendation"
+    Start algorithm development here due to the clean structure and explicit seasonality, then validate on messier real-world datasets like EDS-lab/electricity-demand. The controlled environment isolates algorithm behavior from data quality issues.
 
 **Dataset characteristics:** The dataset contains 67,700 rows with 5-minute sampling intervals spanning three months. **Data is organized by day of week** (seven separate CSVs for Monday-Sunday with 3,745 rows each) plus weekly aggregations (2,017 rows each). This structure directly supports periodicity-based anomaly detection approaches. The format is minimal—timestamp and value columns only—keeping focus on temporal patterns.
 
 **Seasonality patterns:** The dataset exhibits **strong weekly periodicity** with distinct patterns for each weekday, directly analogous to cloud resources that experience different usage on weekdays versus weekends. The 5-minute granularity captures intra-day variations like morning startup, lunch dips, and evening shutdowns common in business applications. The three-month span covers sufficient cycles for learning robust seasonal patterns.
 
-**Anomaly characteristics:** Training data includes seven weekday files and one normal week file with no anomalies—ideal for unsupervised learning. Testing data contains three types: **collective anomaly downward** (Monday file, like sustained performance degradation), **collective anomaly upward** (Wednesday file, like traffic surge), and **point anomaly** (Saturday file, like sudden spike). These anomaly types directly map to cloud resource scenarios: downward collective anomalies represent underutilization or failures, upward anomalies represent unusual demand, and point anomalies represent isolated incidents.
+**Anomaly characteristics:** Training data includes seven weekday files and one normal week file with no anomalies—ideal for unsupervised learning. Testing data contains three types:
+
+=== "Collective Downward"
+    **Monday file** - Sustained performance degradation
+
+    Analogous to: Resource underutilization, service degradation, capacity issues
+
+=== "Collective Upward"
+    **Wednesday file** - Traffic surge patterns
+
+    Analogous to: Unusual demand spikes, DDoS attacks, viral content
+
+=== "Point Anomaly"
+    **Saturday file** - Sudden isolated spikes
+
+    Analogous to: Batch job failures, configuration errors, transient faults
+
+These anomaly types directly map to cloud resource scenarios documented in our [cloud resource patterns research](cloud-resource-patterns-research.md).
 
 **Why suitable:** The explicit seasonal structure mirrors cloud workloads where different days exhibit different patterns—weekday business traffic differs from weekend consumer traffic. The clean separation of training (normal) and testing (anomalous) data supports supervised, semi-supervised, and unsupervised approaches. The dataset's design for auto-encoder training generalizes to any anomaly detection technique exploiting periodicity.
 
@@ -110,13 +187,36 @@ For researchers needing multivariate anomaly detection with precise ground truth
 
 These datasets from energy domains provide excellent analogs to cloud resources given their strong seasonality, resource-like behavior, and operational monitoring nature.
 
+!!! note "Energy-Cloud Parallels"
+    Energy datasets share key characteristics with cloud resources: resource consumption over time, strong temporal patterns from user behavior, efficiency optimization goals, and operational monitoring requirements. Our [cloud resource correlations research](cloud-resource-correlations-report.md) demonstrates similar multivariate correlation structures.
+
 ### EDS-lab/electricity-demand: multivariate smart meter data
 
 Smart meter electricity consumption closely parallels cloud resource consumption—both represent resource usage over time, exhibit strong temporal patterns, and experience demand variations from user behavior and external conditions.
 
 **Dataset characteristics:** This harmonized collection aggregates multiple smart meter datasets with hourly sampling across residential and commercial buildings. The data comes in three components: demand.parquet (consumption time series with unique_id, timestamp, y in kWh), metadata.parquet (building_class, cluster_size, location), and weather.parquet (**25+ weather variables** including temperature, humidity, precipitation, solar radiation, wind speed). The multi-building structure provides numerous parallel time series for comparative analysis.
 
-**Seasonality patterns:** Electricity demand shows pronounced patterns directly analogous to cloud resources. **Daily cycles** reflect business hours for commercial buildings or home activity for residential—matching cloud application usage. **Weekly cycles** distinguish weekdays from weekends—mirroring reduced weekend traffic for business applications. **Seasonal variations** from heating/cooling loads parallel seasonal e-commerce patterns (holiday shopping) or tax season spikes. The strong correlation with weather (temperature especially) demonstrates how external factors drive consumption—just as world events or viral content drive cloud traffic.
+**Seasonality patterns:** Electricity demand shows pronounced patterns directly analogous to cloud resources:
+
+```mermaid
+graph TB
+    A[Temporal Patterns] --> B[Daily Cycles]
+    A --> C[Weekly Cycles]
+    A --> D[Seasonal Variations]
+    B --> E[Business hours vs. night]
+    C --> F[Weekday vs. weekend]
+    D --> G[Heating/cooling seasons]
+
+    H[External Drivers] --> I[Weather]
+    H --> J[Events]
+    I --> K[Temperature correlation]
+    J --> L[Usage spikes]
+
+    style A fill:#e1f5ff
+    style H fill:#ffe1f5
+```
+
+**Daily cycles** reflect business hours for commercial buildings or home activity for residential—matching cloud application usage. **Weekly cycles** distinguish weekdays from weekends—mirroring reduced weekend traffic for business applications. **Seasonal variations** from heating/cooling loads parallel seasonal e-commerce patterns (holiday shopping) or tax season spikes. The strong correlation with weather (temperature especially) demonstrates how external factors drive consumption—just as world events or viral content drive cloud traffic.
 
 **Anomaly opportunities:** While unlabeled, natural anomalies abound: equipment malfunctions (sudden drops or spikes), unusual consumption (vacant building with high usage suggesting waste), meter reading errors (negative values or impossibly high readings), or **weather-adjusted anomalies** (high usage on mild day). The weather covariates enable sophisticated contextual anomaly detection—flagging consumption unusual for the conditions, analogous to detecting high cloud resource usage during low user activity periods.
 
@@ -127,6 +227,9 @@ Smart meter electricity consumption closely parallels cloud resource consumption
 ### ETDataset/ett: electricity transformer temperature
 
 This dataset provides **2 years of electricity transformer operational data** from critical infrastructure—equipment failure here has severe consequences, making anomaly detection crucial.
+
+!!! quote "Foundation Model Benchmark"
+    From the [Informer paper](https://arxiv.org/abs/2012.07436) (AAAI 2021 Best Paper): "ETT datasets exhibit multi-scale periodic patterns with long-term trends, providing a rigorous benchmark for time series forecasting models."
 
 **Dataset characteristics:** Four variants (ETT-h1, ETT-h2, ETT-m1, ETT-m2) from two transformers at two stations provide both hourly (17,520 points) and 15-minute (70,080 points) resolution data spanning 2016-2018. The target variable is Oil Temperature (OT), a critical safety indicator—overheating damages transformers. Six load features provide context: High/Middle/Low UseFul Load and High/Middle/Low UseLess Load, capturing the transformer's operating conditions.
 
@@ -141,6 +244,11 @@ This dataset provides **2 years of electricity transformer operational data** fr
 ### openclimatefix/uk_pv: large-scale solar generation
 
 With **over 30,000 solar PV systems tracked from 2010-2025**, this dataset provides exceptional scale for anomaly detection research, plus partial ground truth via labeled bad data periods.
+
+!!! note "Dataset Access"
+    **Gated dataset** requiring approval: [openclimatefix/uk_pv on Hugging Face](https://huggingface.co/datasets/openclimatefix/uk_pv)
+
+    DOI: [10.57967/hf/0878](https://doi.org/10.57967/hf/0878) | Access is readily granted for research purposes.
 
 **Dataset characteristics:** The dataset covers 15 years of domestic solar installations across Great Britain with two resolution levels: 30-minute intervals (30,000+ systems, high quality cumulative energy) and 5-minute intervals (1,309 systems, instantaneous but noisy). Systems range from 0.47 kW to 250 kW capacity. Metadata includes latitude/longitude, panel orientation, tilt angle, and capacity. Critically, **bad_data.csv identifies known periods of data quality issues**—providing partial ground truth for anomaly detection evaluation.
 
@@ -204,13 +312,53 @@ This unique dataset reformulates time series tasks as question-answering pairs, 
 
 ## Key preprocessing considerations across datasets
 
+!!! warning "Temporal Leakage Prevention"
+    **Always use temporal splits**, never random splits. Time series have temporal dependencies making random splits leak information. Ensure training data precedes test data chronologically. For semi-supervised approaches, training should contain only normal data (or <5% contamination).
+
 ### Normalization approaches
 
 Most datasets benefit from per-time-series normalization (z-score standardization) to account for different scales—one building's 10 kW load differs from another's 1000 kW load, but both may show similar relative patterns. For datasets with metadata (capacity, size), consider normalizing by these physical properties. For multivariate datasets like CATS or ETT, normalize each variable independently to prevent high-magnitude variables dominating.
 
+```python
+from pyspark.sql import functions as F
+
+# Per-series z-score normalization
+df_normalized = df.withColumn(
+    "value_normalized",
+    (F.col("value") - F.mean("value").over(Window.partitionBy("series_id"))) /
+    F.stddev("value").over(Window.partitionBy("series_id"))
+)
+```
+
 ### Handling seasonality
 
 Algorithms exploiting seasonality require sufficient cycles for learning—at least 2-3 complete periods. For daily patterns, 2-3 days suffices; for weekly patterns, 2-3 weeks; for seasonal patterns, 1-2 years. Use techniques like seasonal decomposition (STL) to explicitly model and remove seasonality, with residuals analyzed for anomalies. Alternatively, use day-of-week and hour-of-day encodings as features. The pryshlyak dataset's pre-split by weekday demonstrates one approach.
+
+=== "STL Decomposition"
+    ```python
+    from statsmodels.tsa.seasonal import STL
+
+    # Decompose into trend, seasonal, residual
+    stl = STL(time_series, seasonal=169)  # 169 = weekly for hourly data
+    result = stl.fit()
+
+    # Detect anomalies in residuals
+    anomalies = result.resid > 3 * result.resid.std()
+    ```
+
+=== "Feature Engineering"
+    ```python
+    from pyspark.sql import functions as F
+
+    # Add temporal features
+    df_features = df.withColumn(
+        "hour_of_day", F.hour("timestamp")
+    ).withColumn(
+        "day_of_week", F.dayofweek("timestamp")
+    ).withColumn(
+        "is_weekend", F.dayofweek("timestamp").isin([1, 7])
+    )
+    ```
 
 ### Train/test splitting
 
@@ -230,9 +378,12 @@ Sliding window approaches are common—window size should capture complete patte
 
 ## Important gaps and limitations
 
+!!! danger "Dataset Quality Concerns"
+    Recent research ([Wu & Keogh 2020](https://arxiv.org/abs/2009.13807), [Liu & Paparrizos 2024](https://arxiv.org/abs/2401.00001)) identified serious quality issues in traditional anomaly detection benchmarks: anomalies too obvious, unrealistic anomaly densities, mislabeled ground truth, and run-to-failure bias. **Prioritize TSB-UAD and CATS** which specifically address these concerns.
+
 ### Limited dedicated cloud resource datasets
 
-Despite the strong need, **comprehensive multi-metric cloud resource datasets (CPU + memory + network + disk I/O combined) are scarce on Hugging Face**. Researchers must rely on analogous domains (energy, industrial) or the single Lemma-RCA-NEC cloud dataset with limited documentation. Classic benchmarks like SMD (Server Machine Dataset) and PSM (Pooled Server Metrics) are not on Hugging Face, requiring GitHub or Kaggle sources.
+Despite the strong need, **comprehensive multi-metric cloud resource datasets (CPU + memory + network + disk I/O combined) are scarce on Hugging Face**. Researchers must rely on analogous domains (energy, industrial) or the single Lemma-RCA-NEC cloud dataset with limited documentation. Classic benchmarks like [SMD (Server Machine Dataset)](https://github.com/NetManAIOps/OmniAnomaly) and [PSM (Pooled Server Metrics)](https://github.com/eBay/RANSynCoders) are not on Hugging Face, requiring GitHub or Kaggle sources.
 
 ### Seasonality documentation sparse
 
@@ -240,7 +391,17 @@ Few datasets explicitly document seasonal patterns beyond pryshlyak's dataset. R
 
 ### Classic benchmarks absent
 
-Widely-cited benchmarks like NAB, Yahoo S5, SMAP/MSL, SWaT, WADI are **not directly available on Hugging Face**—they exist on GitHub, via direct access requests, or through aggregations like Timeseries-PILE. Researchers wanting these specific datasets must obtain them separately, though Timeseries-PILE includes many in processed form.
+Widely-cited benchmarks like [NAB](https://github.com/numenta/NAB), [Yahoo S5](https://webscope.sandbox.yahoo.com/), [SMAP/MSL](https://github.com/khundman/telemanom), [SWaT](https://itrust.sutd.edu.sg/), [WADI](https://itrust.sutd.edu.sg/) are **not directly available on Hugging Face**—they exist on GitHub, via direct access requests, or through aggregations like Timeseries-PILE. Researchers wanting these specific datasets must obtain them separately, though Timeseries-PILE includes many in processed form.
+
+??? note "External Dataset Sources"
+    | Benchmark | Source | Access |
+    |-----------|--------|--------|
+    | NAB (Numenta) | [GitHub](https://github.com/numenta/NAB) | Public |
+    | Yahoo S5 | [Webscope](https://webscope.sandbox.yahoo.com/) | Registration required |
+    | SMAP/MSL | [GitHub](https://github.com/khundman/telemanom) | Public |
+    | SMD | [GitHub](https://github.com/NetManAIOps/OmniAnomaly) | Public |
+    | PSM | [GitHub](https://github.com/eBay/RANSynCoders) | Public |
+    | SWaT/WADI | [iTrust](https://itrust.sutd.edu.sg/) | Request required |
 
 ### Synthetic vs. real-world tradeoff
 
@@ -250,8 +411,32 @@ Datasets with cleanest labels and strongest seasonality (pryshlyak, CATS) are **
 
 Recent research (Wu & Keogh 2020, Liu & Paparrizos 2024) identified serious quality issues in traditional anomaly detection benchmarks: anomalies too obvious, unrealistic anomaly densities, mislabeled ground truth, and run-to-failure bias. The TSB-UAD and CATS datasets specifically address these concerns with careful curation and precise injection, respectively—prioritize these for rigorous evaluation over less-validated datasets.
 
+!!! tip "Quality Validation Checklist"
+    Before selecting a dataset, verify:
+
+    - [ ] Anomaly labels are precise and independently validated
+    - [ ] Anomaly density is realistic (<10% typically)
+    - [ ] Multiple anomaly types represented (point, collective, contextual)
+    - [ ] Documentation includes data collection methodology
+    - [ ] Community validation (download counts, citations)
+
 ## Conclusion
 
 Hugging Face hosts several strong options for time series anomaly detection research applicable to cloud resource monitoring, though direct cloud datasets remain limited. **AutonLab/Timeseries-PILE provides the most comprehensive starting point** with 1,980 labeled anomaly time series including web server data, while **Lemma-RCA-NEC/Cloud_Computing_Original offers the most direct cloud infrastructure data** despite documentation gaps. For algorithm development, **pryshlyak/seasonal_time_series_for_anomaly_detection delivers explicit seasonality** in a clean format, and **patrickfleith/controlled-anomalies-time-series-dataset enables rigorous multivariate evaluation** with precise ground truth.
 
 Energy domain datasets (EDS-lab/electricity-demand, ETDataset/ett, openclimatefix/uk_pv, electricity_load_diagrams) provide excellent analogs given their resource-like behavior, strong seasonality, and operational monitoring nature—the temporal patterns, external influences, and efficiency concerns directly parallel cloud resources. Combined with the benchmark collections, researchers have sufficient variety to develop, validate, and test anomaly detection algorithms for cloud-analogous time series before deploying to production cloud environments. The datasets span scales from controlled 67k-row experiments to massive 30,000-system deployments, enabling research at multiple stages from proof-of-concept to production readiness.
+
+!!! success "Next Steps"
+    - **Start prototyping:** Use pryshlyak/seasonal_time_series for clean algorithm development
+    - **Validate comprehensively:** Benchmark on AutonLab/Timeseries-PILE TSB-UAD subset
+    - **Test at scale:** Evaluate on openclimatefix/uk_pv (30K+ systems) or electricity_load_diagrams (320 substations)
+    - **Integrate with hello cloud:** See [data generation modules](../reference/index.md) for combining real and synthetic data
+
+---
+
+## Additional Resources
+
+- **Dataset Aggregations:** [Awesome Time Series Anomaly Detection](https://github.com/rob-med/awesome-TS-anomaly-detection)
+- **Evaluation Tools:** [TSB-UAD Benchmark](https://github.com/TheDatumOrg/TSB-UAD)
+- **Foundation Models:** See our [OpenTSLM evaluation](opentslm-foundation-model-evaluation.md) for zero-shot anomaly detection
+- **Related Research:** [Cloud resource patterns](cloud-resource-patterns-research.md) | [Multivariate correlations](cloud-resource-correlations-report.md)
