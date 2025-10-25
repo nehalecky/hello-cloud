@@ -41,9 +41,11 @@ htmlcov/
 .ipynb_checkpoints/
 # ALL .ipynb files are ignored - MyST markdown (.md) is canonical source
 *.ipynb
-# EXCEPT published notebooks for Colab (must unignore directory first)
+# EXCEPT published notebooks for Colab & GitHub viewing (must unignore directory first)
 !notebooks/published/
 !notebooks/published/*.ipynb
+!examples/published/
+!examples/published/*.ipynb
 *.nbconvert.ipynb  # nbconvert temporary files
 # MyST markdown notebooks are version controlled as the canonical source
 # notebooks/*.md files are the source of truth
@@ -114,3 +116,6 @@ src/cloud_sim/data_generation/
 .streamlit/cache/
 *.pyc.streamlit/
 notebooks/*.py
+
+# Examples - Notebook artifacts (after restructure to examples/)
+examples/published/*.py         # Generated .py conversions from .ipynb

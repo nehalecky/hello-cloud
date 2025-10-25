@@ -156,11 +156,11 @@ Try our research workflows directly in your browser:
 
 | Notebook | Description | Colab |
 |----------|-------------|-------|
-| **Quickstart** | TimeSeries API in 15 minutes | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/notebooks/published/06_quickstart_timeseries_loader.ipynb) |
-| **Workload Signatures** | Understanding cloud workload patterns | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/notebooks/published/02_guide_workload_signatures_guide.ipynb) |
-| **IOPS Analysis** | Time series EDA with anomaly detection | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/notebooks/published/03_EDA_iops_web_server.ipynb) |
-| **Gaussian Processes** | GP modeling tutorial | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/notebooks/published/04_modeling_gaussian_process.ipynb) |
-| **PiedPiper EDA** | Hierarchical billing data analysis | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/notebooks/published/05_EDA_piedpiper_data.ipynb) |
+| **Quickstart** | TimeSeries API in 15 minutes | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/examples/published/06_quickstart_timeseries_loader.ipynb) |
+| **Workload Signatures** | Understanding cloud workload patterns | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/examples/published/02_guide_workload_signatures_guide.ipynb) |
+| **IOPS Analysis** | Time series EDA with anomaly detection | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/examples/published/03_EDA_iops_web_server.ipynb) |
+| **Gaussian Processes** | GP modeling tutorial | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/examples/published/04_modeling_gaussian_process.ipynb) |
+| **PiedPiper EDA** | Hierarchical billing data analysis | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/examples/published/05_EDA_piedpiper_data.ipynb) |
 
 **All notebooks include automatic library installation** - just click and run!
 
