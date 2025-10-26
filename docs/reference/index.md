@@ -1,3 +1,7 @@
+---
+title: "API Reference"
+---
+
 # API Reference
 
 Comprehensive API documentation generated from Python docstrings, covering all public interfaces for data generation, time series operations, and model building.

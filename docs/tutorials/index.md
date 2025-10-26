@@ -1,3 +1,7 @@
+---
+title: "Tutorials"
+---
+
 # Tutorials
 
 Learn hello cloud through hands-on, interactive Jupyter notebooks. Each tutorial builds on empirical cloud research and demonstrates practical workflows.

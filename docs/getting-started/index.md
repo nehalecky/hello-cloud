@@ -1,3 +1,7 @@
+---
+title: "Getting Started"
+---
+
 # Getting Started
 
 Welcome to **hello cloud** ☁️ - state-of-the-art time series forecasting for cloud resources, made practical.

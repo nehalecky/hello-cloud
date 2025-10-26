@@ -1,3 +1,7 @@
+---
+title: "Research"
+---
+
 # Research
 
 The foundation of hello cloud is empirical research into real cloud infrastructure behavior. Every default parameter, synthetic data pattern, and model choice is grounded in published studies and operational data.

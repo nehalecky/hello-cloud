@@ -135,7 +135,9 @@ class TimeSeries:
             TimeSeriesError: If filter column not in hierarchy
 
         Example:
+            ``` python
             ts.filter(provider="AWS", account="acc1")
+            ```
         """
         from pyspark.sql import functions as F
 
@@ -172,7 +174,9 @@ class TimeSeries:
             New TimeSeries with sampled entities
 
         Example:
+            ``` python
             ts.sample(grain=["account", "region"], n=10)
+            ```
         """
         from pyspark.sql import functions as F
 
@@ -217,8 +221,10 @@ class TimeSeries:
             New TimeSeries aggregated to specified grain
 
         Example:
+            ``` python
             # Aggregate from account+region to just account
             ts.aggregate(grain=["account"])
+            ```
         """
         from pyspark.sql import functions as F
 
@@ -263,8 +269,10 @@ class TimeSeries:
             (count, mean, std, min, max)
 
         Example:
+            ``` python
             stats = ts.summary_stats()  # Stats at current grain
             stats = ts.summary_stats(grain=["account"])  # Aggregate first
+            ```
         """
         from pyspark.sql import functions as F
 
