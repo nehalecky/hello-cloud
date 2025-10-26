@@ -351,8 +351,8 @@
   opacity: 1 !important;
 }
 
-/* Hide auto-generated H1 title on homepage (logo replaces it) */
-.md-content article > h1:first-of-type {
+/* Hide auto-generated H1 title on homepage only (logo replaces it) */
+.md-content article:has(.homepage-logo-light, .homepage-logo-dark) > h1:first-of-type {
   display: none;
 }
 
