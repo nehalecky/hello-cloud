@@ -519,6 +519,7 @@ uv run pytest tests/ml_models/ -v --cov=src/hellocloud/ml_models/gaussian_proces
 ## Next Steps
 
 **Production Deployment:**
+
 - [ ] Deploy model via FastAPI endpoint
 - [ ] Integrate with real-time monitoring dashboard
 - [ ] A/B test against existing anomaly detection systems
@@ -526,6 +527,7 @@ uv run pytest tests/ml_models/ -v --cov=src/hellocloud/ml_models/gaussian_proces
 - [ ] Monitor calibration drift in production
 
 **Model Enhancements:**
+
 - [ ] Explore multi-output GPs for correlated metrics (see [correlations report](cloud-resource-correlations-report.md))
 - [ ] Compare against [foundation models](opentslm-foundation-model-evaluation.md)
 - [ ] Extend to streaming/online inference
