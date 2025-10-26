@@ -150,6 +150,13 @@ docs-stop:
 docs-build:
     uv run mkdocs build
 
+# Build documentation with clean (removes site/ first)
+docs-build-clean:
+    @echo "Cleaning site directory..."
+    @rm -rf site/
+    @echo "Building documentation..."
+    uv run mkdocs build
+
 # Deploy documentation to GitHub Pages
 docs-deploy:
     uv run mkdocs gh-deploy
