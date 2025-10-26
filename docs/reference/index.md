@@ -22,6 +22,7 @@ Generate realistic synthetic cloud workload data based on empirical research. Us
 ::: hellocloud.generation.WorkloadPatternGenerator
     options:
       show_root_heading: true
+      show_root_full_path: true
       show_source: false
       members:
         - generate_time_series
@@ -29,6 +30,7 @@ Generate realistic synthetic cloud workload data based on empirical research. Us
 ::: hellocloud.generation.WorkloadType
     options:
       show_root_heading: true
+      show_root_full_path: true
 
 ## TimeSeries API
 
@@ -46,9 +48,11 @@ Hierarchical time series operations built on PySpark for analyzing cloud billing
 ::: hellocloud.timeseries.TimeSeries
     options:
       show_root_heading: true
+      show_root_full_path: true
       show_source: false
 
 ::: hellocloud.io.PiedPiperLoader
     options:
       show_root_heading: true
+      show_root_full_path: true
       show_source: false
