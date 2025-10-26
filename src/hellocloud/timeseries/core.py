@@ -312,9 +312,10 @@ class TimeSeries:
             Matplotlib Figure object
 
         Example:
-            >>> ts = PiedPiperLoader.load(df)
-            >>> ts.filter(account="123").plot_temporal_density(log_scale=True)
-        """
+            ``` python
+            ts = PiedPiperLoader.load(df)
+            ts.filter(account="123").plot_temporal_density(log_scale=True)
+            ```"""
         # Identify current grain (hierarchy columns present in data)
         current_grain = [col for col in self.hierarchy if col in self.df.columns]
 
@@ -356,10 +357,11 @@ class TimeSeries:
             New TimeSeries instance with same metadata
 
         Example:
-            >>> # Filter and create new instance
-            >>> filtered_df = ts.df.filter(F.col('cost') > 100)
-            >>> ts_filtered = ts.with_df(filtered_df)
-        """
+            ``` python
+            # Filter and create new instance
+            filtered_df = ts.df.filter(F.col('cost') > 100)
+            ts_filtered = ts.with_df(filtered_df)
+            ```"""
         return TimeSeries(
             df=df,
             hierarchy=self.hierarchy,
@@ -392,11 +394,12 @@ class TimeSeries:
             Matplotlib Figure object
 
         Example:
-            >>> # Compare temporal density across multiple aggregation grains
-            >>> ts.plot_density_by_grain(['region', 'product', 'usage', 'provider'])
-            >>> # With percent change subplot
-            >>> ts.plot_density_by_grain(['region', 'product'], show_pct_change=True)
-        """
+            ``` python
+            # Compare temporal density across multiple aggregation grains
+            ts.plot_density_by_grain(['region', 'product', 'usage', 'provider'])
+            # With percent change subplot
+            ts.plot_density_by_grain(['region', 'product'], show_pct_change=True)
+            ```"""
         import matplotlib.dates as mdates
         from pyspark.sql import functions as F
 
@@ -520,11 +523,12 @@ class TimeSeries:
             Plotly Figure object (displays automatically in Jupyter)
 
         Example:
-            >>> # Cost breakdown by provider and region (nested)
-            >>> ts.plot_cost_treemap(['provider', 'region'], top_n=20)
-            >>> # Deep hierarchy with grouping
-            >>> ts.plot_cost_treemap(['provider', 'region', 'product'], top_n=50)
-        """
+            ``` python
+            # Cost breakdown by provider and region (nested)
+            ts.plot_cost_treemap(['provider', 'region'], top_n=20)
+            # Deep hierarchy with grouping
+            ts.plot_cost_treemap(['provider', 'region', 'product'], top_n=50)
+            ```"""
         import plotly.express as px
         from pyspark.sql import functions as F
 
@@ -596,9 +600,11 @@ class TimeSeries:
             PySpark DataFrame with summary statistics, sorted descending
 
         Example:
-            >>> # Top regions by total cost with volatility stats
-            >>> stats = ts.cost_summary_by_grain(['region'])
-            >>> stats.show(10)
+            ``` python
+            # Top regions by total cost with volatility stats
+            stats = ts.cost_summary_by_grain(['region'])
+            stats.show(10)
+            ```
         """
         from pyspark.sql import functions as F
 
@@ -662,11 +668,12 @@ class TimeSeries:
             Matplotlib Figure object
 
         Example:
-            >>> # Top 10 regions grouped/colored by provider
-            >>> ts.plot_cost_distribution(['region'], top_n=10, group_by_parent=True)
-            >>> # Most volatile products
-            >>> ts.plot_cost_distribution(['product'], top_n=5, sort_by='volatility')
-        """
+            ``` python
+            # Top 10 regions grouped/colored by provider
+            ts.plot_cost_distribution(['region'], top_n=10, group_by_parent=True)
+            # Most volatile products
+            ts.plot_cost_distribution(['product'], top_n=5, sort_by='volatility')
+            ```"""
         import seaborn as sns
         from pyspark.sql import functions as F
 
@@ -789,11 +796,12 @@ class TimeSeries:
             Matplotlib Figure object
 
         Example:
-            >>> # Top 5 regions with trends and total
-            >>> ts.plot_cost_trends(['region'], top_n=5, show_total=True)
-            >>> # Most volatile products without total
-            >>> ts.plot_cost_trends(['product'], top_n=3, sort_by='volatility', show_total=False)
-        """
+            ``` python
+            # Top 5 regions with trends and total
+            ts.plot_cost_trends(['region'], top_n=5, show_total=True)
+            # Most volatile products without total
+            ts.plot_cost_trends(['product'], top_n=3, sort_by='volatility', show_total=False)
+            ```"""
         import matplotlib.dates as mdates
         from pyspark.sql import functions as F
 
@@ -914,13 +922,14 @@ class TimeSeries:
             New TimeSeries with filtered data
 
         Example:
-            >>> # Filter to specific range
-            >>> ts_filtered = ts.filter_time(start='2024-01-01', end='2024-12-31')
-            >>> # Filter before a date
-            >>> ts_clean = ts.filter_time(before='2025-10-05')
-            >>> # Filter after a date
-            >>> ts_recent = ts.filter_time(after='2024-01-01')
-        """
+            ``` python
+            # Filter to specific range
+            ts_filtered = ts.filter_time(start='2024-01-01', end='2024-12-31')
+            # Filter before a date
+            ts_clean = ts.filter_time(before='2025-10-05')
+            # Filter after a date
+            ts_recent = ts.filter_time(after='2024-01-01')
+            ```"""
         from pyspark.sql import functions as F
 
         filtered_df = self.df
