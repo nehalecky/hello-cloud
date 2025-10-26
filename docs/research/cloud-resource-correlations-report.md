@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This report synthesizes empirical research on correlation patterns between cloud resource metrics (CPU, memory, network, disk I/O) across different application types. Research shows strong temporal correlations and self-similarity in resource usage patterns [[1]](#ref-1), with memory emerging as a critical bottleneck in co-located clusters, reducing throughput by up to 46% [[2]](#ref-2). Machine learning workloads demonstrate unique GPU-CPU-memory interdependencies with 6.5-10x performance differences [3], while microservices exhibit cross-VM correlations with up to 79% performance overhead compared to monolithic architectures [4].
+This report synthesizes empirical research on correlation patterns between cloud resource metrics (CPU, memory, network, disk I/O) across different application types. Research shows strong temporal correlations and self-similarity in resource usage patterns [^1], with memory emerging as a critical bottleneck in co-located clusters, reducing throughput by up to 46% [^2]. Machine learning workloads demonstrate unique GPU-CPU-memory interdependencies with 6.5-10x performance differences [3], while microservices exhibit cross-VM correlations with up to 79% performance overhead compared to monolithic architectures [4].
 
 !!! note "Research Context"
     This report complements the [Cloud Resource Patterns Research](cloud-resource-patterns-research.md) by focusing specifically on metric correlations rather than utilization patterns. For workload-specific modeling approaches, see [Gaussian Process Design](gaussian-process-design.md).
@@ -11,7 +11,7 @@ This report synthesizes empirical research on correlation patterns between cloud
 
 ### 1.1 Temporal Autocorrelation Patterns
 
-Research on cloud workload patterns reveals **strong temporal correlations in resource usage patterns** [[1]](#ref-1). Studies of memory access patterns in [SPEC CPU2017](https://www.spec.org/cpu2017/) benchmarks show that ~80% of workloads exhibit correlation in their access intervals, with all correlated workloads demonstrating Hurst parameters > 0.5, confirming self-similarity and long-range dependence [[1]](#ref-1). This indicates that resource usage is predictable in the short-term (up to a few hours).
+Research on cloud workload patterns reveals **strong temporal correlations in resource usage patterns** [^1]. Studies of memory access patterns in [SPEC CPU2017](https://www.spec.org/cpu2017/) benchmarks show that ~80% of workloads exhibit correlation in their access intervals, with all correlated workloads demonstrating Hurst parameters > 0.5, confirming self-similarity and long-range dependence [^1]. This indicates that resource usage is predictable in the short-term (up to a few hours).
 
 !!! tip "Modeling Implications"
     The strong temporal autocorrelation (Hurst > 0.5) makes Gaussian Processes particularly effective for cloud resource forecasting. Our [SparseGPModel](../reference/index.md) exploits these patterns using composite periodic kernels.
@@ -19,15 +19,15 @@ Research on cloud workload patterns reveals **strong temporal correlations in re
 ### 1.2 Memory Access Correlations
 
 In SPEC CPU2017 workloads:
-- **~80% of applications show correlation in memory access patterns** (vs. <30% in SPEC CPU2006) [[5]](#ref-5)
-- All correlated workloads demonstrate **Hurst parameters > 0.5**, confirming self-similarity [[5]](#ref-5)
+- **~80% of applications show correlation in memory access patterns** (vs. <30% in SPEC CPU2006) [^5]
+- All correlated workloads demonstrate **Hurst parameters > 0.5**, confirming self-similarity [^5]
 - Memory access intervals at small time scales (milliseconds) follow exponential distribution
 - Aggregated processes at large scales (minutes) show self-similarity
-- Some benchmarks use up to 16GB main memory and 2.3GB/s memory bandwidth [[5]](#ref-5)
+- Some benchmarks use up to 16GB main memory and 2.3GB/s memory bandwidth [^5]
 
 ### 1.3 Cross-Resource Dependencies
 
-Microsoft's Resource Central study on Azure workloads reveals strong positive correlations between utilization metrics [[6]](#ref-6):
+Microsoft's Resource Central study on Azure workloads reveals strong positive correlations between utilization metrics [^6]:
 
 | Resource Pair | Correlation Pattern | Modeling Impact |
 |---------------|---------------------|-----------------|
@@ -55,7 +55,7 @@ Including these correlated features improves predictive performance significantl
 
 ### 2.1 Web Applications
 
-Web applications demonstrate **three distinct daily and three weekly workload patterns** based on K-Means clustering analysis of 3,191 daily and 466 weekly data points [[7]](#ref-7):
+Web applications demonstrate **three distinct daily and three weekly workload patterns** based on K-Means clustering analysis of 3,191 daily and 466 weekly data points [^7]:
 
 ```mermaid
 graph TB
@@ -101,15 +101,15 @@ ML workloads demonstrate unique resource patterns [3]:
 | Training Time (20 epochs) | 13 hours | 2 hours | 6.5x [10] |
 | Compute Performance (9 years) | Baseline | 32x improvement | Memory bottleneck |
 | Memory Bandwidth (9 years) | Baseline | 13x improvement | Lags behind compute [11] |
-| ResNet-50 (100 epochs) | N/A | 14 days (M40) | [[12]](#ref-12) |
+| ResNet-50 (100 epochs) | N/A | 14 days (M40) | [^12] |
 
 Key insights:
 - GPU compute improved 32x in 9 years vs 13x for memory bandwidth, creating bottleneck [11]
-- [NeuSight](https://arxiv.org/abs/2407.13853) framework reduces prediction error from 121.4% to 2.3% for GPT-3 latency [[12]](#ref-12)
+- [NeuSight](https://arxiv.org/abs/2407.13853) framework reduces prediction error from 121.4% to 2.3% for GPT-3 latency [^12]
 
 **Inference Phase:**
-- Memory-efficient deep learning inference techniques enable incremental weight loading [[13]](#ref-13)
-- KV caches statically over-provisioned for max sequence length (e.g., 2048) [[13]](#ref-13)
+- Memory-efficient deep learning inference techniques enable incremental weight loading [^13]
+- KV caches statically over-provisioned for max sequence length (e.g., 2048) [^13]
 - Lower resource requirements but latency-sensitive
 - CPUs viable for lightweight model inference with optimization
 
@@ -190,19 +190,19 @@ Key implications:
 
 ### 3.3 Predictive Modeling
 
-LSTM and RNN models effectively capture temporal dependencies [[18]](#ref-18):
+LSTM and RNN models effectively capture temporal dependencies [^18]:
 
 | Model Architecture | Performance | Best For |
 |-------------------|-------------|----------|
-| LSTM-RNN | MSE: 3.17×10⁻³ [[18]](#ref-18) | Web server logs |
+| LSTM-RNN | MSE: 3.17×10⁻³ [^18] | Web server logs |
 | Attention-based LSTM | Strong sequence mapping | Long-horizon forecasts |
 | GRU-based esDNN | Resolves gradient issues | Multivariate series |
 | Gaussian Process | High uncertainty quantification | Sparse data, periodicity |
 
 Key capabilities:
-- Long Short Term Memory RNN achieved MSE of 3.17×10⁻³ on web server log datasets [[18]](#ref-18)
-- Attention-based LSTM encoder-decoder networks map historical sequences to predictions [[18]](#ref-18)
-- esDNN addresses LSTM gradient issues using GRU-based algorithms for multivariate series [[18]](#ref-18)
+- Long Short Term Memory RNN achieved MSE of 3.17×10⁻³ on web server log datasets [^18]
+- Attention-based LSTM encoder-decoder networks map historical sequences to predictions [^18]
+- esDNN addresses LSTM gradient issues using GRU-based algorithms for multivariate series [^18]
 - Models retain contextual information across time steps for evolving workload trends
 
 !!! example "Implementing Time-Lagged Features"
@@ -237,13 +237,13 @@ During normal operations:
 ### 4.2 Peak Load Conditions
 
 Under peak load:
-- **Memory becomes primary bottleneck** in co-located clusters, causing up to 46% throughput reduction [[2]](#ref-2)
-- Unmovable allocations scattered across address space cause fragmentation (Meta datacenters) [[2]](#ref-2)
+- **Memory becomes primary bottleneck** in co-located clusters, causing up to 46% throughput reduction [^2]
+- Unmovable allocations scattered across address space cause fragmentation (Meta datacenters) [^2]
 - CPU and disk I/O show daily cyclical correlation patterns
 - Memory usage remains approximately constant while other resources spike
 
 !!! warning "Memory Bottleneck"
-    Unlike CPU and disk which scale with load, memory fragmentation is a structural issue. A 46% throughput reduction can occur even WITHOUT memory over-commitment, purely from fragmentation of unmovable allocations [[2]](#ref-2). This makes memory the least elastic resource.
+    Unlike CPU and disk which scale with load, memory fragmentation is a structural issue. A 46% throughput reduction can occur even WITHOUT memory over-commitment, purely from fragmentation of unmovable allocations [^2]. This makes memory the least elastic resource.
 
 ### 4.3 Failure Conditions
 
@@ -257,7 +257,7 @@ During failures [9]:
 
 ### 5.1 Resource Utilization Correlations
 
-Based on [Alibaba cluster traces](https://github.com/alibaba/clusterdata) (4,000 machines, 8 days, 71K online services) [[19]](#ref-19):
+Based on [Alibaba cluster traces](https://github.com/alibaba/clusterdata) (4,000 machines, 8 days, 71K online services) [^19]:
 
 | Metric Pair | Correlation Strength | Pattern | Scheduler |
 |-------------|---------------------|---------|-----------|
@@ -305,7 +305,7 @@ Key mappings:
 
 ### 6.1 Alibaba Cluster Traces
 
-Multiple versions available on [GitHub](https://github.com/alibaba/clusterdata) [[19]](#ref-19):
+Multiple versions available on [GitHub](https://github.com/alibaba/clusterdata) [^19]:
 
 | Version | Machines | Duration | Workloads | Size |
 |---------|----------|----------|-----------|------|
@@ -324,7 +324,7 @@ Key features:
 
 ### 6.2 Google Cluster Traces
 
-2019 dataset contains [[20]](#ref-20):
+2019 dataset contains [^20]:
 
 | Component | Description | Format |
 |-----------|-------------|--------|
@@ -371,7 +371,7 @@ Key features:
 !!! success "Predictability"
     Strong temporal autocorrelation (Hurst > 0.5) enables accurate short-term forecasting (up to several hours) using time series models.
 
-- **Strong temporal correlations** with self-similarity confirmed by Hurst parameters > 0.5 [[1]](#ref-1)
+- **Strong temporal correlations** with self-similarity confirmed by Hurst parameters > 0.5 [^1]
 - ~80% of SPEC CPU2017 workloads show memory access correlation
 - Resource usage predictable up to several hours using LSTM/RNN models
 - Critical for proactive resource management and autoscaling
@@ -381,9 +381,9 @@ Key features:
 ### 7.2 Memory as Critical Bottleneck
 
 !!! warning "Non-Elastic Resource"
-    Memory is fundamentally different from CPU/disk. Fragmentation causes 46% throughput loss even without over-commitment [[2]](#ref-2).
+    Memory is fundamentally different from CPU/disk. Fragmentation causes 46% throughput loss even without over-commitment [^2].
 
-- Memory thrashing can reduce throughput by 46% even without over-commitment [[2]](#ref-2)
+- Memory thrashing can reduce throughput by 46% even without over-commitment [^2]
 - Fragmentation from unmovable allocations is primary cause in production datacenters
 - Unlike CPU/disk, memory usage remains constant during load spikes
 - Memory-aware scheduling and contiguity management crucial for performance
@@ -394,7 +394,7 @@ Key features:
 
 | Workload Type | Key Finding | Correlation Pattern | Implementation |
 |---------------|-------------|---------------------|----------------|
-| Web Apps | 3 daily + 3 weekly patterns [[7]](#ref-7) | Strong diurnal/weekly | `WorkloadType.WEB_APP` |
+| Web Apps | 3 daily + 3 weekly patterns [^7] | Strong diurnal/weekly | `WorkloadType.WEB_APP` |
 | ML Training | 6.5-10x GPU speedup [3] | GPU-CPU-memory coupling | `WorkloadType.TRAINING` |
 | Microservices | 79% overhead, 70% cost savings [14] | Cross-VM correlations | `WorkloadType.MICROSERVICE` |
 | Databases | Sub-minute spikes [9] | IOPS-CPU-memory bursts | `WorkloadType.DATABASE` |
@@ -418,15 +418,15 @@ Key features:
 
 **Autoscaling considerations:**
 - Monitor latency + cascade delays = 3-6 minute total lag in autoscaling decisions
-- Time-lagged effects and cascade failures must be considered in autoscaling policies [[18]](#ref-18)
+- Time-lagged effects and cascade failures must be considered in autoscaling policies [^18]
 - Predictive models can compensate for monitoring latency through forecasting
 
 
 ## References
 
-<a id="ref-1"></a>[1] Zou, Y., et al. (2022). ["Temporal Characterization of Memory Access Behaviors in SPEC CPU2017."](https://www.sciencedirect.com/science/article/abs/pii/S0167739X21004908) *Future Generation Computer Systems*, Volume 129, pp. 206-217*.
+[^1]: Zou, Y., et al. (2022). ["Temporal Characterization of Memory Access Behaviors in SPEC CPU2017."](https://www.sciencedirect.com/science/article/abs/pii/S0167739X21004908) *Future Generation Computer Systems*, Volume 129, pp. 206-217*.
 ~80% of SPEC CPU2017 workloads show correlation in memory access intervals with Hurst parameters >0.5.
-<a id="ref-2"></a>[2] "Performance Interference of Memory Thrashing in Virtualized Cloud Environments." (2016).
+[^2]: "Performance Interference of Memory Thrashing in Virtualized Cloud Environments." (2016).
     *IEEE International Conference on Cloud Computing*.
     https://ieeexplore.ieee.org/document/7820282/
     Memory thrashing can reduce system throughput by 46% even without memory over-commitment.
@@ -438,11 +438,11 @@ Key features:
 
 [4] IBM Research. (2016). ["Workload Characterization for Microservices."](https://ieeexplore.ieee.org/document/7581269/) *IEEE International Symposium on Workload Characterization*.
 Microservice performance 79.1% slower than monolithic on same hardware, 4.22x overhead in runtime.
-<a id="ref-5"></a>[5] Singh, S., and Awasthi, M. (2019). ["Memory Centric Characterization and Analysis of SPEC CPU2017 Suite."](https://arxiv.org/abs/1910.00651) *ICPE 2019*.
+[^5]: Singh, S., and Awasthi, M. (2019). ["Memory Centric Characterization and Analysis of SPEC CPU2017 Suite."](https://arxiv.org/abs/1910.00651) *ICPE 2019*.
 ~50% of dynamic instructions are memory intensive; benchmarks use up to 16GB RAM and 2.3GB/s bandwidth.
-<a id="ref-6"></a>[6] Microsoft Research. (2017). ["Resource Central: Understanding and Predicting Workloads for Improved Resource Management."](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/10/Resource-Central-SOSP17.pdf) *SOSP 2017*.
+[^6]: Microsoft Research. (2017). ["Resource Central: Understanding and Predicting Workloads for Improved Resource Management."](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/10/Resource-Central-SOSP17.pdf) *SOSP 2017*.
 Strong positive correlation between utilization metrics in Azure workloads.
-<a id="ref-7"></a>[7] "Understanding Web Application Workloads: Systematic Literature Review." (2024).
+[^7]: "Understanding Web Application Workloads: Systematic Literature Review." (2024).
     *ArXiv & IEEE*.
     https://arxiv.org/abs/2409.12299
     Identifies 3 daily and 3 weekly patterns using K-Means clustering on 3,191 daily and 466 weekly data points.
@@ -464,9 +464,9 @@ Strong positive correlation between utilization metrics in Azure workloads.
 
 [11] Lee, S., et al. (2024). ["Forecasting GPU Performance for Deep Learning Training and Inference."](https://dl.acm.org/doi/10.1145/3669940.3707265) *ASPLOS 2025*.
 NeuSight framework; GPU compute increased 32x in 9 years vs 13x for memory bandwidth.
-<a id="ref-12"></a>[12] Lee, S., et al. (2024). ["Forecasting GPU Performance for Deep Learning Training and Inference."](https://arxiv.org/abs/2407.13853) *ArXiv*.
+[^12]: Lee, S., et al. (2024). ["Forecasting GPU Performance for Deep Learning Training and Inference."](https://arxiv.org/abs/2407.13853) *ArXiv*.
 NeuSight reduces GPT-3 latency prediction error from 121.4% to 2.3%.
-<a id="ref-13"></a>[13] "Memory-efficient Deep Learning Inference in Trusted Execution Environments." (2021).
+[^13]: "Memory-efficient Deep Learning Inference in Trusted Execution Environments." (2021).
     *Journal of Systems Architecture*.
     https://www.sciencedirect.com/science/article/abs/pii/S1383762121001314
     MDI approach with incremental weight loading and data layout reorganization for inference.
@@ -488,9 +488,9 @@ NeuSight reduces GPT-3 latency prediction error from 121.4% to 2.3%.
 
 [17] Google Cloud. (2024). ["Retention and Latency of Metric Data."](https://cloud.google.com/monitoring/api/v3/latency-n-retention) *Cloud Monitoring Documentation*.
 Pub/Sub metrics have 2-4 minute latencies; sampled every 60 seconds, visible after 240 seconds.
-<a id="ref-18"></a>[18] Kumar, J., et al. (2018). ["Long Short Term Memory RNN Based Workload Forecasting for Cloud Datacenters."](https://www.sciencedirect.com/science/article/pii/S1877050917328557) *Procedia Computer Science*, Volume 125, pp. 676-682*.
+[^18]: Kumar, J., et al. (2018). ["Long Short Term Memory RNN Based Workload Forecasting for Cloud Datacenters."](https://www.sciencedirect.com/science/article/pii/S1877050917328557) *Procedia Computer Science*, Volume 125, pp. 676-682*.
 LSTM-RNN achieves MSE of 3.17×10⁻³ on web server log datasets.
-<a id="ref-19"></a>[19] Alibaba Cloud. (2018). ["Alibaba Cluster Trace v2018."](https://github.com/alibaba/clusterdata) *GitHub Repository*.
+[^19]: Alibaba Cloud. (2018). ["Alibaba Cluster Trace v2018."](https://github.com/alibaba/clusterdata) *GitHub Repository*.
 4,000 machines, 8 days, 71K online services, 4M batch jobs, 270+ GB uncompressed data.
-<a id="ref-20"></a>[20] Google Research. (2019). ["Google Cluster Workload Traces 2019."](https://github.com/google/cluster-data) *Google Research Datasets*.
+[^20]: Google Research. (2019). ["Google Cluster Workload Traces 2019."](https://github.com/google/cluster-data) *Google Research Datasets*.
 2.4 TiB compressed traces from 8 Borg cells, available via BigQuery.

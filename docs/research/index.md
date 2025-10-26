@@ -145,10 +145,10 @@ See **[Contributing Guide](../contributing/index.md)** for submission guidelines
 If you use hello cloud in research, please cite:
 
 ```bibtex
-@software{hellocloud2024,
+@software{hellocloud2025,
   title={hello cloud: Research-Driven Cloud Resource Forecasting},
-  author={Echalecky, Noah},
-  year={2024},
+  author={Halecky, Nico},
+  year={2025},
   url={https://github.com/nehalecky/hello-cloud}
 }
 ```
