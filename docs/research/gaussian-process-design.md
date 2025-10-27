@@ -8,6 +8,7 @@
 
 ### **Objective**
 Build production-ready [Gaussian Process](https://docs.gpytorch.ai/) models for:
+
 - Time series forecasting with uncertainty quantification
 - Anomaly detection via prediction intervals
 - Pattern learning from operational cloud metrics
@@ -23,6 +24,7 @@ Build production-ready [Gaussian Process](https://docs.gpytorch.ai/) models for:
 
 ### **Key Challenge**
 The dataset exhibits a **two-scale periodic pattern**:
+
 - **SLOW component:** Sawtooth envelope (~1250 timesteps ≈ 21 hours)
 - **FAST component:** Sinusoidal carrier (~250 timesteps ≈ 4 hours)
 

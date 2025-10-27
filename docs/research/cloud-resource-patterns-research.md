@@ -15,6 +15,7 @@ Cloud resource utilization remains critically inefficient across the industry, w
 ### 1.1 CPU and Memory Utilization Rates
 
 Recent industry studies reveal alarmingly low resource utilization across cloud environments:
+
 - **CPU Utilization**: Only 13% of provisioned CPUs are actually utilized [^1]
 - **Memory Utilization**: Only 20% of provisioned memory is actively used [^1]
 - **Improved rates for scale**: Clusters with 1,000+ CPUs average 17% utilization [^1]
@@ -26,6 +27,7 @@ Recent industry studies reveal alarmingly low resource utilization across cloud 
 ### 1.2 Financial Impact of Waste
 
 Cloud waste represents a massive financial burden:
+
 - **32% of cloud expenditure** is wasted, equating to $225.9 billion in 2024 [^2]
 - **$135 billion** in wasted cloud resources expected in 2024 [^2]
 - **$44.5 billion** projected infrastructure waste for 2025 [^3]
@@ -138,6 +140,7 @@ For a detailed IOPS analysis example, see the [IOPS Web Server Analysis](../note
 ### 2.4 Batch Processing Workloads
 
 Batch processing exhibits unique resource signatures:
+
 - **Periodic spikes**: Regular resource usage at scheduled intervals
 - **Idle periods**: Extended low-utilization between batch runs
 - **Memory patterns**: Step-function increases during data loading
@@ -182,6 +185,7 @@ Typical daily resource consumption follows predictable cycles [^5]:
 ### 3.2 Weekly Patterns
 
 Weekly cycles show consistent trends [^5]:
+
 - **Monday surge**: 15-25% higher than weekend baseline
 - **Mid-week peak**: Tuesday-Thursday highest utilization
 - **Friday decline**: 10-15% reduction from peak
@@ -190,6 +194,7 @@ Weekly cycles show consistent trends [^5]:
 ### 3.3 Seasonal Patterns
 
 Seasonal variations impact different sectors [^5]:
+
 - **Retail peaks**: 300-500% increases during holiday seasons
 - **Tax software**: 1000% increases during filing deadlines
 - **Education platforms**: 200% increases during semester starts
@@ -317,6 +322,7 @@ Current organizational challenges in resource management [^13]:
 
 ### 6.1 Without Automation
 Average time to detect various issues manually [^13]:
+
 - **Idle resources**: 31 days to identify and eliminate
 - **Orphaned resources**: 31 days to detect and remove
 - **Over-provisioning**: 25 days to detect and rightsize
@@ -324,6 +330,7 @@ Average time to detect various issues manually [^13]:
 
 ### 6.2 With Automation and AI
 Improved detection with modern tools:
+
 - **Real-time alerts**: Immediate detection of anomalies
 - **ML-based detection**: <24 hours for pattern recognition
 - **Automated remediation**: Minutes to hours for action
@@ -396,6 +403,7 @@ For implementation of predictive scaling using time series models, see our [Gaus
 ### 8.1 Microsoft Azure RESIN Implementation
 
 Results from memory leak detection deployment [^10]:
+
 - **Period**: September 2020 - December 2023
 - **VM reboot reduction**: Nearly 100x decrease
 - **Allocation error reduction**: Over 30x decrease
@@ -408,6 +416,7 @@ Results from memory leak detection deployment [^10]:
 ### 8.2 GPU Utilization Improvements
 
 Industry achievements in GPU optimization [^8]:
+
 - **Alluxio implementation**: 99%+ GPU utilization achieved
 - **Performance gain**: 20x training performance improvement
 - **Latency reduction**: 45x faster than S3 Standard
@@ -445,6 +454,7 @@ For accurate simulations, use these baseline parameters:
 ### 9.2 Variance and Noise
 
 Add realistic variations to simulations:
+
 - **Random spikes**: ±20% random variation every 5 minutes
 - **Gradual drift**: ±5% per hour for organic growth
 - **Burst events**: 200-500% spikes lasting 1-15 minutes
@@ -453,6 +463,7 @@ Add realistic variations to simulations:
 ### 9.3 Failure Patterns
 
 Include failure scenarios:
+
 - **Memory leaks**: 0.5-2% memory growth per hour
 - **CPU pegging**: Stuck at 100% for extended periods
 - **Network issues**: 50% packet loss or 10x latency

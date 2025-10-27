@@ -19,6 +19,7 @@ Research on cloud workload patterns reveals **strong temporal correlations in re
 ### 1.2 Memory Access Correlations
 
 In SPEC CPU2017 workloads:
+
 - **~80% of applications show correlation in memory access patterns** (vs. <30% in SPEC CPU2006) [^5]
 - All correlated workloads demonstrate **Hurst parameters > 0.5**, confirming self-similarity [^5]
 - Memory access intervals at small time scales (milliseconds) follow exponential distribution
@@ -71,6 +72,7 @@ graph TB
 ```
 
 Key findings:
+
 - Time-series analysis captures temporal dependencies effectively
 - Recurring patterns link to service quality metrics
 - Service Workload Patterns (SWPs) remain relatively stable during normal operations [8]
@@ -82,6 +84,7 @@ Key findings:
 ### 2.2 Database Workloads
 
 Database systems show specific correlation patterns:
+
 - **Peak operations significantly exceed baseline loads** (specific ratios vary by workload type) [9]
 - Strong correlation between unsuccessful jobs and requested resources (CPU, memory, disk) [9]
 - Terminated tasks utilize significant cloud resources before being killed, wasting compute cycles [9]
@@ -104,6 +107,7 @@ ML workloads demonstrate unique resource patterns [3]:
 | ResNet-50 (100 epochs) | N/A | 14 days (M40) | [^12] |
 
 Key insights:
+
 - GPU compute improved 32x in 9 years vs 13x for memory bandwidth, creating bottleneck [11]
 - [NeuSight](https://arxiv.org/abs/2407.13853) framework reduces prediction error from 121.4% to 2.3% for GPT-3 latency [^12]
 
@@ -129,6 +133,7 @@ Microservices exhibit **cross-VM workload correlations** with significant perfor
 | Infrastructure Cost Reduction | 70% savings | Container-based [15] |
 
 Key metrics for microservice benchmarking [15]:
+
 - **Latency** (primary concern) - Cross-service RPC correlation critical
 - **Throughput** - Aggregate across service mesh
 - **Scalability patterns** - Service-level autoscaling dependencies
@@ -161,6 +166,7 @@ sequenceDiagram
 ```
 
 Key cascade patterns:
+
 - **CPU allocation spikes → Memory pressure (delayed response)**
 - CPU bottlenecks cause queuing, leading to subsequent memory issues
 - Network congestion correlates with later CPU spikes
@@ -180,6 +186,7 @@ Key cascade patterns:
 | GKE | 60 seconds | 2-3 minutes | Container scheduling lag |
 
 Key implications:
+
 - **Metric collection latency: 2-4 minutes** for Pub/Sub metrics
 - Metrics sampled every 60 seconds may take up to 240 seconds to become visible
 - This affects autoscaling responsiveness and anomaly detection
@@ -200,6 +207,7 @@ LSTM and RNN models effectively capture temporal dependencies [^18]:
 | Gaussian Process | High uncertainty quantification | Sparse data, periodicity |
 
 Key capabilities:
+
 - Long Short Term Memory RNN achieved MSE of 3.17×10⁻³ on web server log datasets [^18]
 - Attention-based LSTM encoder-decoder networks map historical sequences to predictions [^18]
 - esDNN addresses LSTM gradient issues using GRU-based algorithms for multivariate series [^18]
@@ -229,6 +237,7 @@ Key capabilities:
 ### 4.1 Normal Operating State
 
 During normal operations:
+
 - **Service Workload Patterns (SWPs) remain relatively stable** [8]
 - Fixed mapping exists between infrastructure input and Quality of Service metrics
 - Predictable resource consumption patterns enable proactive management
@@ -237,6 +246,7 @@ During normal operations:
 ### 4.2 Peak Load Conditions
 
 Under peak load:
+
 - **Memory becomes primary bottleneck** in co-located clusters, causing up to 46% throughput reduction [^2]
 - Unmovable allocations scattered across address space cause fragmentation (Meta datacenters) [^2]
 - CPU and disk I/O show daily cyclical correlation patterns
@@ -248,6 +258,7 @@ Under peak load:
 ### 4.3 Failure Conditions
 
 During failures [9]:
+
 - Significant correlation between unsuccessful tasks and requested resources (CPU, memory, disk)
 - Failed jobs consumed many resources before being killed, heavily wasting CPU and RAM
 - All tasks with scheduling class 3 failed in Google cluster traces
@@ -267,6 +278,7 @@ Based on [Alibaba cluster traces](https://github.com/alibaba/clusterdata) (4,000
 | Disk I/O ↔ Memory | Moderate | I/O buffer contention | Both |
 
 Key insights:
+
 - CPU and disk I/O show **daily cyclical correlation patterns**
 - Memory usage exhibits **weak correlation with CPU cycles** in co-located workloads
 - Network throughput correlates with CPU during batch processing phases
@@ -293,6 +305,7 @@ Established correlations from production systems [8]:
 | Disk I/O | <5ms latency | >20ms | Strong with CPU |
 
 Key mappings:
+
 - Optimal CPU utilization varies by workload (20-50% for latency-sensitive)
 - Memory utilization > 80% → Significant performance degradation begins
 - Network latency increases → CPU wait time increases proportionally
@@ -314,6 +327,7 @@ Multiple versions available on [GitHub](https://github.com/alibaba/clusterdata) 
 | AMTrace | - | - | Microarchitectural metrics | - |
 
 Key features:
+
 - **Size**: 270+ GB uncompressed (50 GB compressed)
 - **Contains**: DAG dependency information for offline tasks
 - **Schedulers**: Sigma (online services), Fuxi (batch jobs)
@@ -334,6 +348,7 @@ Key features:
 | Failure Patterns | Resource usage + termination causes | Structured |
 
 Key features:
+
 - **2.4 TiB compressed workload traces** from 8 Borg cells
 - Available via [BigQuery](https://console.cloud.google.com/marketplace/product/bigquery-public-data/google-cluster-data) for analysis
 - CPU usage histograms per 5-minute period

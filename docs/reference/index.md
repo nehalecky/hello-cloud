@@ -25,6 +25,7 @@ Generate realistic synthetic cloud workload data based on [empirical research](.
       show_root_full_path: true
       show_source: false
       members:
+
         - generate_time_series
 
 ::: hellocloud.generation.WorkloadType
