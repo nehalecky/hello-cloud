@@ -8,12 +8,12 @@ Comprehensive API documentation generated from Python docstrings, covering all p
 
 ## Data Generation
 
-Generate realistic synthetic cloud workload data based on empirical research. Use these classes to create time series that match real-world patterns for testing forecasting models, building demos, or training ML systems.
+Generate realistic synthetic cloud workload data based on [empirical research](../research/cloud-resource-patterns-research.md) showing 12-15% average CPU utilization and 25-35% cloud waste. Use these classes to create time series that match real-world patterns for testing forecasting models, building demos, or training ML systems.
 
 **Key capabilities:**
 
 - **20+ workload archetypes** - Web apps, databases, ML training, batch jobs, and more
-- **Research-grounded defaults** - All parameters based on published cloud infrastructure studies
+- **Research-grounded defaults** - All parameters based on [published cloud infrastructure studies](../research/cloud-resource-patterns-research.md#references)
 - **Temporal patterns** - Business hours, weekly cycles, seasonal trends
 - **Anomaly injection** - Realistic spikes, drops, and operational incidents
 
