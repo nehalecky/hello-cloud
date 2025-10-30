@@ -8,6 +8,7 @@
 
 ### **Objective**
 Build production-ready [Gaussian Process](https://docs.gpytorch.ai/) models for:
+
 - Time series forecasting with uncertainty quantification
 - Anomaly detection via prediction intervals
 - Pattern learning from operational cloud metrics
@@ -23,6 +24,7 @@ Build production-ready [Gaussian Process](https://docs.gpytorch.ai/) models for:
 
 ### **Key Challenge**
 The dataset exhibits a **two-scale periodic pattern**:
+
 - **SLOW component:** Sawtooth envelope (~1250 timesteps ≈ 21 hours)
 - **FAST component:** Sinusoidal carrier (~250 timesteps ≈ 4 hours)
 
@@ -48,7 +50,7 @@ graph TD
 
 **Design Choice:** Additive kernel structure (not multiplicative)
 
-```python title="kernels.py"
+``` python title="kernels.py"
 K(x1, x2) = K_slow(x1, x2) + K_fast(x1, x2) + K_rbf(x1, x2)
 ```
 
@@ -145,7 +147,7 @@ $$
 
 === "Training Code"
 
-    ```python title="training.py" linenums="1"
+    ``` python title="training.py" linenums="1"
     from hellocloud.ml_models.gaussian_process import train_gp_model
     import gpytorch
 
@@ -167,7 +169,7 @@ $$
 
 === "Stability Settings"
 
-    ```python title="numerical_stability.py" linenums="1"
+    ``` python title="numerical_stability.py" linenums="1"
     import gpytorch
 
     # Production-critical stability settings
@@ -227,7 +229,7 @@ A good probabilistic forecast must be BOTH accurate AND well-calibrated.
 
 **Method:** Flag anomalies as points outside 95% (or 99%) interval
 
-```python title="anomaly_detection.py"
+``` python title="anomaly_detection.py"
 from hellocloud.ml_models.gaussian_process import compute_anomaly_metrics
 
 # Detect anomalies via prediction intervals
@@ -272,7 +274,7 @@ anomaly_metrics = compute_anomaly_metrics(
 
 **Design Choice:** Checkpoint includes full state
 
-```python title="model_checkpointing.py" linenums="1"
+``` python title="model_checkpointing.py" linenums="1"
 from hellocloud.ml_models.gaussian_process import save_model, load_model
 
 # Save complete training state
@@ -321,7 +323,7 @@ model, likelihood = load_model(
 !!! example "End-to-End GP Training"
     This example demonstrates the complete workflow: inducing point initialization, model creation, training, and persistence. For interactive exploration, see the [forecasting comparison example](../../examples/07_forecasting_comparison.py).
 
-```python title="train_gp_workflow.py" linenums="1"
+``` python title="train_gp_workflow.py" linenums="1"
 from hellocloud.ml_models.gaussian_process import (
     CompositePeriodicKernel,
     SparseGPModel,
@@ -373,7 +375,7 @@ save_model(
 
 ### **6.2 Evaluation and Anomaly Detection**
 
-```python title="evaluate_gp_workflow.py" linenums="1"
+``` python title="evaluate_gp_workflow.py" linenums="1"
 from hellocloud.ml_models.gaussian_process import (
     compute_metrics,
     compute_anomaly_metrics,
@@ -519,6 +521,7 @@ uv run pytest tests/ml_models/ -v --cov=src/hellocloud/ml_models/gaussian_proces
 ## Next Steps
 
 **Production Deployment:**
+
 - [ ] Deploy model via FastAPI endpoint
 - [ ] Integrate with real-time monitoring dashboard
 - [ ] A/B test against existing anomaly detection systems
@@ -526,6 +529,7 @@ uv run pytest tests/ml_models/ -v --cov=src/hellocloud/ml_models/gaussian_proces
 - [ ] Monitor calibration drift in production
 
 **Model Enhancements:**
+
 - [ ] Explore multi-output GPs for correlated metrics (see [correlations report](cloud-resource-correlations-report.md))
 - [ ] Compare against [foundation models](opentslm-foundation-model-evaluation.md)
 - [ ] Extend to streaming/online inference

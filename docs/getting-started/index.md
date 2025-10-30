@@ -1,10 +1,14 @@
+---
+title: "Getting Started"
+---
+
 # Getting Started
 
-Welcome to **hello cloud** ☁️ - state-of-the-art time series forecasting for cloud resources, made practical.
+## The Problem
 
-## What is hello cloud?
+Cloud infrastructure operates at 12-15% CPU utilization (Alibaba 2018, Google 2011) and 18-25% memory utilization. This gap between provisioned and utilized capacity costs 25-35% of cloud spending—$225.9B wasted in 2024 (Flexera, Gartner).
 
-hello cloud is a Python library for modeling cloud resource utilization patterns, forecasting future usage, and detecting anomalies in operational metrics. Built on empirical research showing 25-35% cloud waste and surprisingly low average utilization (12-15% CPU, 18-25% memory).
+**hello cloud** applies time series analysis to this problem: forecasting resource needs, detecting anomalies, and modeling utilization patterns. The library implements Gaussian Processes, hierarchical Bayesian models, and foundation model interfaces, grounded in 35+ research papers on actual cloud behavior.
 
 ## Quick Start
 
@@ -19,36 +23,26 @@ This 15-minute tutorial demonstrates:
 - Computing summary statistics
 - Creating publication-quality visualizations
 
-## Core Capabilities
-
-- **Workload Characterization** - Generate realistic synthetic cloud metrics based on empirical patterns
-- **Time Series Forecasting** - Gaussian Processes, ARIMA, and foundation models (Chronos, TimesFM)
-- **Anomaly Detection** - Statistical and ML-based approaches for operational monitoring
-- **Hierarchical Analysis** - Model relationships across accounts, regions, services
-- **Research-Grounded** - All defaults based on published cloud infrastructure research
-
 ## Installation
 
-```bash
-# Install with uv (recommended)
-uv pip install hellocloud
-
-# Or with pip
-pip install hellocloud
-```
-
-### Optional Dependencies
+### Development Install (Recommended)
 
 ```bash
-# For foundation models (TimesFM) - x86_64 Linux/Intel Mac only
-uv pip install hellocloud[foundation]
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# For research/development
-uv pip install hellocloud[dev,research,docs]
+# Clone repository
+git clone https://github.com/nehalecky/hello-cloud.git
+cd hello-cloud
+
+# Install dependencies (editable install)
+uv sync --all-extras
 ```
+
+This installs the project in editable mode with all dependencies: development tools (pytest, ruff), documentation (mkdocs), and optional features.
 
 !!! warning "Apple Silicon Compatibility"
-    The `foundation` extra (TimesFM) is **not compatible** with Apple Silicon (ARM). It requires x86_64 architecture. All other features work on Apple Silicon.
+    The `foundation` extra (TimesFM) requires x86_64 architecture. Skip `--all-extras` and use `uv sync --extra dev --extra docs` on Apple Silicon (ARM) machines.
 
 ## Next Steps
 
@@ -84,10 +78,35 @@ graph LR
 - **`ml_models/`** - Gaussian Processes, hierarchical Bayesian, foundation models
 - **`timeseries/`** - Core time series operations and utilities
 
-## Philosophy
+## Technology Stack
 
-hello cloud embraces **research-driven defaults** - all synthetic data generation, model parameters, and anomaly thresholds are grounded in empirical studies of real cloud infrastructure. This means you can trust the defaults while still having full control when needed.
+We stand on the shoulders of giants.
 
----
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Data Processing** | [PySpark 4.0](https://spark.apache.org/docs/latest/api/python/) | Distributed DataFrames (local & scale) |
+| **Statistical Models** | [GPyTorch](https://gpytorch.ai/) | Gaussian Process time series forecasting |
+| **Probabilistic Models** | [PyMC](https://www.pymc.io/) | Bayesian hierarchical inference |
+| **Foundation Models** | [Chronos 2](https://github.com/amazon-science/chronos-forecasting), [TimesFM 2.5](https://github.com/google-research/timesfm) | Pre-trained forecasters (optional) |
+| **Notebooks** | [Jupyter](https://jupyter.org/) + [MyST](https://myst-parser.readthedocs.io/) | Interactive research workflows |
+| **Documentation** | [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) | Live docs with API reference |
 
-Ready to dive in? Start with the **[TimeSeries Quickstart](../notebooks/06_quickstart_timeseries_loader.ipynb)**!
+## Project Structure
+
+```
+hello-cloud/
+├── src/hellocloud/         # Source code
+│   ├── io/                 # Data loaders (PiedPiperLoader, etc.)
+│   ├── timeseries/         # TimeSeries core classes
+│   ├── data_generation/    # Synthetic workload patterns
+│   ├── ml_models/          # GP, PyMC, foundation models
+│   ├── analysis/           # EDA utilities
+│   └── transforms/         # PySpark transforms
+├── notebooks/              # MyST markdown notebooks
+├── docs/                   # MkDocs documentation source
+│   ├── notebooks/          # Published .ipynb (executed)
+│   ├── research/           # Research reports
+│   └── reference/          # API docs (auto-generated)
+├── tests/                  # Test suite (92% coverage on GP)
+└── examples/published/     # Colab-ready notebooks
+```

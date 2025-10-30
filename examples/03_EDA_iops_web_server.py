@@ -27,6 +27,8 @@
 # %% [markdown]
 # # IOPS Web Server Time Series: Exploratory Data Analysis
 #
+# [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/examples/published/03_EDA_iops_web_server.ipynb)
+#
 # ## Overview and Objectives
 #
 # This notebook performs comprehensive exploratory data analysis on the **IOPS dataset** from the [TSB-UAD benchmark](https://github.com/TheDatumOrg/TSB-UAD), available via [AutonLab/Timeseries-PILE](https://huggingface.co/datasets/AutonLab/Timeseries-PILE) on HuggingFace.

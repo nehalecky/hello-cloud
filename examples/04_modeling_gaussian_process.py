@@ -18,6 +18,8 @@
 # %% [markdown]
 # # Gaussian Process Modeling for IOPS Web Server KPI
 #
+# [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nehalecky/hello-cloud/blob/master/examples/published/04_modeling_gaussian_process.ipynb)
+#
 # **Objective:** Build a robust Gaussian Process model for operational time series forecasting and anomaly detection using GPyTorch with sparse variational approximations.
 #
 # **Key Innovation:** Student-t likelihood + composite periodic kernels trained on ALL data (including anomalies) for production-ready robustness.

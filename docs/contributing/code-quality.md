@@ -61,6 +61,7 @@ uv run ruff check --fix src/ tests/
 [Pre-commit](https://pre-commit.com/) automatically runs quality checks before each commit.
 
 **Configuration** (`.pre-commit-config.yaml`):
+
 - Black formatting
 - Ruff linting
 - Basic file checks (trailing whitespace, YAML/TOML validation, etc.)
@@ -108,6 +109,7 @@ just install
 ```
 
 This will:
+
 1. Install all Python dependencies
 2. Install documentation dependencies
 3. Set up pre-commit hooks
@@ -115,11 +117,13 @@ This will:
 ### Pre-commit Hooks (Automatic)
 
 Once installed, pre-commit hooks run automatically on `git commit`:
+
 1. Black formats staged files
 2. Ruff checks and fixes staged files
 3. Basic file checks run (trailing whitespace, etc.)
 
 If hooks fail:
+
 - Staged files are modified to fix issues
 - Commit is aborted
 - Review changes with `git diff`
@@ -171,6 +175,7 @@ def foo() -> dict[str, list[int]]:
 
 ### Issue: Black and Ruff conflict
 **Solution**: Black and Ruff are designed to work together. Our configuration ensures compatibility:
+
 - Both use 100-character line length
 - Ruff's E501 (line too long) is ignored (Black handles it)
 - Run black first, then ruff: `just fix`
@@ -186,6 +191,7 @@ just pre-commit
 
 ### Issue: Complex code quality issues
 Some Ruff warnings require manual intervention:
+
 - **C901**: Function too complex → Refactor into smaller functions
 - **B007**: Unused loop variable → Rename to `_variable` if intentionally unused
 - **F841**: Unused variable → Remove or prefix with `_` if needed for unpacking
@@ -218,12 +224,14 @@ Keep local code quality high to avoid CI failures!
 ## Philosophy
 
 **Code quality is automatic, not optional**:
+
 1. Pre-commit hooks catch issues before they're committed
 2. CI enforces quality standards
 3. Tools auto-fix 90% of issues
 4. Manual intervention only needed for complex refactoring
 
 **Benefits**:
+
 - Consistent code style across the project
 - Fewer code review comments about style
 - Modern Python idioms enforced automatically

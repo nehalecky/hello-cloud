@@ -66,7 +66,6 @@ just lint-fix   # Auto-fix ruff issues
 
 - **Questions**: [GitHub Discussions](https://github.com/nehalecky/hello-cloud/discussions)
 - **Bugs**: [GitHub Issues](https://github.com/nehalecky/hello-cloud/issues)
-- **Security**: Email maintainers directly
 
 ## Detailed Contributing Guide
 
