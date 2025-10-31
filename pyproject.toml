@@ -141,9 +141,10 @@ docs = [
 notebook_metadata_filter = "jupytext,kernelspec,language_info,-widgets,-toc"
 cell_metadata_filter = "-all"
 
-[tool.jupytext.formats]
-"notebooks/" = "md:myst"
-"notebooks/_build/" = "ipynb"
+# [tool.jupytext.formats]
+# Not currently used - notebooks are Python percent format in examples/
+# "examples/" = "py:percent"
+# "examples/published/" = "ipynb"
 
 [tool.ruff]
 line-length = 100
