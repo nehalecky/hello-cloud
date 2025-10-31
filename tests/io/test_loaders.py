@@ -39,14 +39,16 @@ class TestPiedPiperLoader:
 
         ts = PiedPiperLoader.load(
             df,
-            hierarchy=["cloud_provider"],
+            hierarchy=["provider"],  # Use renamed column name
             drop_cols=[],  # Don't drop anything for this test
         )
 
         assert "date" in ts.df.columns
         assert "cost" in ts.df.columns
+        assert "provider" in ts.df.columns
         assert "usage_date" not in ts.df.columns
         assert "materialized_cost" not in ts.df.columns
+        assert "cloud_provider" not in ts.df.columns
 
     def test_load_drops_low_info_columns(self, spark):
         """Should drop UUID and redundant cost columns."""
@@ -66,7 +68,7 @@ class TestPiedPiperLoader:
             ],
         )
 
-        ts = PiedPiperLoader.load(df, hierarchy=["cloud_provider"])
+        ts = PiedPiperLoader.load(df, hierarchy=["provider"])  # Use renamed column name
 
         # Should drop redundant cost columns
         assert "materialized_discounted_cost" not in ts.df.columns
@@ -97,12 +99,13 @@ class TestPiedPiperLoader:
 
         ts = PiedPiperLoader.load(df)
 
+        # Hierarchy uses renamed column names
         assert ts.hierarchy == [
-            "cloud_provider",
-            "cloud_account_id",
+            "provider",
+            "account",
             "region",
-            "product_family",
-            "usage_type",
+            "product",
+            "usage",
         ]
 
     def test_load_accepts_custom_hierarchy(self, spark):
@@ -114,6 +117,7 @@ class TestPiedPiperLoader:
             ["usage_date", "cloud_provider", "cloud_account_id", "materialized_cost"],
         )
 
-        ts = PiedPiperLoader.load(df, hierarchy=["cloud_provider", "cloud_account_id"])
+        # Use renamed column names in hierarchy
+        ts = PiedPiperLoader.load(df, hierarchy=["provider", "account"])
 
-        assert ts.hierarchy == ["cloud_provider", "cloud_account_id"]
+        assert ts.hierarchy == ["provider", "account"]
