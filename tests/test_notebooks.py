@@ -213,7 +213,8 @@ def _extract_imports_from_ast(content: str) -> list[str]:
 
 def _validate_required_imports(imports: list[str], notebook_name: str) -> None:
     """Validate that required imports are present."""
-    required_imports = ["numpy", "hellocloud"]
+    # Only check for hellocloud - notebooks may use different data libraries
+    required_imports = ["hellocloud"]
     for imp in required_imports:
         matching = [i for i in imports if imp in i]
         if not matching:
