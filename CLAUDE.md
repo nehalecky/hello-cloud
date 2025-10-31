@@ -126,11 +126,11 @@ uv run pytest tests/test_notebooks.py -k "execution_success" -v
 ```
 
 ### Notebook Architecture
-All notebooks use **MyST format**:
-- **Source**: `notebooks/*.md` - Clean MyST markdown (git-friendly, version controlled)
-- **Generated**: `notebooks/_build/*.ipynb` - Converted notebooks (gitignored, recreated from .md)
-- **Jupytext**: Handles `.md` ↔ `.ipynb` conversion automatically via `jupytext.toml`
-- **Kernel**: All notebooks use `cloud-sim` kernel (configured in YAML frontmatter)
+All notebooks use **Python percent format**:
+- **Source**: `examples/*.py` - Python percent format (git-friendly, executable as scripts)
+- **Published**: `examples/published/*.ipynb` - Executed notebooks with outputs (for documentation)
+- **Documentation**: `docs/notebooks/` symlinks to `examples/published/` for MkDocs
+- **CI**: Executes notebooks → generates .ipynb → builds docs
 
 ## Architecture Overview
 

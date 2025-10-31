@@ -17,7 +17,7 @@
 
 ## Overview
 
-**`hellocloud`** 👋☁️ is a project and Python library for cloud (data center) cost and resource use analysis, forecasting, and anomaly detection. It includes literature review, conceptual foundations, exporatory data analysis and a bit of modeling using time series foundation models (TSFMs), all supported by a dedicated and a dedicated library. 👋 `hellocloud`!.
+**`hellocloud`** 👋☁️ is a Python library for cloud resource (i.e., data center) cost and resource use analysis, forecasting, and anomaly detection. It includes literature review, conceptual foundations, exporatory data analysis and a bit of modeling using time series foundation models (TSFMs), all wrapped in a dedicated library. 👋 `hellocloud`!.
 
 ## Installation
 

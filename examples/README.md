@@ -16,6 +16,29 @@ This directory contains interactive tutorial notebooks that demonstrate the capa
 - **[Gaussian Process Modeling](published/04_modeling_gaussian_process.ipynb)** - Time series forecasting with sparse variational Gaussian processes (GPyTorch)
 - **[Forecasting Comparison](published/07_forecasting_comparison.ipynb)** - Comparing multiple forecasting approaches including foundation models
 
+## 📦 Dependencies by Notebook
+
+| Notebook | Status | Dependencies Required |
+|----------|--------|----------------------|
+| 02_guide_workload_signatures_guide.py | ✅ Working | (base) |
+| 03_EDA_iops_web_server.py | ✅ Working | `--extra research` for statsmodels |
+| 04_modeling_gaussian_process.py | ⚠️ Skipped | `--extra gpu` (Python 3.12 only) |
+| 05_EDA_piedpiper_data.py | ✅ Working | (base) |
+| 06_quickstart_timeseries_loader.py | ✅ Working | (base) |
+| 07_forecasting_comparison.py | ✅ Working | (base) |
+
+**Installation by need:**
+```bash
+# Most notebooks (base installation)
+uv sync
+
+# Notebook 03 (statistical analysis)
+uv sync --extra research
+
+# Notebook 04 (NOT compatible with Python 3.14+)
+uv sync --extra gpu  # Requires Python 3.12
+```
+
 ## 🔍 Viewing Notebooks
 
 ### On GitHub
