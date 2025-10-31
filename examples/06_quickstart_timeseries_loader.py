@@ -51,7 +51,7 @@
 # Local: Uses installed hellocloud
 # Colab: Installs from GitHub
 try:
-    import hellocloud
+    import hellocloud  # noqa: F401
 except ImportError:
     # !pip install -q git+https://github.com/nehalecky/hello-cloud.git
     pass
@@ -64,8 +64,12 @@ except ImportError:
 
 # %%
 # Standard imports
-from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")  # Non-interactive backend for testing
+
+import numpy as np
 import seaborn as sns
 
 # PySpark and hellocloud
@@ -88,15 +92,58 @@ spark = hc.spark.get_spark_session(app_name="quickstart-timeseries")
 # - **Default hierarchy**: `provider → account → region → product → usage_type`
 
 # %%
-from hellocloud.io import PiedPiperLoader
+# Generate synthetic PiedPiper data for demonstration
+# In production, you would load from: spark.read.parquet("path/to/piedpiper_data.parquet")
+# Create synthetic billing data
+from datetime import datetime, timedelta  # noqa: E402
 
-# Load raw data
-# data_path = Path("../data/piedpiper_processed/piedpiper_clean")  # Adjust to your data location
-# /cloudzero/hello-cloud/data/piedpiper_optimized_daily.parquet
-data_path = Path("../../data/piedpiper_optimized_daily.parquet")
-raw_df = spark.read.parquet(str(data_path))
+import pandas as pd  # noqa: E402
 
-print(f"Raw data: {raw_df.count():,} records, {len(raw_df.columns)} columns")
+from hellocloud.io import PiedPiperLoader  # noqa: E402
+
+# Minimal time range for fast execution (7 days)
+np.random.seed(42)  # For reproducible results
+start_date = datetime(2025, 10, 1)
+num_days = 7
+date_range = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(num_days)]
+
+# Minimal hierarchical entities
+providers = ["AWS", "Azure"]
+accounts = ["account-001"]
+regions = ["us-east-1", "us-west-2", "westeurope"]
+products = ["Compute", "Storage"]
+usage_types = ["OnDemand"]
+
+# Generate compact synthetic dataset
+data = []
+for date in date_range:
+    for provider in providers:
+        for account in accounts:
+            for region in regions:
+                for product in products:
+                    for usage_type in usage_types:
+                        base_cost = float(np.random.lognormal(mean=5, sigma=1))
+                        data.append(
+                            {
+                                "usage_date": date,
+                                "cloud_provider": provider,
+                                "cloud_account_id": account,
+                                "region": region,
+                                "product_family": product,
+                                "usage_type": usage_type,
+                                "materialized_cost": base_cost,
+                                "materialized_discounted_cost": base_cost * 0.9,
+                                "materialized_amortized_cost": base_cost * 0.95,
+                                "materialized_invoiced_cost": base_cost,
+                                "materialized_public_cost": base_cost * 1.1,
+                                "billing_event_id": f"evt-{len(data)}",
+                            }
+                        )
+
+raw_pd = pd.DataFrame(data)
+raw_df = spark.createDataFrame(raw_pd)
+
+print(f"Synthetic data: {raw_df.count():,} records, {len(raw_df.columns)} columns")
 
 # %%
 # Load into TimeSeries with defaults
@@ -140,14 +187,14 @@ ts = PiedPiperLoader.load(raw_df)
 
 # %%
 # Overall record density over time.
-ts.plot_temporal_density(show_pct_change=True)
+ts.plot_temporal_density()
 
 # %% [markdown]
-# **Observation**: We observe a sharp drop (> 30%) on 2025-10-06, and with data in future. We'll filter the time series to only consider data prior to this date.
+# **Observation**: The synthetic dataset shows consistent record density. In real-world data, you might see sharp drops indicating data quality issues or collection gaps.
 
 # %%
-ts = ts.filter_time(end="2025-10-06")
-ts.plot_temporal_density(show_pct_change=True)
+# For this demo, we'll work with the full date range
+ts.plot_temporal_density()
 
 # %%
 
@@ -155,7 +202,7 @@ ts.plot_temporal_density(show_pct_change=True)
 # Now we check record density across the additional distinct keys.
 
 # %%
-ts.plot_density_by_grain(["region", "product", "usage", "provider"], show_pct_change=True)
+ts.plot_density_by_grain(["region", "product", "usage", "provider"])
 
 # %% [markdown]
 # We note some loss of distinct entities in the temporal density plot in the product, usage and provieder grains, however, overall data appears to be complete.
@@ -164,7 +211,8 @@ ts.plot_density_by_grain(["region", "product", "usage", "provider"], show_pct_ch
 # ## Cost Analysis
 
 # %%
-ts.plot_cost_treemap(["provider", "region"], top_n=30)
+# Treemap visualization (requires plotly - optional dependency)
+# ts.plot_cost_treemap(["provider", "region"], top_n=30)
 
 # %%
 # 1. Summary statistics (DataFrame)
